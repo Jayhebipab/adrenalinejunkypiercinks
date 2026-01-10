@@ -1,22 +1,31 @@
 import { MongoClient } from "mongodb";
 import { NextResponse } from "next/server";
 
-const uri = process.env.MONGODB_URI!;
-const client = new MongoClient(uri);
+// Kunin ang URI mula sa .env
+const uri = process.env.MONGODB_URI;
 
-async function getCollection() {
-  await client.connect();
-  // Ito ang database name at collection name mo
-  const db = client.db("adrenalinjunkypiercinks");
-  return db.collection("galleries");
+// Gumawa ng variable para sa client pero huwag muna i-initialize
+let client: MongoClient | null = null;
+
+async function getClient() {
+  if (!uri) {
+    throw new Error("MONGODB_URI is not defined in environment variables");
+  }
+  if (!client) {
+    client = new MongoClient(uri);
+  }
+  return client;
 }
 
 export async function GET() {
   try {
-    const collection = await getCollection();
-    const photos = await collection.find({}).sort({ createdAt: -1 }).toArray();
+    const mongoClient = await getClient();
+    await mongoClient.connect();
+    const db = mongoClient.db("adrenalinjunkypiercinks");
+    const photos = await db.collection("gallery").find({}).sort({ createdAt: -1 }).toArray();
     return NextResponse.json(photos);
   } catch (error: any) {
+    console.error("Database error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
@@ -24,14 +33,13 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const { image } = await req.json();
-    if (!image) return NextResponse.json({ error: "No image" }, { status: 400 });
-
-    const collection = await getCollection();
-    const result = await collection.insertOne({
+    const mongoClient = await getClient();
+    await mongoClient.connect();
+    const db = mongoClient.db("adrenalinjunkypiercinks");
+    const result = await db.collection("gallery").insertOne({
       image,
       createdAt: new Date()
     });
-
     return NextResponse.json(result, { status: 201 });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
