@@ -1,4 +1,4 @@
-import { MongoClient, ObjectId } from "mongodb"; // Idinagdag ang ObjectId
+import { MongoClient, ObjectId } from "mongodb";
 import { NextResponse } from "next/server";
 
 const uri = process.env.MONGODB_URI;
@@ -10,31 +10,31 @@ async function getClient() {
   return client;
 }
 
-// 1. GET: Kunin lahat ng photos
+// GET: Kunin lahat ng tattoos
 export async function GET() {
   try {
     const mongoClient = await getClient();
     await mongoClient.connect();
     const db = mongoClient.db("adrenalinjunkypiercinks");
-    const photos = await db.collection("gallery").find({}).sort({ createdAt: -1 }).toArray();
-    return NextResponse.json(photos);
+    const tattoos = await db.collection("tattoos").find({}).sort({ createdAt: -1 }).toArray();
+    return NextResponse.json(tattoos);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
-// 2. POST: Mag-save ng image, category, at placement
+// POST: Mag-save ng bagong tattoo
 export async function POST(req: Request) {
   try {
-    const { image, category, placement } = await req.json();
+    const { image, placement, category } = await req.json();
     const mongoClient = await getClient();
     await mongoClient.connect();
     const db = mongoClient.db("adrenalinjunkypiercinks");
 
-    const result = await db.collection("gallery").insertOne({
+    const result = await db.collection("tattoos").insertOne({
       image,
-      category,
       placement,
+      category,
       createdAt: new Date()
     });
 
@@ -44,28 +44,16 @@ export async function POST(req: Request) {
   }
 }
 
-// 3. DELETE: Burahin ang image gamit ang ID
+// DELETE: Magbura ng tattoo gamit ang ID
 export async function DELETE(req: Request) {
   try {
-    const { id } = await req.json(); // Kinukuha ang ID mula sa frontend request body
-    
-    if (!id) {
-      return NextResponse.json({ error: "Missing ID" }, { status: 400 });
-    }
-
+    const { id } = await req.json();
     const mongoClient = await getClient();
     await mongoClient.connect();
     const db = mongoClient.db("adrenalinjunkypiercinks");
 
-    const result = await db.collection("gallery").deleteOne({ 
-      _id: new ObjectId(id) 
-    });
-
-    if (result.deletedCount === 1) {
-      return NextResponse.json({ message: "Successfully deleted!" }, { status: 200 });
-    } else {
-      return NextResponse.json({ error: "Image not found" }, { status: 404 });
-    }
+    await db.collection("tattoos").deleteOne({ _id: new ObjectId(id) });
+    return NextResponse.json({ message: "Deleted successfully" });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

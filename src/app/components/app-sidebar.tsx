@@ -66,6 +66,10 @@ const data = {
             icon: Wrench,
             items: [
                 { title: "Inventory", id: "Inventory" },
+                { title: "Product Management", id: "Product Management" },
+                { title: "Category", id: "Category" },
+                { title: "Equipment", id: "Equipment" },
+                { title: "Supplier", id: "Supplier" },
                 { title: "User Management", id: "User Management" },
             ],
         },
@@ -74,7 +78,11 @@ const data = {
             icon: BarChart3,
             items: [
                 { title: "Sales Reports", id: "Sales Reports" },
+                { title: "Delivery Reports", id: "Delivery Reports" },
+                { title: "Stock Reports", id: "Stock Reports" },
                 { title: "Audit Trail", id: "Audit Trail" },
+                { title: "Activity Logs", id: "Activity Logs" },
+
             ],
         },
     ],
