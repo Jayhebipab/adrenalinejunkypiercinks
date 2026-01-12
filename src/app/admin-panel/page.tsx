@@ -57,12 +57,12 @@ export default function AdminPanelPage() {
       case "Piercing Gallery": return <PiercingGallery />
       
       // Maintenance
-      case "Inventory": return <Inventory />
       case "User Management": return <UserManagement />
       case "Category": return <CategoryManagement />
        case "Product Management": return <ProductManagement />
         case "Supplier": return <SupplierMaintenance />
         case "Equipment": return <EquipmentManagement />
+         case "Inventory": return <Inventory/>
       // Reports
       case "Sales Reports": return <SalesReports />
       

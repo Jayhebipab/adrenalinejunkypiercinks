@@ -3,7 +3,7 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import {
     Trash2, Edit3, Search, RotateCcw, Plus, X,
-    Loader2, Package, Tag, ImageIcon, UploadCloud
+    Loader2, Package, Tag, ImageIcon, UploadCloud, Filter, ChevronDown
 } from "lucide-react"
 import { Toaster, toast } from "sonner"
 
@@ -18,17 +18,16 @@ interface Product {
 
 interface Category {
     _id: string;
-    category_name: string; // Dapat saktong ganito ang spelling
+    category_name: string;
     createdAt?: string;
 }
-
-
 
 export default function ProductManagement() {
     // --- STATES ---
     const [products, setProducts] = useState<Product[]>([]);
     const [categories, setCategories] = useState<Category[]>([]);
     const [search, setSearch] = useState("");
+    const [selectedCategory, setSelectedCategory] = useState("All");
     const [fetching, setFetching] = useState(true);
 
     const [isAddOpen, setIsAddOpen] = useState(false);
@@ -42,7 +41,7 @@ export default function ProductManagement() {
         image: ""
     });
 
-    // --- 1. FETCH DATA (Products & Categories) ---
+    // --- FETCH DATA ---
     const fetchData = async () => {
         setFetching(true);
         try {
@@ -62,11 +61,9 @@ export default function ProductManagement() {
         }
     };
 
-    useEffect(() => {
-        fetchData();
-    }, []);
+    useEffect(() => { fetchData(); }, []);
 
-    // --- 2. IMAGE HANDLER (Base64) ---
+    // --- IMAGE HANDLER ---
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>, mode: 'add' | 'edit') => {
         const file = e.target.files?.[0];
         if (file) {
@@ -80,7 +77,7 @@ export default function ProductManagement() {
         }
     };
 
-    // --- 3. ACTIONS (Add, Update, Delete) ---
+    // --- ACTIONS ---
     const handleAdd = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!formData.name || !formData.category || !formData.cost_price) {
@@ -131,8 +128,7 @@ export default function ProductManagement() {
     };
 
     const handleDelete = async (id: string, name: string) => {
-        if (!confirm(`Delete ${name}? This cannot be undone.`)) return;
-
+        if (!confirm(`Delete ${name}?`)) return;
         toast.promise(async () => {
             const res = await fetch("/api/products", {
                 method: "DELETE",
@@ -148,96 +144,129 @@ export default function ProductManagement() {
         });
     };
 
-    const filteredProducts = products.filter(p =>
-        p.name.toLowerCase().includes(search.toLowerCase()) ||
-        p.category.toLowerCase().includes(search.toLowerCase())
-    );
+    // --- FILTER LOGIC ---
+    const filteredProducts = products.filter(p => {
+        const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
+        const matchesCategory = selectedCategory === "All" || p.category === selectedCategory;
+        return matchesSearch && matchesCategory;
+    });
 
     return (
-        <div className="p-4 md:p-8 bg-gray-50 min-h-screen text-slate-900 font-sans">
+        <div className="p-4 md:p-8 bg-zinc-50 min-h-screen text-black font-sans">
             <Toaster position="top-right" richColors />
 
             <div className="max-w-6xl mx-auto space-y-6">
+                
                 {/* HEADER SECTION */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-4xl shadow-sm border border-zinc-100">
                     <div className="flex items-center gap-4">
-                        <div className="p-3 bg-blue-600 rounded-2xl shadow-lg shadow-blue-200">
+                        <div className="p-3 bg-black rounded-2xl shadow-xl">
                             <Package className="text-white w-8 h-8" />
                         </div>
                         <div>
-                            <h1 className="text-3xl font-black tracking-tight">Products</h1>
-                            <p className="text-slate-500 text-sm">Inventory & Stock Control</p>
+                            <h1 className="text-4xl font-black tracking-tighter uppercase italic text-black leading-none">Tattoo Works</h1>
+                            <p className="text-zinc-400 text-[10px] font-black uppercase tracking-[0.3em] mt-1">Inventory Management</p>
                         </div>
                     </div>
-                    <Button onClick={() => setIsAddOpen(true)} className="bg-slate-900 hover:bg-black text-white rounded-2xl h-14 px-8 shadow-xl transition-all">
+                    <Button onClick={() => setIsAddOpen(true)} className="bg-black hover:bg-zinc-800 text-white rounded-2xl h-14 px-8 font-black uppercase text-xs tracking-widest transition-all active:scale-95 shadow-2xl">
                         <Plus className="w-5 h-5 mr-2" /> Add Product
                     </Button>
                 </div>
 
-                {/* SEARCH BAR */}
-                <div className="bg-white p-2 rounded-3xl shadow-sm border border-gray-100 flex items-center">
-                    <div className="relative flex-1">
-                        <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                        <input
-                            type="text"
-                            placeholder="Search items or categories..."
-                            className="w-full bg-transparent border-none rounded-2xl px-6 py-5 pl-14 outline-none text-lg"
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                        />
+                {/* SEARCH & FILTER BAR */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="md:col-span-3 bg-white p-2 rounded-3xl shadow-sm border border-zinc-100 flex items-center">
+                        <div className="relative flex-1">
+                            <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" />
+                            <input
+                                type="text"
+                                placeholder="Search by product name..."
+                                className="w-full bg-transparent border-none px-6 py-4 pl-14 outline-none text-lg font-bold placeholder:text-zinc-300"
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                            />
+                        </div>
+                        {search && (
+                            <Button onClick={() => setSearch("")} variant="ghost" className="rounded-2xl h-12 px-4 mr-2">
+                                <RotateCcw className="w-4 h-4" />
+                            </Button>
+                        )}
                     </div>
-                    <Button onClick={() => setSearch("")} variant="ghost" className="rounded-2xl h-14 px-6 mr-2">
-                        <RotateCcw className="w-4 h-4" />
-                    </Button>
+
+                    <div className="relative bg-white p-2 rounded-3xl shadow-sm border border-zinc-100 flex items-center px-4 group">
+                        <Filter className="w-5 h-5 text-zinc-400 mr-3" />
+                        <select 
+                            className="w-full bg-transparent outline-none font-black uppercase text-[10px] tracking-widest cursor-pointer appearance-none pr-8"
+                            value={selectedCategory}
+                            onChange={(e) => setSelectedCategory(e.target.value)}
+                        >
+                            <option value="All">All Categories</option>
+                            {categories.map(cat => (
+                                <option key={cat._id} value={cat.category_name}>{cat.category_name}</option>
+                            ))}
+                        </select>
+                        <ChevronDown className="absolute right-6 w-4 h-4 text-zinc-400 pointer-events-none group-hover:text-black transition-colors" />
+                    </div>
                 </div>
 
                 {/* MAIN TABLE */}
-                <div className="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden">
+                <div className="bg-white rounded-[2.5rem] shadow-sm border border-zinc-100 overflow-hidden">
                     <table className="w-full text-left border-collapse">
                         <thead>
-                            <tr className="bg-slate-50 border-b border-gray-100 text-slate-400 uppercase text-[10px] font-black tracking-[0.2em]">
-                                <th className="px-8 py-6">Product Details</th>
+                            <tr className="bg-zinc-50 border-b border-zinc-100 text-zinc-400 uppercase text-[10px] font-black tracking-[0.2em]">
+                                <th className="px-8 py-6">Item Details</th>
                                 <th className="px-8 py-6">Category</th>
                                 <th className="px-8 py-6">Cost Price</th>
-                                <th className="px-8 py-6 text-right">Actions</th>
+                                <th className="px-8 py-6 text-right">Action</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-50">
+                        <tbody className="divide-y divide-zinc-50">
                             {fetching ? (
-                                <tr><td colSpan={4} className="py-20 text-center"><Loader2 className="animate-spin mx-auto text-blue-500 w-10 h-10" /></td></tr>
-                            ) : filteredProducts.map((prod) => (
-                                <tr key={prod._id} className="group hover:bg-slate-50/50 transition-all">
-                                    <td className="px-8 py-5">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-16 h-16 rounded-2xl bg-gray-100 border border-gray-200 overflow-hidden shrink-0 shadow-inner">
-                                                {prod.image ? (
-                                                    <img src={prod.image} className="w-full h-full object-cover" alt={prod.name} />
-                                                ) : (
-                                                    <ImageIcon className="w-full h-full p-4 text-gray-300" />
-                                                )}
+                                <tr><td colSpan={4} className="py-20 text-center"><Loader2 className="animate-spin mx-auto text-black w-10 h-10" /></td></tr>
+                            ) : filteredProducts.length > 0 ? (
+                                filteredProducts.map((prod) => (
+                                    <tr key={prod._id} className="group hover:bg-zinc-50/50 transition-all">
+                                        <td className="px-8 py-5">
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-16 h-16 rounded-2xl bg-zinc-100 border border-zinc-200 overflow-hidden shrink-0 shadow-inner">
+                                                    {prod.image ? (
+                                                        <img src={prod.image} className="w-full h-full object-cover" alt={prod.name} />
+                                                    ) : (
+                                                        <ImageIcon className="w-full h-full p-4 text-zinc-300" />
+                                                    )}
+                                                </div>
+                                                <div>
+                                                    <span className="font-black text-black text-lg block leading-none mb-1 uppercase tracking-tighter italic">{prod.name}</span>
+                                                    <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Product ID: {prod._id.slice(-6)}</span>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <span className="font-black text-slate-800 text-lg block leading-none mb-1 uppercase tracking-tight">{prod.name}</span>
-                                                <span className="text-[10px] font-bold text-blue-500 uppercase tracking-widest bg-blue-50 px-2 py-0.5 rounded">Verified Stock</span>
+                                        </td>
+                                        <td className="px-8 py-5">
+                                            <span className="inline-flex items-center gap-1.5 py-1.5 px-3 rounded-xl bg-zinc-100 text-black text-[10px] font-black uppercase tracking-widest border border-zinc-200">
+                                                <Tag className="w-3 h-3 text-zinc-400" /> {prod.category}
+                                            </span>
+                                        </td>
+                                        <td className="px-8 py-5 text-xl font-black text-black italic">
+                                            ₱{Number(prod.cost_price).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                        </td>
+                                        <td className="px-8 py-5 text-right">
+                                            <div className="flex justify-end gap-2">
+                                                <Button onClick={() => { setCurrentProduct(prod); setIsEditOpen(true); }} size="sm" variant="ghost" className="rounded-xl hover:bg-zinc-100 text-black border border-transparent hover:border-zinc-200 transition-all"><Edit3 className="w-5 h-5" /></Button>
+                                                <Button onClick={() => handleDelete(prod._id, prod.name)} size="sm" variant="ghost" className="rounded-xl hover:bg-red-50 text-red-600 transition-all"><Trash2 className="w-5 h-5" /></Button>
                                             </div>
-                                        </div>
-                                    </td>
-                                    <td className="px-8 py-5">
-                                        <span className="inline-flex items-center gap-1.5 py-1 px-3 rounded-lg bg-slate-100 text-slate-600 text-xs font-bold uppercase">
-                                            <Tag className="w-3 h-3" /> {prod.category}
-                                        </span>
-                                    </td>
-                                    <td className="px-8 py-5 text-lg font-black text-slate-900">
-                                        ₱{Number(prod.cost_price).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                    </td>
-                                    <td className="px-8 py-5 text-right">
-                                        <div className="flex justify-end gap-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
-                                            <Button onClick={() => { setCurrentProduct(prod); setIsEditOpen(true); }} size="sm" variant="ghost" className="rounded-xl hover:bg-amber-50 text-amber-600"><Edit3 className="w-5 h-5" /></Button>
-                                            <Button onClick={() => handleDelete(prod._id, prod.name)} size="sm" variant="ghost" className="rounded-xl hover:bg-red-50 text-red-600"><Trash2 className="w-5 h-5" /></Button>
+                                        </td>
+                                    </tr>
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colSpan={4} className="py-24 text-center">
+                                        <div className="flex flex-col items-center gap-2">
+                                            <Package className="w-12 h-12 text-zinc-100" />
+                                            <p className="font-black text-zinc-300 uppercase text-xs tracking-[0.2em]">No Items found in this category</p>
                                         </div>
                                     </td>
                                 </tr>
-                            ))}
+                            )}
                         </tbody>
                     </table>
                 </div>
@@ -245,63 +274,48 @@ export default function ProductManagement() {
 
             {/* --- ADD MODAL --- */}
             {isAddOpen && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-[3rem] shadow-2xl w-full max-w-xl p-10 animate-in zoom-in duration-300 relative max-h-[90vh] overflow-y-auto">
-                        <h2 className="text-3xl font-black mb-8 tracking-tighter">New Item</h2>
-                        <form onSubmit={handleAdd} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="col-span-full">
-                                <label className="relative group cursor-pointer block border-4 border-dashed border-gray-100 hover:border-blue-400 rounded-4xl p-4 transition-all text-center">
-                                    <input type="file" className="hidden" accept="image/*" onChange={(e) => handleImageChange(e, 'add')} />
-                                    {formData.image ? (
-                                        <img src={formData.image} className="h-40 mx-auto rounded-2xl object-cover" alt="Preview" />
-                                    ) : (
-                                        <div className="py-8">
-                                            <UploadCloud className="w-12 h-12 mx-auto text-gray-300 group-hover:text-blue-500 mb-2" />
-                                            <p className="text-sm font-bold text-gray-400">Upload Product Photo</p>
-                                        </div>
-                                    )}
-                                </label>
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-xs font-black uppercase text-slate-400 ml-2 tracking-widest">Product Name</label>
-                                <input type="text" className="w-full bg-gray-50 rounded-2xl px-6 py-4 outline-none focus:ring-2 ring-blue-500" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} />
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-xs font-black uppercase text-slate-400 ml-2 tracking-widest">Category</label>
-                                <select
-                                    className="w-full bg-gray-50 rounded-2xl px-6 py-4 outline-none focus:ring-2 ring-blue-500 appearance-none cursor-pointer text-slate-900"
-                                    value={isAddOpen ? formData.category : currentProduct?.category || ""}
-                                    onChange={(e) => {
-                                        const val = e.target.value;
-                                        if (isAddOpen) {
-                                            setFormData({ ...formData, category: val });
-                                        } else if (currentProduct) {
-                                            setCurrentProduct({ ...currentProduct, category: val });
-                                        }
-                                    }}
-                                >
-                                    <option value="" className="text-slate-400">-- Pili ng Category --</option>
+                        <div className="flex justify-between items-center mb-8">
+                            <h2 className="text-3xl font-black tracking-tighter uppercase italic">Register Item</h2>
+                            <button onClick={() => setIsAddOpen(false)} className="p-2 hover:bg-zinc-100 rounded-full transition-colors"><X className="w-6 h-6" /></button>
+                        </div>
+                        <form onSubmit={handleAdd} className="space-y-6">
+                            <label className="relative group cursor-pointer block border-4 border-dashed border-zinc-100 hover:border-black rounded-4xl p-6 transition-all text-center bg-zinc-50/50">
+                                <input type="file" className="hidden" accept="image/*" onChange={(e) => handleImageChange(e, 'add')} />
+                                {formData.image ? (
+                                    <img src={formData.image} className="h-48 mx-auto rounded-2xl object-cover shadow-2xl" alt="Preview" />
+                                ) : (
+                                    <div className="py-6">
+                                        <UploadCloud className="w-12 h-12 mx-auto text-zinc-300 group-hover:text-black mb-3 transition-colors" />
+                                        <p className="text-[10px] font-black uppercase text-zinc-400 tracking-widest">Drop Product Visuals Here</p>
+                                    </div>
+                                )}
+                            </label>
 
-                                    {/* Siguraduhin na may laman ang categories bago i-map */}
-                                    {categories && categories.length > 0 ? (
-                                        categories.map((cat) => (
-                                            <option key={cat._id} value={cat.category_name} className="text-slate-900">
-                                                {cat.category_name}
-                                            </option>
-                                        ))
-                                    ) : (
-                                        <option disabled>Loading categories...</option>
-                                    )}
-                                </select>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black uppercase text-zinc-400 ml-2 tracking-widest">Product Title</label>
+                                    <input type="text" placeholder="e.g. Dynamic Black Ink" className="w-full bg-zinc-50 border border-zinc-100 rounded-2xl px-6 py-4 outline-none focus:ring-2 ring-black font-bold" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black uppercase text-zinc-400 ml-2 tracking-widest">Category</label>
+                                    <div className="relative">
+                                        <select className="w-full bg-zinc-50 border border-zinc-100 rounded-2xl px-6 py-4 outline-none focus:ring-2 ring-black font-bold appearance-none cursor-pointer" value={formData.category} onChange={e => setFormData({ ...formData, category: e.target.value })}>
+                                            <option value="">Choose Category</option>
+                                            {categories.map(c => <option key={c._id} value={c.category_name}>{c.category_name}</option>)}
+                                        </select>
+                                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
+                                    </div>
+                                </div>
                             </div>
-                            <div className="col-span-full space-y-2">
-                                <label className="text-xs font-black uppercase text-slate-400 ml-2 tracking-widest">Cost Price (₱)</label>
-                                <input type="number" step="0.01" className="w-full bg-gray-50 rounded-2xl px-6 py-4 outline-none text-2xl font-black" value={formData.cost_price} onChange={e => setFormData({ ...formData, cost_price: e.target.value })} />
+
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black uppercase text-zinc-400 ml-2 tracking-widest">Cost Price (₱)</label>
+                                <input type="number" step="0.01" placeholder="0.00" className="w-full bg-zinc-900 text-white rounded-2xl px-8 py-5 outline-none text-3xl font-black italic shadow-inner" value={formData.cost_price} onChange={e => setFormData({ ...formData, cost_price: e.target.value })} />
                             </div>
-                            <div className="col-span-full flex gap-3 pt-4">
-                                <Button type="button" variant="ghost" className="flex-1 h-16 rounded-2xl font-black uppercase tracking-widest" onClick={() => setIsAddOpen(false)}>Cancel</Button>
-                                <Button type="submit" className="flex-1 h-16 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-blue-200">Save Product</Button>
-                            </div>
+
+                            <Button type="submit" className="w-full h-18 bg-black hover:bg-zinc-800 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-xs shadow-2xl py-8 transition-all active:scale-95">Complete Registration</Button>
                         </form>
                     </div>
                 </div>
@@ -309,54 +323,49 @@ export default function ProductManagement() {
 
             {/* --- EDIT MODAL --- */}
             {isEditOpen && currentProduct && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-[3rem] shadow-2xl w-full max-w-xl p-10 animate-in zoom-in duration-300 relative max-h-[90vh] overflow-y-auto">
-                        <h2 className="text-3xl font-black mb-8 tracking-tighter text-amber-600">Update Item</h2>
-                        <form onSubmit={handleUpdate} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="col-span-full">
-                                <label className="relative group cursor-pointer block border-4 border-dashed border-gray-100 hover:border-amber-400 rounded-4xl p-4 transition-all text-center">
-                                    <input type="file" className="hidden" accept="image/*" onChange={(e) => handleImageChange(e, 'edit')} />
-                                    {currentProduct.image ? (
-                                        <img src={currentProduct.image} className="h-40 mx-auto rounded-2xl object-cover" alt="Preview" />
-                                    ) : (
-                                        <div className="py-8">
-                                            <UploadCloud className="w-12 h-12 mx-auto text-gray-300 group-hover:text-amber-500 mb-2" />
-                                            <p className="text-sm font-bold text-gray-400">Change Product Photo</p>
-                                        </div>
-                                    )}
-                                </label>
+                        <div className="flex justify-between items-center mb-8">
+                            <h2 className="text-3xl font-black tracking-tighter uppercase italic text-black">Modify Item</h2>
+                            <button onClick={() => setIsEditOpen(false)} className="p-2 hover:bg-zinc-100 rounded-full transition-colors"><X className="w-6 h-6" /></button>
+                        </div>
+                        <form onSubmit={handleUpdate} className="space-y-6">
+                            <label className="relative group cursor-pointer block border-4 border-dashed border-zinc-100 hover:border-black rounded-4xl p-6 transition-all text-center bg-zinc-50">
+                                <input type="file" className="hidden" accept="image/*" onChange={(e) => handleImageChange(e, 'edit')} />
+                                {currentProduct.image ? (
+                                    <img src={currentProduct.image} className="h-48 mx-auto rounded-2xl object-cover shadow-xl" alt="Preview" />
+                                ) : (
+                                    <div className="py-6">
+                                        <UploadCloud className="w-12 h-12 mx-auto text-zinc-300 group-hover:text-black mb-2" />
+                                        <p className="text-[10px] font-black uppercase text-zinc-400 tracking-widest">Upload New Visual</p>
+                                    </div>
+                                )}
+                            </label>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black uppercase text-zinc-400 ml-2 tracking-widest">Product Title</label>
+                                    <input type="text" className="w-full bg-zinc-50 border border-zinc-100 rounded-2xl px-6 py-4 outline-none focus:ring-2 ring-black font-bold" value={currentProduct.name} onChange={e => setCurrentProduct({ ...currentProduct, name: e.target.value })} />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black uppercase text-zinc-400 ml-2 tracking-widest">Category</label>
+                                    <div className="relative">
+                                        <select className="w-full bg-zinc-50 border border-zinc-100 rounded-2xl px-6 py-4 outline-none focus:ring-2 ring-black font-bold appearance-none cursor-pointer" value={currentProduct.category} onChange={e => setCurrentProduct({ ...currentProduct, category: e.target.value })}>
+                                            {categories.map(c => <option key={c._id} value={c.category_name}>{c.category_name}</option>)}
+                                        </select>
+                                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
+                                    </div>
+                                </div>
                             </div>
+
                             <div className="space-y-2">
-                                <label className="text-xs font-black uppercase text-slate-400 ml-2 tracking-widest">Product Name</label>
-                                <input type="text" className="w-full bg-gray-50 rounded-2xl px-6 py-4 outline-none focus:ring-2 ring-amber-500" value={currentProduct.name} onChange={e => setCurrentProduct({ ...currentProduct, name: e.target.value })} />
+                                <label className="text-[10px] font-black uppercase text-zinc-400 ml-2 tracking-widest">Price Point (₱)</label>
+                                <input type="number" step="0.01" className="w-full bg-zinc-900 text-white rounded-2xl px-8 py-5 outline-none text-3xl font-black italic" value={currentProduct.cost_price} onChange={e => setCurrentProduct({ ...currentProduct, cost_price: Number(e.target.value) })} />
                             </div>
-                            <div className="space-y-2">
-                                <label className="text-xs font-black uppercase text-slate-400 ml-2 tracking-widest">Category</label>
-                                <select 
-  className="w-full bg-gray-50 rounded-2xl px-6 py-4 outline-none focus:ring-2 ring-amber-500 appearance-none cursor-pointer" 
-  value={currentProduct.category} 
-  onChange={e => setCurrentProduct({ ...currentProduct, category: e.target.value })}
->
-  <option value="">Select Category</option>
-  {/* Check if categories exists before mapping */}
-  {categories && categories.length > 0 ? (
-    categories.map((c) => (
-      <option key={c._id} value={c.category_name}>
-        {c.category_name}
-      </option>
-    ))
-  ) : (
-    <option disabled>No categories found</option>
-  )}
-</select>
-                            </div>
-                            <div className="col-span-full space-y-2">
-                                <label className="text-xs font-black uppercase text-slate-400 ml-2 tracking-widest">Cost Price (₱)</label>
-                                <input type="number" step="0.01" className="w-full bg-gray-50 rounded-2xl px-6 py-4 outline-none text-2xl font-black" value={currentProduct.cost_price} onChange={e => setCurrentProduct({ ...currentProduct, cost_price: Number(e.target.value) })} />
-                            </div>
-                            <div className="col-span-full flex gap-3 pt-4">
-                                <Button type="button" variant="ghost" className="flex-1 h-16 rounded-2xl font-black uppercase tracking-widest" onClick={() => setIsEditOpen(false)}>Cancel</Button>
-                                <Button type="submit" className="flex-1 h-16 bg-amber-600 hover:bg-amber-700 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-amber-200">Update Changes</Button>
+
+                            <div className="flex gap-4 pt-4">
+                                <Button type="button" variant="ghost" className="flex-1 h-16 rounded-2xl font-black uppercase tracking-widest text-[10px] border border-zinc-100" onClick={() => setIsEditOpen(false)}>Discard</Button>
+                                <Button type="submit" className="flex-2 h-16 bg-black hover:bg-zinc-800 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-2xl px-12 transition-all active:scale-95">Update Database</Button>
                             </div>
                         </form>
                     </div>
