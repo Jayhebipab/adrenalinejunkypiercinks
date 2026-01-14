@@ -1,213 +1,234 @@
 "use client"
+import { motion } from "framer-motion"
+import { ShoppingBag, ArrowRight, MapPin, Clock, Phone, Instagram, Twitter } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Card } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Navbar } from "../components/navigation/navbar"
+import { Footer } from "../components/navigation/footer"
 
-import { useState, useEffect } from "react"
-import Link from "next/link"
-import { motion, AnimatePresence } from "framer-motion"
-import { Menu, Scissors, PenTool, Star, ArrowRight, ChevronUp, Facebook, Instagram, Twitter, ShieldCheck, Flame } from "lucide-react"
+// --- Sections ---
 
-export default function TattooShopLanding() {
-    const [isScrolled, setIsScrolled] = useState(false)
-    const [isNavOpen, setIsNavOpen] = useState(false)
+const Hero = () => (
+  <section id="home" className="relative flex min-h-screen items-center justify-center overflow-hidden pt-20">
+    <div
+      className="absolute inset-0 -z-20"
+      style={{
+        backgroundImage: 'url("image/about2.jpeg")',
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundAttachment: "fixed",
+      }}
+    />
+    <div className="absolute inset-0 -z-10 bg-black/60" />
 
-    // Ganti dengan logo Tattoo Shop Anda
-    const LOGO_TEXT = "INK & IRON" 
-
-    const navLinks = [
-        { name: "Portfolio", href: "/portfolio" },
-        { name: "Artists", href: "/artists" },
-        { name: "Aftercare", href: "/aftercare" },
-        { name: "Contact", href: "/contact" },
-    ]
-
-    const artistData = [
-        {
-            title: "Blackwork Master",
-            category: "Traditional",
-            description: "Spesialis dalam garis tegas dan kontras tinggi. Mengubah kulit menjadi kanvas abadi.",
-            image: "https://images.unsplash.com/photo-1598371839696-5c5bb00bdc28?q=80&w=2071"
-        },
-        {
-            title: "Fine Line Specialist",
-            category: "Minimalist",
-            description: "Detail mikroskopis untuk makna yang mendalam. Presisi adalah segalanya.",
-            image: "https://images.unsplash.com/photo-1560707303-4e980ce876ad?q=80&w=1932"
-        }
-    ]
-
-    useEffect(() => {
-        const handleScroll = () => setIsScrolled(window.scrollY > 50)
-        window.addEventListener("scroll", handleScroll)
-        return () => window.removeEventListener("scroll", handleScroll)
-    }, [])
-
-    return (
-        <div className="min-h-screen bg-[#0a0a0a] text-white font-sans selection:bg-[#d11a2a]/30 selection:text-white overflow-x-hidden">
-
-            {/* --- 1. NAVIGATION --- */}
-            <nav className={`fixed top-0 left-0 w-full z-[1000] transition-all duration-500 ${isScrolled ? "py-3 bg-black/90 backdrop-blur-md" : "py-6"}`}>
-                <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
-                    
-                    <Link href="/" className="relative z-10">
-                        <span className="text-2xl font-black tracking-tighter text-white">
-                            {LOGO_TEXT}<span className="text-[#d11a2a]">.</span>
-                        </span>
-                    </Link>
-
-                    {/* Desktop Menu */}
-                    <div className="hidden lg:flex items-center gap-8">
-                        {navLinks.map((link) => (
-                            <Link key={link.name} href={link.href} className="text-[10px] font-bold uppercase tracking-[0.2em] hover:text-[#d11a2a] transition-colors">
-                                {link.name}
-                            </Link>
-                        ))}
-                    </div>
-
-                    <div className="hidden lg:block relative z-10">
-                        <Link href="/book" className="bg-[#d11a2a] text-white px-8 py-3 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-white hover:text-black transition-all">
-                            Book Session
-                        </Link>
-                    </div>
-
-                    <button className="lg:hidden p-2" onClick={() => setIsNavOpen(true)}>
-                        <Menu size={28} />
-                    </button>
-                </div>
-            </nav>
-
-            {/* --- 2. HERO SECTION --- */}
-            <section className="relative h-screen flex items-center justify-center overflow-hidden">
-                <motion.div 
-                    initial={{ scale: 1.2, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 0.4 }}
-                    transition={{ duration: 2 }}
-                    className="absolute inset-0 bg-cover bg-center"
-                    style={{ backgroundImage: `url('https://images.unsplash.com/photo-1550684848-fac1c5b4e853?q=80&w=2070')` }}
-                />
-                <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/40 to-[#0a0a0a]" />
-
-                <div className="relative z-10 px-6 text-center">
-                    <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-[#d11a2a] text-sm font-black uppercase tracking-[0.5em] mb-4 block">
-                        Skin Artistry & Legacy
-                    </motion.span>
-                    <motion.h1 
-                        initial={{ y: 30, opacity: 0 }}
-                        animate={{ y: 0, opacity: 1 }}
-                        className="text-7xl md:text-9xl font-black uppercase tracking-tighter leading-[0.8] mb-8"
-                    >
-                        INKED FOR <br /> <span className="text-transparent bg-clip-text bg-gradient-to-r from-gray-100 to-gray-500">ETERNITY</span>
-                    </motion.h1>
-                    <p className="text-gray-400 text-lg md:text-xl max-w-2xl mx-auto mb-10 italic">
-                        "Bukan sekadar tato, tapi cerita yang dipahat secara permanen dengan standar medis tertinggi."
-                    </p>
-                    <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                        <button className="bg-white text-black px-10 py-4 rounded-full font-black uppercase tracking-widest hover:bg-[#d11a2a] hover:text-white transition-all">View Gallery</button>
-                        <button className="border border-white/20 backdrop-blur-md px-10 py-4 rounded-full font-black uppercase tracking-widest hover:bg-white/10 transition-all">Our Artists</button>
-                    </div>
-                </div>
-            </section>
-
-            {/* --- 3. ABOUT / WHY US --- */}
-            <section className="py-32 px-6 bg-[#0a0a0a]">
-                <div className="max-w-7xl mx-auto">
-                    <div className="grid lg:grid-cols-2 gap-20 items-center mb-32">
-                        <motion.div initial={{ opacity: 0, x: -30 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }}>
-                            <h2 className="text-5xl md:text-6xl font-black tracking-tighter uppercase mb-8">
-                                STERILE. <br /><span className="text-[#d11a2a]">PROFESSIONAL.</span> <br />ARTISTIC.
-                            </h2>
-                            <p className="text-gray-400 text-lg leading-relaxed mb-8">
-                                Di Ink & Iron, kami menggabungkan teknik tradisional dengan inovasi modern. Setiap jarum yang kami gunakan 100% sekali pakai, dan setiap tinta yang kami pilih adalah kualitas premium dunia.
-                            </p>
-                            <div className="grid grid-cols-2 gap-6">
-                                {[["10k+", "Happy Skins"], ["15+", "Award Winning"]].map(([val, label]) => (
-                                    <div key={label} className="border-l-2 border-[#d11a2a] pl-4">
-                                        <div className="text-3xl font-black">{val}</div>
-                                        <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">{label}</div>
-                                    </div>
-                                ))}
-                            </div>
-                        </motion.div>
-                        <div className="relative rounded-2xl overflow-hidden grayscale hover:grayscale-0 transition-all duration-700">
-                            <img src="https://images.unsplash.com/photo-1590201772213-913076e01a40?q=80&w=2070" alt="Tattoo Artist" />
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                        {[
-                            { icon: ShieldCheck, title: "Safety First", desc: "Protokol sterilisasi tingkat medis dan penggunaan peralatan premium bersertifikat." },
-                            { icon: PenTool, title: "Custom Design", desc: "Kami tidak sekadar menempel gambar; kami mendesain karya unik khusus untuk Anda." },
-                            { icon: Flame, title: "Culture", desc: "Lebih dari sekadar studio, ini adalah tempat berkumpulnya komunitas seni urban." }
-                        ].map((item, i) => (
-                            <div key={i} className="p-10 rounded-2xl bg-white/5 border border-white/10 hover:border-[#d11a2a]/50 transition-all group">
-                                <item.icon size={40} className="text-[#d11a2a] mb-6 group-hover:scale-110 transition-transform" />
-                                <h3 className="text-xl font-black uppercase mb-4">{item.title}</h3>
-                                <p className="text-gray-500 text-sm leading-relaxed">{item.desc}</p>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </section>
-
-            {/* --- 4. FEATURED ARTISTS --- */}
-            <section className="py-32 bg-[#0f0f0f] border-y border-white/5">
-                <div className="max-w-7xl mx-auto px-6">
-                    <div className="text-center mb-20">
-                        <span className="text-[#d11a2a] text-[10px] font-black uppercase tracking-[0.4em] mb-4 block">The Hands Behind the Ink</span>
-                        <h2 className="text-5xl font-black uppercase tracking-tighter">MEET THE <span className="text-[#d11a2a]">ARTISTS</span></h2>
-                    </div>
-
-                    <div className="flex flex-wrap justify-center gap-10">
-                        {artistData.map((artist, idx) => (
-                            <div key={idx} className="group relative h-[600px] w-full lg:w-[450px] rounded-3xl overflow-hidden grayscale hover:grayscale-0 transition-all duration-500">
-                                <img src={artist.image} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt={artist.title} />
-                                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
-                                <div className="absolute inset-0 p-10 flex flex-col justify-end">
-                                    <span className="bg-[#d11a2a] text-[9px] font-black uppercase px-3 py-1 rounded-sm w-fit mb-4">{artist.category}</span>
-                                    <h3 className="text-3xl font-black mb-2 uppercase">{artist.title}</h3>
-                                    <p className="text-gray-400 text-sm mb-6">{artist.description}</p>
-                                    <div className="flex items-center gap-3 text-white text-[10px] font-bold uppercase tracking-widest group-hover:text-[#d11a2a] transition-colors">
-                                        View Portfolio <ArrowRight size={14} />
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </section>
-
-            {/* --- 5. FOOTER --- */}
-            <footer className="bg-black pt-24 pb-12">
-                <div className="max-w-7xl mx-auto px-6">
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-16 mb-20">
-                        <div className="col-span-1">
-                            <h2 className="text-2xl font-black mb-6">{LOGO_TEXT}<span className="text-[#d11a2a]">.</span></h2>
-                            <p className="text-gray-500 text-sm mb-8">Studio tato premium yang mengutamakan kualitas, sterilisasi, dan kepuasan batin pelanggan.</p>
-                            <div className="flex gap-4">
-                                <Instagram className="hover:text-[#d11a2a] cursor-pointer" />
-                                <Facebook className="hover:text-[#d11a2a] cursor-pointer" />
-                                <Twitter className="hover:text-[#d11a2a] cursor-pointer" />
-                            </div>
-                        </div>
-                        <div>
-                            <h4 className="text-[10px] font-black uppercase tracking-widest text-[#d11a2a] mb-6">Open Hours</h4>
-                            <ul className="text-gray-400 text-sm space-y-2">
-                                <li>Mon - Fri: 12pm - 9pm</li>
-                                <li>Sat - Sun: 11am - 10pm</li>
-                            </ul>
-                        </div>
-                        <div className="md:col-span-2 bg-[#d11a2a] p-10 rounded-3xl">
-                            <h4 className="text-2xl font-black uppercase mb-4 text-white">Ready to get inked?</h4>
-                            <p className="text-black/70 font-medium mb-6">Konsultasikan ide desainmu secara gratis dengan artist kami hari ini.</p>
-                            <button className="bg-black text-white px-8 py-4 rounded-full text-xs font-black uppercase tracking-widest hover:bg-white hover:text-black transition-all">
-                                Get a Quote
-                            </button>
-                        </div>
-                    </div>
-                    <div className="pt-12 border-t border-white/5 flex justify-between items-center text-[10px] text-gray-600 font-bold uppercase tracking-[0.2em]">
-                        <p>© 2026 {LOGO_TEXT} COLLECTIVE. ALL RIGHTS RESERVED.</p>
-                        <button onClick={() => window.scrollTo({top:0, behavior:'smooth'})} className="hover:text-white flex items-center gap-2">TOP <ChevronUp size={14}/></button>
-                    </div>
-                </div>
-            </footer>
+    <div className="container relative z-10 px-4 text-center">
+      <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }}>
+        <Badge variant="outline" className="mb-4 px-4 py-1 text-sm uppercase tracking-widest bg-primary/5">
+          The Premier Tattoo Studio
+        </Badge>
+        <h1 className="mb-6 text-5xl font-extrabold tracking-tight md:text-7xl lg:text-8xl">
+          YOUR BODY IS <br />
+          <span className="text-primary">A CANVAS.</span>
+        </h1>
+        <p className="mx-auto mb-10 max-w-2xl text-lg text-muted-foreground">
+          Eksperto sa custom designs, portraiture, at traditional styles. Gawing sining ang iyong kwento kasama ang
+          aming award-winning artists.
+        </p>
+        <div className="flex flex-wrap justify-center gap-4">
+          <Button size="lg" className="h-14 rounded-full px-8 text-lg shadow-lg shadow-primary/20">
+            View Gallery <ArrowRight className="ml-2 h-5 w-5" />
+          </Button>
+          <Button
+            size="lg"
+            variant="outline"
+            className="h-14 rounded-full px-8 text-lg border-primary/20 hover:bg-primary/5 bg-transparent"
+          >
+            Our Artists
+          </Button>
         </div>
-    )
+      </motion.div>
+    </div>
+    <div className="absolute top-1/2 left-1/2 -z-10 h-[500px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/20 blur-[120px]" />
+  </section>
+)
+
+const Gallery = () => (
+  <section id="gallery" className="py-24 bg-zinc-950/50">
+    <div className="container mx-auto px-4">
+      <div className="text-center mb-12">
+        <h2 className="text-4xl font-bold mb-4">Featured Gallery</h2>
+        <div className="h-1 w-20 bg-primary mx-auto rounded-full" />
+      </div>
+      <div className="columns-1 md:columns-2 lg:columns-3 gap-4 space-y-4">
+        {[1, 2, 3, 4, 5, 6].map((item) => (
+          <motion.div
+            key={item}
+            className="relative overflow-hidden rounded-2xl bg-zinc-800 break-inside-avoid group cursor-pointer"
+            whileHover={{ scale: 1.02 }}
+          >
+            <div
+              className={`w-full bg-zinc-700/50 ${item % 2 === 0 ? "h-64" : "h-80"} flex items-center justify-center`}
+            >
+              <span className="text-zinc-500 text-xs">Portfolio Image {item}</span>
+            </div>
+            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+              <p className="text-white font-bold tracking-widest uppercase text-sm">View Work</p>
+            </div>
+          </motion.div>
+        ))}
+      </div>
+    </div>
+  </section>
+)
+
+const Artists = () => {
+  const artists = [
+    { name: "Marco 'Ink' Cruz", role: "Realism Expert" },
+    { name: "Elena Black", role: "Traditional Style" },
+    { name: "Juno Reyes", role: "Fine Line" },
+  ]
+
+  return (
+    <section id="artists" className="py-24">
+      <div className="container mx-auto px-4">
+        <h2 className="text-4xl font-bold mb-12 text-center">Master Artists</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {artists.map((artist, i) => (
+            <motion.div key={i} whileHover={{ y: -10 }}>
+              <Card className="relative overflow-hidden border-none group bg-zinc-900/50">
+                <div className="aspect-[3/4] bg-muted flex items-center justify-center text-zinc-500">Artist Photo</div>
+                <div className="absolute bottom-0 p-6 w-full bg-gradient-to-t from-black to-transparent">
+                  <h3 className="text-xl font-bold text-white">{artist.name}</h3>
+                  <p className="text-primary text-sm mb-4">{artist.role}</p>
+                  <div className="flex gap-3 text-white/70">
+                    <Instagram className="h-4 w-4 hover:text-primary cursor-pointer" />
+                    <Twitter className="h-4 w-4 hover:text-primary cursor-pointer" />
+                  </div>
+                </div>
+              </Card>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+const ContactUs = () => (
+  <section id="contact" className="py-24 bg-card/30">
+    <div className="container mx-auto px-4">
+      <div className="grid lg:grid-cols-2 gap-12">
+        <div>
+          <h2 className="text-4xl font-bold mb-6">Start Your Journey</h2>
+          <p className="text-muted-foreground mb-10 text-lg">
+            May idea ka na ba? Pag-usapan natin ang susunod mong tattoo.
+          </p>
+          <div className="space-y-6">
+            <div className="flex gap-4 items-start">
+              <div className="bg-primary/10 p-3 rounded-lg text-primary">
+                <MapPin />
+              </div>
+              <div>
+                <h4 className="font-bold">Studio Location</h4>
+                <p className="text-muted-foreground text-sm">Metro Manila, Philippines</p>
+              </div>
+            </div>
+            <div className="flex gap-4 items-start">
+              <div className="bg-primary/10 p-3 rounded-lg text-primary">
+                <Clock />
+              </div>
+              <div>
+                <h4 className="font-bold">Hours</h4>
+                <p className="text-muted-foreground text-sm">Tue - Sun: 11AM - 8PM</p>
+              </div>
+            </div>
+            <div className="flex gap-4 items-start">
+              <div className="bg-primary/10 p-3 rounded-lg text-primary">
+                <Phone />
+              </div>
+              <div>
+                <h4 className="font-bold">Phone</h4>
+                <p className="text-muted-foreground text-sm">+63 912 345 6789</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <Card className="p-8 border-border/50 bg-background/50 backdrop-blur-sm">
+          <form className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <Input placeholder="Name" className="h-12 bg-background/50" />
+              <Input placeholder="Email" type="email" className="h-12 bg-background/50" />
+            </div>
+            <Input placeholder="Subject" className="h-12 bg-background/50" />
+            <Textarea placeholder="Describe your tattoo idea..." className="min-h-[120px] bg-background/50" />
+            <Button className="w-full h-12 text-lg font-bold">Book Appointment</Button>
+          </form>
+        </Card>
+      </div>
+    </div>
+  </section>
+)
+
+const Shop = () => {
+  const products = [
+    { name: "Aftercare Balm", price: "₱450", tag: "Best Seller" },
+    { name: "Ink & Art Tee", price: "₱899", tag: "Merch" },
+    { name: "Gift Voucher", price: "₱1,000", tag: "Gift" },
+  ]
+
+  return (
+    <section id="shop" className="py-24">
+      <div className="container mx-auto px-4">
+        <div className="mb-12 flex items-end justify-between">
+          <div>
+            <h2 className="text-4xl font-bold">Ink Shop</h2>
+            <p className="text-muted-foreground">Aftercare and Apparel.</p>
+          </div>
+          <Button variant="ghost">
+            View All <ArrowRight className="ml-2 h-4 w-4" />
+          </Button>
+        </div>
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {products.map((item, i) => (
+            <motion.div key={i} whileHover={{ y: -5 }}>
+              <Card className="overflow-hidden border-border/50 bg-card/50">
+                <div className="aspect-square bg-muted flex items-center justify-center">
+                  <ShoppingBag className="h-12 w-12 opacity-20" />
+                </div>
+                <div className="p-6">
+                  <Badge className="mb-2 bg-primary/20 text-primary hover:bg-primary/30 border-none">{item.tag}</Badge>
+                  <h3 className="text-xl font-bold">{item.name}</h3>
+                  <div className="mt-4 flex items-center justify-between">
+                    <span className="text-lg font-semibold">{item.price}</span>
+                    <Button size="sm">Add to Cart</Button>
+                  </div>
+                </div>
+              </Card>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// --- Main Page ---
+
+export default function Dashboard() {
+  return (
+    <div className="min-h-screen bg-background text-foreground selection:bg-primary/30">
+      <Navbar />
+      <main>
+        <Hero />
+        <Gallery />
+        <Artists />
+        <Shop />
+        <ContactUs />
+      </main>
+      <Footer />
+    </div>
+  )
 }

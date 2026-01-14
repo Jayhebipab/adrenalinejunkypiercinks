@@ -1,3 +1,3 @@
 export default function HomeView() {
-  return <div>Welcome to Dashboard!</div>
+  return <div>Welcome to Dashboards!</div>
 }
