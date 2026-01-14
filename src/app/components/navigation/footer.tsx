@@ -4,44 +4,35 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { motion, useReducedMotion } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   ArrowUp,
   Facebook,
-  Github,
   Instagram,
-  Linkedin,
   Mail,
   MapPin,
   Phone,
-  Twitter,
+  Send,
 } from "lucide-react";
 
 const footerLinks = [
   {
-    title: "Product",
-    links: ["Features", "Pricing", "Documentation", "API Reference"],
+    title: "Studio",
+    links: ["Gallery", "Artists", "Aftercare", "Book Now"],
   },
   {
     title: "Company",
-    links: ["About Us", "Careers", "Blog", "Press Kit"],
-  },
-  {
-    title: "Resources",
-    links: ["Community", "Help Center", "Partners", "Status"],
+    links: ["Our Story", "Reviews", "Blog", "Contact"],
   },
   {
     title: "Legal",
-    links: ["Privacy", "Terms", "Cookie Policy", "Licenses"],
+    links: ["Privacy Policy", "Terms of Service", "Safety Protocols"],
   },
 ];
 
 const socialLinks = [
-  { icon: Twitter, label: "Twitter", href: "#" },
-  { icon: Facebook, label: "Facebook", href: "#" },
-  { icon: Instagram, label: "Instagram", href: "#" },
-  { icon: Linkedin, label: "LinkedIn", href: "#" },
-  { icon: Github, label: "GitHub", href: "#" },
+  { icon: Facebook, label: "Facebook", href: "https://facebook.com/junkypiercing" },
+  { icon: Instagram, label: "Instagram", href: "https://instagram.com/theadrenalinejunkypiercinks/" },
 ];
 
 export function Footer() {
@@ -49,67 +40,53 @@ export function Footer() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const shouldReduceMotion = useReducedMotion();
-
   return (
     <footer
       aria-labelledby="footer-heading"
-      className="relative w-full overflow-hidden border-t border-border bg-card/90 backdrop-blur-xl"
+      className="relative w-full border-t border-zinc-100 bg-white" // ✅ Solid White Background
     >
-      {/* Background Glow Decorations */}
-      <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
-        <motion.div
-          className="absolute -top-32 left-1/2 h-80 w-80 -translate-x-1/2 rounded-full bg-primary/20 blur-[160px]"
-          animate={shouldReduceMotion ? {} : { opacity: [0.2, 0.45, 0.2], scale: [0.9, 1.05, 0.95] }}
-          transition={shouldReduceMotion ? {} : { duration: 12, repeat: Infinity, ease: "easeInOut" }}
-        />
-      </div>
-
-      <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-6">
+      <div className="mx-auto max-w-6xl px-6 py-16 lg:px-8">
+        <div className="grid gap-12 md:grid-cols-2 lg:grid-cols-5">
+          
           {/* Brand & Newsletter */}
-          <div className="lg:col-span-2">
-            <div className="mb-4 inline-flex items-center gap-3">
-              <Card className="rounded-2xl border border-border/60 bg-card/80 px-3 py-1 text-xs uppercase tracking-[0.32em] text-muted-foreground">
-                INK & ART
-              </Card>
-              <Badge variant="outline" className="text-xs text-muted-foreground">Since 2018</Badge>
+          <div className="lg:col-span-2 space-y-6">
+            <div className="flex items-center gap-3">
+              <Badge variant="outline" className="text-[15px] uppercase tracking-widest border-zinc-200">
+                Adrenaline Junky Piercinks
+              </Badge>
             </div>
-            <p className="mb-6 max-w-md text-sm text-muted-foreground leading-relaxed">
-              Premium tattoo studio providing custom art and professional sterilization. 
-              Gawing sining ang iyong kwento.
+            
+            <p className="max-w-sm text-sm text-zinc-500 leading-relaxed">
+              Premium tattoo and piercing studio. Expressing your true self through 
+              art and precision. Sermon is temporary, vanity is forever.
             </p>
 
             {/* Newsletter */}
-            <div className="mb-6">
-              <p className="mb-2 text-sm font-medium text-foreground">Subscribe to our newsletter</p>
-              <div className="flex gap-2">
+            <div className="space-y-3">
+              <p className="text-xs font-bold uppercase tracking-wider text-zinc-800">Stay Updated</p>
+              <div className="flex gap-2 max-w-sm">
                 <Input
                   type="email"
-                  placeholder="Enter email"
-                  className="h-10 rounded-xl bg-background/60"
+                  placeholder="Your email address"
+                  className="h-12 rounded-full border-zinc-200 bg-zinc-50 px-6 focus-visible:ring-yellow-500"
                 />
-                <Button size="sm" className="h-10 rounded-xl px-4">
-                  <Mail className="h-4 w-4" />
+                <Button size="icon" className="h-12 w-12 rounded-full bg-black hover:bg-zinc-800">
+                  <Send className="h-4 w-4 text-white" />
                 </Button>
               </div>
-            </div>
-
-            {/* Contact Details */}
-            <div className="space-y-2 text-sm text-muted-foreground">
-              <div className="flex items-center gap-2"><MapPin className="h-4 w-4" /> <span>Manila, Philippines</span></div>
-              <div className="flex items-center gap-2"><Phone className="h-4 w-4" /> <span>+63 912 345 6789</span></div>
             </div>
           </div>
 
           {/* Links Mapping */}
           {footerLinks.map((section) => (
-            <div key={section.title}>
-              <h4 className="mb-4 text-sm font-semibold text-foreground">{section.title}</h4>
-              <ul className="space-y-2">
+            <div key={section.title} className="space-y-4">
+              <h4 className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-900">
+                {section.title}
+              </h4>
+              <ul className="space-y-3">
                 {section.links.map((link) => (
                   <li key={link}>
-                    <a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">
+                    <a href="#" className="text-sm text-zinc-500 hover:text-black transition-colors">
                       {link}
                     </a>
                   </li>
@@ -119,20 +96,41 @@ export function Footer() {
           ))}
         </div>
 
-        <div className="mt-12 flex flex-col items-center justify-between gap-6 border-t border-border/50 pt-8 md:flex-row">
-          <p className="text-sm text-muted-foreground">© 2024 Ink & Art Tattoo. All rights reserved.</p>
-          
-          <div className="flex gap-4">
-            {socialLinks.map((social) => (
-              <a key={social.label} href={social.href} className="text-muted-foreground hover:text-primary transition-colors">
-                <social.icon className="h-5 w-5" />
-              </a>
-            ))}
+        {/* Bottom Bar */}
+        <div className="mt-16 flex flex-col items-center justify-between gap-6 border-t border-zinc-100 pt-8 md:flex-row">
+          <div className="space-y-1">
+            <p className="text-xs text-zinc-400">
+              © {new Date().getFullYear()} Adrenaline Junky Piercinks. All rights reserved.
+            </p>
+            <div className="flex gap-4 text-[10px] text-zinc-400 uppercase tracking-widest">
+              <div className="flex items-center gap-1"><MapPin size={12}/> Manila, PH</div>
+              <div className="flex items-center gap-1"><Phone size={12}/> +63 935 595 5699</div>
+            </div>
           </div>
+          
+          <div className="flex items-center gap-6">
+            <div className="flex gap-5">
+              {socialLinks.map((social) => (
+                <a 
+                  key={social.label} 
+                  href={social.href} 
+                  target="_blank"
+                  className="text-zinc-400 hover:text-black transition-colors"
+                >
+                  <social.icon className="h-5 w-5" />
+                </a>
+              ))}
+            </div>
 
-          <Button variant="outline" size="icon" onClick={scrollToTop} className="rounded-full">
-            <ArrowUp className="h-4 w-4" />
-          </Button>
+            <Button 
+              variant="outline" 
+              size="icon" 
+              onClick={scrollToTop} 
+              className="rounded-full border-zinc-200 hover:bg-zinc-50"
+            >
+              <ArrowUp className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </div>
     </footer>

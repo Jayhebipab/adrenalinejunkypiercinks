@@ -2,28 +2,27 @@
 
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X, Scissors, ShoppingCart, Image as GalleryIcon, Users, MessageSquare } from "lucide-react";
+import { Menu, X, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-// Updated links para sa Tattoo Theme
 const navLinks = [
   { name: "Home", href: "#home" },
   { name: "About", href: "#about" },
-  { name: "Artists", href: "#artists" }, // Bago
-  { name: "Gallery", href: "#gallery" }, // Bago
+  { name: "Artists", href: "#artists" },
+  { name: "Gallery", href: "#gallery" },
   { name: "Shop", href: "#shop" },
   { name: "Blog", href: "#blog" },
-  { name: "Contact", href: "#contact" }, // Bago
+  { name: "Contact", href: "#contact" },
 ];
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
+  const [scrolled, setIsScrolled] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
-      setScrolled(window.scrollY > 20);
+      setIsScrolled(window.scrollY > 20);
     };
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
@@ -32,59 +31,71 @@ export function Navbar() {
   return (
     <nav
       className={cn(
-        "fixed top-0 z-50 w-full transition-all duration-300",
+        "fixed top-0 z-50 w-full transition-all duration-500",
+        // Desktop Scroll Logic
         scrolled 
-          ? "border-b border-border/40 bg-background/80 backdrop-blur-xl py-3" 
-          : "bg-transparent py-5"
+          ? "lg:border-b lg:border-white/5 lg:bg-black/80 lg:backdrop-blur-md lg:py-4" 
+          : "bg-transparent py-8",
+        // Mobile View: Always transparent background but keeps icons
+        "max-lg:bg-transparent max-lg:border-none max-lg:backdrop-blur-none max-lg:py-6"
       )}
     >
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-[1400px] px-6 sm:px-10 lg:px-12">
         <div className="flex items-center justify-between">
           
-          {/* Logo Section */}
-          <div className="flex items-center gap-2">
-            <motion.div 
-              whileHover={{ rotate: 15 }}
-              className="rounded-xl bg-primary p-2 text-primary-foreground shadow-lg shadow-primary/20"
-            >
-              <Scissors className="h-5 w-5" />
-            </motion.div>
+          {/* Logo Section - Placeholder muna */}
+          <div className="flex items-center gap-4">
+            <div className="h-14 w-14 md:h-16 md:w-16 flex items-center justify-center">
+              {/* Logo space temporarily empty as requested */}
+              <span className="text-white font-black text-xl tracking-tighter"></span>
+            </div>
           </div>
 
-          {/* Desktop Navigation - Clean & Spaced */}
+          {/* Desktop Navigation */}
           <div className="hidden lg:block">
-            <div className="flex items-center space-x-6">
+            <div className="flex items-center space-x-10">
               {navLinks.map((link) => (
                 <a
                   key={link.name}
                   href={link.href}
-                  className="text-xs font-semibold uppercase tracking-widest text-muted-foreground transition-colors hover:text-primary"
+                  className="group relative text-[12px] font-bold uppercase tracking-[0.2em] text-gray-300 transition-all duration-300 hover:text-white"
                 >
                   {link.name}
+                  <span className="absolute -bottom-1 left-1/2 h-[2px] w-0 -translate-x-1/2 rounded-full bg-white transition-all duration-300 group-hover:w-full"></span>
                 </a>
               ))}
             </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="hidden items-center gap-3 md:flex">
-            <Button variant="ghost" size="icon" className="rounded-full hover:bg-primary/10 hover:text-primary">
+          {/* Desktop Action Buttons */}
+          <div className="hidden items-center gap-4 md:flex">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="rounded-full text-gray-400 hover:bg-white/10 hover:text-white"
+            >
               <ShoppingCart className="h-5 w-5" />
             </Button>
-            <Button size="sm" className="rounded-full px-6 font-bold uppercase tracking-tight shadow-md transition-transform hover:scale-105 active:scale-95">
+            <Button 
+              size="lg" 
+              className="rounded-full bg-white text-black px-8 font-black uppercase tracking-widest transition-all hover:bg-gray-200 hover:scale-105 active:scale-95"
+            >
               Book Now
             </Button>
           </div>
 
-          {/* Mobile Menu Toggle */}
+          {/* Mobile Menu Toggle - Itinira natin ang hamburger */}
           <div className="lg:hidden">
             <Button
               variant="ghost"
               size="icon"
               onClick={() => setIsOpen(!isOpen)}
-              className="text-foreground"
+              className={cn(
+                "rounded-full text-white transition-all duration-300",
+                scrolled ? "bg-black/40 backdrop-blur-md border border-white/10" : "bg-transparent"
+              )}
             >
-              {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+              {isOpen ? <X className="h-7 w-7" /> : <Menu className="h-7 w-7" />}
             </Button>
           </div>
         </div>
@@ -94,25 +105,31 @@ export function Navbar() {
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            initial={{ opacity: 0, y: -20 }}
+            initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="absolute left-0 top-full w-full border-b border-border bg-background/95 backdrop-blur-xl lg:hidden"
+            exit={{ opacity: 0, y: -10 }}
+            className="absolute left-4 right-4 top-20 z-50 overflow-hidden rounded-[2rem] border border-white/10 bg-black/95 p-8 shadow-2xl backdrop-blur-2xl lg:hidden"
           >
-            <div className="flex flex-col space-y-1 px-6 pb-8 pt-4">
-              {navLinks.map((link) => (
-                <a
+            <div className="flex flex-col space-y-6">
+              {navLinks.map((link, i) => (
+                <motion.a
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: i * 0.05 }}
                   key={link.name}
                   href={link.href}
                   onClick={() => setIsOpen(false)}
-                  className="flex items-center justify-between border-b border-border/50 py-4 text-sm font-bold uppercase tracking-widest text-muted-foreground hover:text-primary"
+                  className="text-center text-sm font-bold uppercase tracking-[0.2em] text-gray-400 hover:text-white transition-colors"
                 >
                   {link.name}
-                </a>
+                </motion.a>
               ))}
-              <div className="pt-6">
-                <Button className="w-full rounded-xl py-6 text-base font-bold uppercase tracking-widest">
-                  Secure Your Slot
+              <div className="pt-6 border-t border-white/10">
+                <Button 
+                  onClick={() => setIsOpen(false)}
+                  className="w-full h-14 rounded-full bg-white text-xs font-black uppercase tracking-widest text-black active:scale-95 transition-transform"
+                >
+                  Book Appointment
                 </Button>
               </div>
             </div>
