@@ -3,7 +3,7 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import {
     Trash2, Edit3, Search, RotateCcw, Plus, X,
-    Loader2, Package, Tag, ImageIcon, UploadCloud, Filter, ChevronDown
+    Loader2, Package, Tag, ImageIcon, UploadCloud, Filter, ChevronDown, AlignLeft
 } from "lucide-react"
 import { Toaster, toast } from "sonner"
 
@@ -14,6 +14,7 @@ interface Product {
     category: string;
     cost_price: number;
     image?: string;
+    description: string; // Siguradong nandito
 }
 
 interface Category {
@@ -23,7 +24,6 @@ interface Category {
 }
 
 export default function ProductManagement() {
-    // --- STATES ---
     const [products, setProducts] = useState<Product[]>([]);
     const [categories, setCategories] = useState<Category[]>([]);
     const [search, setSearch] = useState("");
@@ -38,10 +38,10 @@ export default function ProductManagement() {
         name: "",
         category: "",
         cost_price: "",
-        image: ""
+        image: "",
+        description: "" // Initial state for Add
     });
 
-    // --- FETCH DATA ---
     const fetchData = async () => {
         setFetching(true);
         try {
@@ -63,7 +63,6 @@ export default function ProductManagement() {
 
     useEffect(() => { fetchData(); }, []);
 
-    // --- IMAGE HANDLER ---
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>, mode: 'add' | 'edit') => {
         const file = e.target.files?.[0];
         if (file) {
@@ -77,7 +76,6 @@ export default function ProductManagement() {
         }
     };
 
-    // --- ACTIONS ---
     const handleAdd = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!formData.name || !formData.category || !formData.cost_price) {
@@ -91,7 +89,7 @@ export default function ProductManagement() {
                 body: JSON.stringify(formData),
             });
             if (!res.ok) throw new Error();
-            setFormData({ name: "", category: "", cost_price: "", image: "" });
+            setFormData({ name: "", category: "", cost_price: "", image: "", description:"" });
             setIsAddOpen(false);
             fetchData();
         }, {
@@ -114,7 +112,8 @@ export default function ProductManagement() {
                     name: currentProduct.name,
                     category: currentProduct.category,
                     cost_price: currentProduct.cost_price,
-                    image: currentProduct.image
+                    image: currentProduct.image,
+                    description: currentProduct.description // DAGDAG ITO PARA GUMANA SA UPDATE
                 }),
             });
             if (!res.ok) throw new Error();
@@ -144,7 +143,6 @@ export default function ProductManagement() {
         });
     };
 
-    // --- FILTER LOGIC ---
     const filteredProducts = products.filter(p => {
         const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
         const matchesCategory = selectedCategory === "All" || p.category === selectedCategory;
@@ -186,11 +184,6 @@ export default function ProductManagement() {
                                 onChange={(e) => setSearch(e.target.value)}
                             />
                         </div>
-                        {search && (
-                            <Button onClick={() => setSearch("")} variant="ghost" className="rounded-2xl h-12 px-4 mr-2">
-                                <RotateCcw className="w-4 h-4" />
-                            </Button>
-                        )}
                     </div>
 
                     <div className="relative bg-white p-2 rounded-3xl shadow-sm border border-zinc-100 flex items-center px-4 group">
@@ -237,7 +230,7 @@ export default function ProductManagement() {
                                                 </div>
                                                 <div>
                                                     <span className="font-black text-black text-lg block leading-none mb-1 uppercase tracking-tighter italic">{prod.name}</span>
-                                                    <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Product ID: {prod._id.slice(-6)}</span>
+                                                    <p className="text-[9px] text-zinc-400 font-bold uppercase line-clamp-1 max-w-[200px]">{prod.description || "No description"}</p>
                                                 </div>
                                             </div>
                                         </td>
@@ -262,7 +255,7 @@ export default function ProductManagement() {
                                     <td colSpan={4} className="py-24 text-center">
                                         <div className="flex flex-col items-center gap-2">
                                             <Package className="w-12 h-12 text-zinc-100" />
-                                            <p className="font-black text-zinc-300 uppercase text-xs tracking-[0.2em]">No Items found in this category</p>
+                                            <p className="font-black text-zinc-300 uppercase text-xs tracking-[0.2em]">No Items found</p>
                                         </div>
                                     </td>
                                 </tr>
@@ -293,11 +286,19 @@ export default function ProductManagement() {
                                 )}
                             </label>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="grid grid-cols-1 gap-6">
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-black uppercase text-zinc-400 ml-2 tracking-widest">Product Title</label>
                                     <input type="text" placeholder="e.g. Dynamic Black Ink" className="w-full bg-zinc-50 border border-zinc-100 rounded-2xl px-6 py-4 outline-none focus:ring-2 ring-black font-bold" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} />
                                 </div>
+                                {/* DESCRIPTION INPUT SA ADD */}
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black uppercase text-zinc-400 ml-2 tracking-widest">Description</label>
+                                    <textarea rows={3} placeholder="Add product details..." className="w-full bg-zinc-50 border border-zinc-100 rounded-2xl px-6 py-4 outline-none focus:ring-2 ring-black font-bold resize-none" value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} />
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-black uppercase text-zinc-400 ml-2 tracking-widest">Category</label>
                                     <div className="relative">
@@ -308,11 +309,10 @@ export default function ProductManagement() {
                                         <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
                                     </div>
                                 </div>
-                            </div>
-
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black uppercase text-zinc-400 ml-2 tracking-widest">Cost Price (₱)</label>
-                                <input type="number" step="0.01" placeholder="0.00" className="w-full bg-zinc-900 text-white rounded-2xl px-8 py-5 outline-none text-3xl font-black italic shadow-inner" value={formData.cost_price} onChange={e => setFormData({ ...formData, cost_price: e.target.value })} />
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black uppercase text-zinc-400 ml-2 tracking-widest">Cost Price (₱)</label>
+                                    <input type="number" step="0.01" placeholder="0.00" className="w-full bg-zinc-900 text-white rounded-2xl px-8 py-4 outline-none font-black italic shadow-inner" value={formData.cost_price} onChange={e => setFormData({ ...formData, cost_price: e.target.value })} />
+                                </div>
                             </div>
 
                             <Button type="submit" className="w-full h-18 bg-black hover:bg-zinc-800 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-xs shadow-2xl py-8 transition-all active:scale-95">Complete Registration</Button>
@@ -342,11 +342,19 @@ export default function ProductManagement() {
                                 )}
                             </label>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="grid grid-cols-1 gap-6">
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-black uppercase text-zinc-400 ml-2 tracking-widest">Product Title</label>
                                     <input type="text" className="w-full bg-zinc-50 border border-zinc-100 rounded-2xl px-6 py-4 outline-none focus:ring-2 ring-black font-bold" value={currentProduct.name} onChange={e => setCurrentProduct({ ...currentProduct, name: e.target.value })} />
                                 </div>
+                                {/* DAGDAG NA DESCRIPTION FIELD SA EDIT */}
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black uppercase text-zinc-400 ml-2 tracking-widest">Description</label>
+                                    <textarea rows={3} className="w-full bg-zinc-50 border border-zinc-100 rounded-2xl px-6 py-4 outline-none focus:ring-2 ring-black font-bold resize-none" value={currentProduct.description} onChange={e => setCurrentProduct({ ...currentProduct, description: e.target.value })} />
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-black uppercase text-zinc-400 ml-2 tracking-widest">Category</label>
                                     <div className="relative">
@@ -356,11 +364,10 @@ export default function ProductManagement() {
                                         <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
                                     </div>
                                 </div>
-                            </div>
-
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black uppercase text-zinc-400 ml-2 tracking-widest">Price Point (₱)</label>
-                                <input type="number" step="0.01" className="w-full bg-zinc-900 text-white rounded-2xl px-8 py-5 outline-none text-3xl font-black italic" value={currentProduct.cost_price} onChange={e => setCurrentProduct({ ...currentProduct, cost_price: Number(e.target.value) })} />
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black uppercase text-zinc-400 ml-2 tracking-widest">Price Point (₱)</label>
+                                    <input type="number" step="0.01" className="w-full bg-zinc-900 text-white rounded-2xl px-8 py-4 outline-none font-black italic" value={currentProduct.cost_price} onChange={e => setCurrentProduct({ ...currentProduct, cost_price: Number(e.target.value) })} />
+                                </div>
                             </div>
 
                             <div className="flex gap-4 pt-4">

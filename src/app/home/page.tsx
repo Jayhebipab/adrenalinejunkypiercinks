@@ -1,35 +1,131 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
+import Image from "next/image"
 import { motion } from "framer-motion"
-import { 
-  ShoppingBag, ArrowRight, MapPin, Clock, 
-  Phone, Instagram, Twitter, PlayCircle, Mail, Facebook 
+import {
+  ArrowRight,
+  PlayCircle,
+  Mail,
+  Phone,
+  Facebook,
+  Instagram,
+  ChevronRight,
+  ShoppingBag,
+  Syringe,
+  Sparkles,
+  X,
+  ChevronLeft,
 } from "lucide-react"
+import Swal from "sweetalert2"
+
 import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Navbar } from "../components/navigation/navbar"
 import { Footer } from "../components/navigation/footer"
-import Image from "next/image"
-import Swal from 'sweetalert2'
 
-// --- Hero Section ---
+// ---------- TYPES ----------
+interface GalleryItem {
+  _id: string
+  image: string
+  placement: string
+  category?: string
+  name?: string
+  price?: number | string
+}
+
+// ---------- LIGHTBOX / IMAGE MODAL ----------
+const ImageModal = ({
+  images,
+  currentIndex,
+  onClose,
+}: {
+  images: string[]
+  currentIndex: number
+  onClose: () => void
+}) => {
+  const [index, setIndex] = useState(currentIndex)
+
+  const prev = (e?: React.MouseEvent) => {
+    e?.stopPropagation()
+    setIndex((i) => (i - 1 + images.length) % images.length)
+  }
+  const next = (e?: React.MouseEvent) => {
+    e?.stopPropagation()
+    setIndex((i) => (i + 1) % images.length)
+  }
+
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose()
+      if (e.key === "ArrowLeft") prev()
+      if (e.key === "ArrowRight") next()
+    }
+    window.addEventListener("keydown", handleKey)
+    return () => window.removeEventListener("keydown", handleKey)
+  }, [images])
+
+  return (
+    <div 
+      className="fixed inset-0 bg-black/80 z-[9999] flex items-center justify-center p-6 backdrop-blur-md"
+      onClick={onClose}
+    >
+      <div 
+        className="relative max-w-xl w-full flex flex-col items-center" 
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Close Button */}
+        <button 
+          onClick={onClose}
+          className="absolute -top-12 right-0 text-white/70 hover:text-red-500 transition-colors"
+        >
+          <X size={32} />
+        </button>
+
+        {/* Main Image Container */}
+        <div className="relative w-full aspect-square md:aspect-[4/5] bg-zinc-900 rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
+          <img
+            src={images[index]}
+            className="w-full h-full object-contain"
+            alt="Art Gallery Preview"
+          />
+
+          {/* Navigation Controls inside the box for mobile friendliness */}
+          <div className="absolute inset-y-0 left-0 flex items-center">
+             <button onClick={prev} className="p-2 ml-2 bg-black/50 hover:bg-black/80 text-white rounded-full transition-all">
+                <ChevronLeft size={24} />
+             </button>
+          </div>
+          <div className="absolute inset-y-0 right-0 flex items-center">
+             <button onClick={next} className="p-2 mr-2 bg-black/50 hover:bg-black/80 text-white rounded-full transition-all">
+                <ChevronRight size={24} />
+             </button>
+          </div>
+        </div>
+
+        {/* Image Counter */}
+        <div className="mt-4 px-4 py-1 bg-white/5 border border-white/10 rounded-full">
+           <p className="text-[10px] text-zinc-400 font-mono">
+             {index + 1} / {images.length}
+           </p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ---------- HERO ----------
 const Hero = () => (
   <section id="home" className="relative flex min-h-[100vh] items-center justify-center overflow-hidden bg-black">
-    <div 
+    <div
       className="absolute inset-0 bg-cover bg-center"
-      style={{ 
-        backgroundImage: "url('/images/about2.jpeg')", 
-        backgroundPosition: "center 45%" 
-      }}
+      style={{ backgroundImage: "url('/images/about2.jpeg')", backgroundPosition: "center 45%" }}
     >
       <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/80 to-black"></div>
     </div>
-
-    <div className="container relative z-10 mx-auto text-center px-4">
+    <div className="container relative z-10 text-center px-4">
       <motion.div
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
@@ -40,18 +136,18 @@ const Hero = () => (
           Adrenaline Junky Piercinks
         </p>
 
-        <h1 className="text-3xl sm:text-5xl md:text-7xl lg:text-8xl font-black leading-tight tracking-tighter text-white drop-shadow-[0_4px_15px_rgba(0,0,0,0.9)] uppercase">
+        <h1 className="text-4xl md:text-7xl font-black leading-tight tracking-tighter text-white uppercase">
           SERMON IS TEMPORARY,<br />
           <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-600 via-orange-500 to-yellow-400">
             VANITY IS FOREVER!
           </span>
         </h1>
 
-        <div className="flex flex-row flex-wrap gap-4 justify-center pt-8">
-          <Button size="lg" className="h-12 md:h-14 rounded-full px-8 border border-white/30 bg-white/5 backdrop-blur-sm text-white font-bold hover:bg-white hover:text-black">
+        <div className="flex gap-4 justify-center pt-8">
+          <Button size="lg" className="h-12 md:h-14 rounded-full px-8 bg-white text-black font-bold hover:bg-yellow-400">
             View Gallery <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
-          <Button size="lg" className="h-12 md:h-14 rounded-full px-8 border border-white/30 bg-transparent text-white font-bold hover:border-yellow-400 hover:text-yellow-400">
+          <Button size="lg" className="h-12 md:h-14 rounded-full px-8 border border-white/50 text-white hover:border-yellow-400 hover:text-yellow-400">
             Book Now
           </Button>
         </div>
@@ -60,219 +156,334 @@ const Hero = () => (
   </section>
 )
 
-// --- About Us Section (Centered & Not Wide) ---
+// ---------- Improved AboutUs for Mobile & Desktop ----------
 const AboutUs = () => (
- <section id="about" className="relative flex min-h-[70vh] md:min-h-[85vh] items-center py-24 md:py-48 bg-black border-b border-white/5">
-  <div className="container mx-auto px-6 max-w-6xl">
-    <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
-      
-      {/* Left Side: Image */}
-      <motion.div 
-        initial={{ opacity: 0, x: -30 }}
-        whileInView={{ opacity: 1, x: 0 }}
-        viewport={{ once: true }}
-        className="relative aspect-[3/4] md:aspect-square lg:aspect-[4/5] overflow-hidden rounded-[2.5rem] border border-white/10"
-      >
-        <Image 
-          src="/images/about3.png" 
-          alt="Our Studio" 
-          fill 
-          className="object-cover"
-        />
-      </motion.div>
+  <section id="about" className="relative py-20 md:py-32 bg-black border-y border-white/5 overflow-hidden">
+    {/* Background Glow Effect - Para sa extra aesthetic */}
+    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] bg-red-600/10 blur-[120px] rounded-full pointer-events-none" />
 
-      {/* Right Side: Text content */}
-      <motion.div 
-        initial={{ opacity: 0, x: 30 }}
-        whileInView={{ opacity: 1, x: 0 }}
-        viewport={{ once: true }}
-        className="space-y-10"
-      >
-        <div className="inline-block bg-[#1a1a1a] text-white border-none rounded-md px-3 py-1 uppercase text-[10px] tracking-widest font-bold">
-          SINCE 2018
-        </div>
+    <div className="container mx-auto px-6 max-w-6xl relative z-10">
+      <div className="flex flex-col lg:grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
         
-        <div className="space-y-4">
-          <h2 className="text-4xl md:text-6xl lg:text-7xl font-black uppercase tracking-tight leading-[0.9] text-white">
-            MORE THAN JUST INK.
-          </h2>
-          <h2 className="text-4xl md:text-6xl lg:text-7xl font-black uppercase tracking-tight leading-[0.9] text-gray-500">
-            IT&apos;S A LIFESTYLE.
-          </h2>
-        </div>
+        {/* IMAGE BOX */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="relative w-full max-w-[350px] lg:max-w-none mx-auto lg:mx-0"
+        >
+          <div className="relative aspect-[4/5] md:aspect-square overflow-hidden rounded-[2rem] md:rounded-[3rem] border border-white/10 shadow-2xl rotate-2 hover:rotate-0 transition-transform duration-500">
+            <Image 
+              src="/images/about3.png" 
+              alt="Our Studio" 
+              fill 
+              className="object-cover scale-110 hover:scale-100 transition-transform duration-700" 
+            />
+          </div>
+          {/* Decorative element sa likod ng image */}
+          <div className="absolute -inset-4 border border-red-600/20 rounded-[2.5rem] md:rounded-[3.5rem] -z-10 -rotate-3" />
+        </motion.div>
 
-        {/* ✅ English translation & responsive text size (text-sm on mobile, text-lg on desktop) */}
-        <p className="text-gray-400 text-sm md:text-lg leading-relaxed max-w-md">
-          Adrenaline Junky Piercinks was established for those who are unafraid to express their true selves. From realism to fine line art, every single stroke tells a unique story.
-        </p>
-
-        <div className="pt-4">
-          <Button 
-            variant="outline" 
-            className="h-14 rounded-full px-10 border-white/40 bg-transparent text-white hover:bg-white hover:text-black transition-all group"
-          >
-            <span className="flex items-center text-xs uppercase tracking-[0.2em] font-bold">
-              View Stories <PlayCircle className="ml-2 h-5 w-5" />
+        {/* TEXT CONTENT */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="text-center lg:text-left space-y-6 md:space-y-8"
+        >
+          <div className="inline-flex items-center gap-2 bg-white/5 border border-white/10 px-4 py-1.5 rounded-full">
+            <span className="w-2 h-2 bg-red-600 rounded-full animate-pulse" />
+            <span className="text-white uppercase text-[10px] md:text-xs tracking-[0.3em] font-black">
+              EST. 2019
             </span>
-          </Button>
-        </div>
-      </motion.div>
-    </div>
-  </div>
-</section>
-)
-
-// --- Contact Section (Centered & Uniform Inputs) ---
-const ContactUs = () => {
-  const [isSending, setIsSending] = useState(false)
-  const [formData, setFormData] = useState({
-    firstname: '', lastname: '', email: '', phone: '',
-    date: '', time: '', service: '', info: ''
-  })
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (Object.values(formData).some(val => val === '')) {
-      Swal.fire({ icon: 'warning', title: 'Incomplete', text: 'Please fill all fields.', background: '#1a1a1a', color: '#fff' })
-      return
-    }
-    setIsSending(true)
-    setTimeout(() => {
-      Swal.fire({ icon: 'success', title: 'Message Sent!', text: 'We will get back to you soon.', background: '#1a1a1a', color: '#fff', timer: 2000, showConfirmButton: false })
-      setIsSending(false)
-      setFormData({ firstname: '', lastname: '', email: '', phone: '', date: '', time: '', service: '', info: '' })
-    }, 1500)
-  }
-
-  const inputStyle = "rounded-full bg-zinc-900/50 border-white/10 h-14 px-6 text-sm sm:text-base focus:border-yellow-500 focus:ring-0 transition-all placeholder:text-gray-600"
-
-  return (
-    <section id="contact" className="py-24 bg-black px-4">
-  <div className="container mx-auto max-w-6xl">
-    <div className="bg-[#0a0a0a] rounded-[3rem] p-8 md:p-16 border border-white/5">
-      <div className="grid lg:grid-cols-2 gap-16">
-        
-        {/* Left Side: Info */}
-        <div className="space-y-8">
-          <h2 className="text-4xl md:text-5xl font-black tracking-tight text-white uppercase leading-none">
-            Contact & <br/> Appointments
-          </h2>
-          <div className="space-y-6">
-            <div className="flex items-center gap-4">
-              <div className="h-12 w-12 rounded-full bg-white/5 flex items-center justify-center text-yellow-500 border border-white/10">
-                <Mail size={18}/>
-              </div>
-              <a href="mailto:caranicolas.819@icloud.com" className="text-sm md:text-base text-zinc-400 hover:text-white transition-colors">
-                caranicolas.819@icloud.com
-              </a>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="h-12 w-12 rounded-full bg-white/5 flex items-center justify-center text-yellow-500 border border-white/10">
-                <Phone size={18}/>
-              </div>
-              <p className="text-sm md:text-base text-zinc-400">+63 935 595 5699</p>
-            </div>
-            <div className="flex gap-6 pt-4 px-2">
-              <Facebook className="text-zinc-500 hover:text-white cursor-pointer" size={22} />
-              <Instagram className="text-zinc-500 hover:text-white cursor-pointer" size={22} />
-            </div>
-          </div>
-        </div>
-
-        {/* Right Side: Form with Labels Outside */}
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <label className="text-xs font-bold uppercase tracking-widest text-zinc-500 ml-4">First Name *</label>
-              <Input value={formData.firstname} onChange={(e)=>setFormData({...formData, firstname: e.target.value})} className={inputStyle} />
-            </div>
-            <div className="space-y-2">
-              <label className="text-xs font-bold uppercase tracking-widest text-zinc-500 ml-4">Last Name *</label>
-              <Input value={formData.lastname} onChange={(e)=>setFormData({...formData, lastname: e.target.value})} className={inputStyle} />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <label className="text-xs font-bold uppercase tracking-widest text-zinc-500 ml-4">Email Address *</label>
-              <Input type="email" value={formData.email} onChange={(e)=>setFormData({...formData, email: e.target.value})} className={inputStyle} />
-            </div>
-            <div className="space-y-2">
-              <label className="text-xs font-bold uppercase tracking-widest text-zinc-500 ml-4">Phone Number *</label>
-              <Input value={formData.phone} onChange={(e)=>setFormData({...formData, phone: e.target.value})} className={inputStyle} />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <label className="text-xs font-bold uppercase tracking-widest text-zinc-500 ml-4">Preferred Date *</label>
-              <Input type="date" value={formData.date} onChange={(e)=>setFormData({...formData, date: e.target.value})} className={`${inputStyle} invert brightness-50`} />
-            </div>
-            <div className="space-y-2">
-              <label className="text-xs font-bold uppercase tracking-widest text-zinc-500 ml-4">Preferred Time *</label>
-              <select value={formData.time} onChange={(e)=>setFormData({...formData, time: e.target.value})} className={inputStyle}>
-                <option value="" className="bg-black">Select Time</option>
-                <option value="9:00 AM" className="bg-black">9:00 AM</option>
-                <option value="3:00 PM" className="bg-black">3:00 PM</option>
-              </select>
-            </div>
           </div>
 
           <div className="space-y-2">
-            <label className="text-xs font-bold uppercase tracking-widest text-zinc-500 ml-4">Type of Service *</label>
-            <select value={formData.service} onChange={(e)=>setFormData({...formData, service: e.target.value})} className={inputStyle}>
-              <option value="" className="bg-black">Select Service</option>
-              <option value="Tattoo" className="bg-black">Tattoo Art</option>
-              <option value="Piercing" className="bg-black">Piercing</option>
-            </select>
+            <h2 className="text-4xl md:text-6xl font-black uppercase text-white leading-[0.9] tracking-tighter">
+              Adrenaline Junky<br /> 
+              <span className="text-transparent bg-clip-text bg-gradient-to-b from-white to-zinc-600">Piercinks</span>
+            </h2>
+            <h3 className="text-xl md:text-3xl font-bold uppercase text-red-600 tracking-tight">
+             Tattoo & Piercing.
+            </h3>
           </div>
 
-          <div className="space-y-2">
-            <label className="text-xs font-bold uppercase tracking-widest text-zinc-500 ml-4">Inquiry Details *</label>
-            <Textarea value={formData.info} onChange={(e)=>setFormData({...formData, info: e.target.value})} className="rounded-[2rem] bg-zinc-800/40 border-white/5 p-6 min-h-[120px] text-zinc-400 focus:border-yellow-500 outline-none resize-none" />
-          </div>
+          <p className="text-zinc-400 text-sm md:text-lg leading-relaxed max-w-md mx-auto lg:mx-0">
 
-          <Button disabled={isSending} className="w-full h-16 rounded-full bg-white text-black font-black uppercase tracking-[0.2em] hover:bg-yellow-400 transition-all text-xs mt-4">
-            {isSending ? "Sending..." : "Submit Inquiry"}
-          </Button>
-        </form>
+Wedding & Any Event Tattoo Sponsor/Souvenir.
+          </p>
+
+          <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 pt-4">
+            <Button className="w-full sm:w-auto h-14 rounded-full px-10 bg-white text-black font-black hover:bg-red-600 hover:text-white transition-all duration-300 shadow-xl shadow-white/5">
+              OUR STORY
+            </Button>
+            <Button variant="ghost" className="text-white hover:bg-white/5 group">
+              <span className="flex items-center text-xs uppercase tracking-widest font-bold">
+                Watch Video <PlayCircle className="ml-2 h-5 w-5 group-hover:text-red-600 transition-colors" />
+              </span>
+            </Button>
+          </div>
+        </motion.div>
+
       </div>
     </div>
-  </div>
-</section>
+  </section>
+)
+// ---------- PIERCING GALLERY ----------
+const GallerySection = ({ openModal }: { openModal: (imgs: string[], i: number) => void }) => {
+  const [galleryItems, setGalleryItems] = useState<GalleryItem[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetch("/api/gallery")
+      .then(res => res.json())
+      .then(data => Array.isArray(data) ? setGalleryItems(data) : null)
+      .finally(() => setLoading(false))
+  }, [])
+
+  return (
+    <section id="gallery-section" className="py-16 bg-black px-4">
+      <div className="container mx-auto max-w-4xl">
+        <div className="text-center mb-10 space-y-2">
+          <Badge className="bg-red-600 text-[10px] uppercase font-black tracking-widest px-3 italic">Piercings</Badge>
+          <h2 className="text-2xl md:text-4xl font-black uppercase text-white tracking-tighter">The Gallery</h2>
+        </div>
+
+        {loading ? (
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 animate-pulse">
+            {[1, 2, 3, 4].map((_, idx) => (
+              <div key={idx} className="aspect-square bg-zinc-900 rounded-xl" />
+            ))}
+          </div>
+        ) : (
+          <>
+            {/* GRID LOGIC: 2 Cols sa Mobile, 3 Cols sa Desktop */}
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              {galleryItems.slice(0, 4).map((item, idx) => (
+                <motion.div
+                  key={item._id}
+                  whileTap={{ scale: 0.97 }}
+                  className="group relative overflow-hidden rounded-xl border border-white/5 aspect-square cursor-pointer"
+                  onClick={() => openModal(galleryItems.slice(0, 4).map(g => g.image), idx)}
+                >
+                  <img
+                    src={item.image}
+                    alt={item.placement}
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                  />
+                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center p-2">
+                    <p className="text-white text-[9px] font-bold uppercase tracking-widest text-center">{item.placement}</p>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+            
+            <div className="mt-8 flex justify-center">
+              <Button variant="link" className="text-zinc-500 hover:text-red-500 text-[10px] uppercase font-black tracking-widest">
+                See More Piercings <ChevronRight size={14} className="ml-1" />
+              </Button>
+            </div>
+          </>
+        )}
+      </div>
+    </section>
   )
 }
 
-// --- Placeholder Sections to Complete the Page ---
-const Gallery = () => (
-  <section className="py-20 bg-black text-center">
-    <h2 className="text-3xl font-black uppercase text-white mb-10">The Portfolio</h2>
-    <div className="container mx-auto max-w-6xl grid grid-cols-2 md:grid-cols-3 gap-4 px-6">
-      {[1,2,3,4,5,6].map(i => <div key={i} className="aspect-[4/5] bg-zinc-900 rounded-3xl border border-white/5"></div>)}
-    </div>
-  </section>
-)
+// ---------- TATTOO SECTION ----------
+const TattooSection = ({ openModal }: { openModal: (imgs: string[], i: number) => void }) => {
+  const [tattoos, setTattoos] = useState<GalleryItem[]>([])
+  const [loading, setLoading] = useState(true)
 
-const Artists = () => (
-  <section className="py-20 bg-zinc-950 text-center">
-    <h2 className="text-3xl font-black uppercase text-white mb-10">Master Artists</h2>
-    <div className="container mx-auto max-w-6xl grid grid-cols-2 md:grid-cols-3 gap-6 px-6">
-      {[1,2,3].map(i => <div key={i} className="aspect-[3/4] bg-black rounded-[2rem] border border-white/5"></div>)}
-    </div>
-  </section>
-)
+  useEffect(() => {
+    fetch("/api/tattoo")
+      .then(res => res.json())
+      .then(data => Array.isArray(data) ? setTattoos(data) : null)
+      .finally(() => setLoading(false))
+  }, [])
 
-export default function Dashboard() {
   return (
-    <div className="min-h-screen bg-black text-white selection:bg-yellow-400/30 font-sans">
+    <section id="tattoo-section" className="py-16 bg-zinc-950 px-4">
+      <div className="container mx-auto max-w-4xl">
+        <div className="text-center mb-10 space-y-2">
+          <Badge className="bg-orange-600 text-[10px] uppercase font-black tracking-widest px-3 italic">Ink Art</Badge>
+          <h2 className="text-2xl md:text-4xl font-black uppercase text-white tracking-tighter">Masterpieces</h2>
+        </div>
+
+        {loading ? (
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 animate-pulse">
+            {[1, 2, 3, 4].map((_, idx) => (
+              <div key={idx} className="aspect-square bg-zinc-900 rounded-xl" />
+            ))}
+          </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              {tattoos.slice(0, 4).map((item, idx) => (
+                <motion.div
+                  key={item._id}
+                  whileTap={{ scale: 0.97 }}
+                  className="group relative overflow-hidden rounded-xl border border-white/5 aspect-square cursor-pointer"
+                  onClick={() => openModal(tattoos.slice(0, 4).map(t => t.image), idx)}
+                >
+                  <img
+                    src={item.image}
+                    alt={item.placement}
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                  />
+                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center p-2">
+                    <p className="text-white text-[9px] font-bold uppercase tracking-widest text-center">{item.placement}</p>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+
+            <div className="mt-8 flex justify-center">
+              <Button variant="link" className="text-zinc-500 hover:text-orange-500 text-[10px] uppercase font-black tracking-widest">
+                See More Tattoos <ChevronRight size={14} className="ml-1" />
+              </Button>
+            </div>
+          </>
+        )}
+      </div>
+    </section>
+  )
+}// ---------- PRODUCTS SECTION ----------
+const ProductSection = () => {
+  const [products, setProducts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/products")
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) setProducts(data);
+      })
+      .catch((err) => console.error("Error fetching products:", err))
+      .finally(() => setLoading(false));
+  }, []);
+
+  return (
+    <section id="shop" className="py-20 bg-black px-6">
+      <div className="container mx-auto max-w-5xl">
+        <div className="flex flex-col items-center text-center mb-12 space-y-3">
+          <Badge className="bg-yellow-500 text-black px-3 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest">
+            Premium Supplies
+          </Badge>
+          <div className="space-y-1">
+            <h2 className="text-3xl md:text-5xl font-black uppercase text-white tracking-tighter italic">
+              Aftercare & <span className="text-yellow-500">Jewelry</span>
+            </h2>
+            <p className="text-zinc-500 text-[10px] md:text-xs uppercase tracking-[0.3em] font-bold">
+              High-Quality Piercings • Balms • Studio Merch
+            </p>
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-8">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="aspect-square bg-zinc-900 rounded-2xl animate-pulse" />
+            ))}
+          </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-8">
+              {products.slice(0, 3).map((product) => (
+                <motion.div
+                  key={product._id}
+                  initial={{ opacity: 0, y: 10 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  className="group relative bg-zinc-900/30 border border-white/5 rounded-[2rem] p-3 md:p-4 hover:border-yellow-500/30 transition-all duration-500"
+                >
+                  {/* Product Category Tag */}
+                  <div className="absolute top-6 left-6 z-10">
+                    <span className="bg-black/60 backdrop-blur-md text-white text-[8px] font-black px-2 py-1 rounded-lg border border-white/10 uppercase tracking-tighter">
+                      {product.category || "Item"}
+                    </span>
+                  </div>
+
+                  <div className="relative aspect-square overflow-hidden rounded-[1.2rem] mb-4 bg-zinc-800">
+                    <img
+                      src={product.image || "/images/placeholder.jpg"}
+                      alt={product.name}
+                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                    />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <Button className="bg-white text-black hover:bg-yellow-500 font-bold rounded-full text-xs h-9 px-4">
+                        <ShoppingBag className="mr-1.5 h-3 w-3" /> Buy Now
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1 px-1">
+                    <h3 className="text-sm md:text-base font-bold text-white uppercase tracking-tight truncate">
+                      {product.name}
+                    </h3>
+                    <div className="flex justify-between items-center">
+                      <p className="text-zinc-500 text-[9px] md:text-[10px] uppercase font-bold tracking-widest">
+                        Available In-Store
+                      </p>
+                      <span className="text-yellow-500 font-black text-sm md:text-base">
+                        ₱{product.cost_price}
+                      </span>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+
+            <div className="mt-12 flex justify-center">
+              <Button 
+                variant="outline" 
+                className="group rounded-full px-8 h-12 border-white/10 hover:border-yellow-500 text-white hover:bg-transparent"
+              >
+                <span className="flex items-center text-[10px] font-black uppercase tracking-[0.2em]">
+                  Browse All Items 
+                  <ChevronRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                </span>
+              </Button>
+            </div>
+          </>
+        )}
+      </div>
+    </section>
+  );
+};
+// ---------- MAIN PAGE ----------
+export default function Dashboard() {
+  const [modalOpen, setModalOpen] = useState(false)
+  const [modalImages, setModalImages] = useState<string[]>([])
+  const [modalIndex, setModalIndex] = useState(0)
+
+  const openModal = (imgs: string[], i: number) => {
+    setModalImages(imgs)
+    setModalIndex(i)
+    setModalOpen(true)
+  }
+
+  return (
+    <div className="bg-black text-white selection:bg-yellow-400/30 font-sans">
       <Navbar />
+
+      {modalOpen && (
+        <ImageModal
+          images={modalImages}
+          currentIndex={modalIndex}
+          onClose={() => setModalOpen(false)}
+        />
+      )}
+
       <main>
         <Hero />
         <AboutUs />
-        <Gallery />
-        <Artists />
-        <ContactUs />
+        
+        <GallerySection openModal={openModal} />
+        <TattooSection openModal={openModal} />
+        <ProductSection/>
       </main>
+
       <Footer />
     </div>
   )
