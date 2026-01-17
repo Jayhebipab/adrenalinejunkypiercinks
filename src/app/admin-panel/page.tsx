@@ -13,6 +13,7 @@ import ProductList from "../components/shop/ProductList"
 import Checkout from "../components/shop/ShopList"
 import TattooGallery from "../components/pages/TattooGallery"
 import PiercingGallery from "../components/pages/PiercingGallery"
+import Reviewgallery from "../components/pages/Reviewspanel"
 import Inventory from "../components/maintenance/Inventory"
 import UserManagement from "../components/maintenance/UserManagement"
 import SalesReports from "../components/reports/SaleReports"
@@ -34,6 +35,7 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar"
+import ReviewsPanel from "../components/pages/Reviewspanel";
 
 export default function AdminPanelPage() {
   // Ang default view ay Dashboard
@@ -55,6 +57,7 @@ export default function AdminPanelPage() {
       // Pages
       case "Tattoo Gallery": return <TattooGallery />
       case "Piercing Gallery": return <PiercingGallery />
+      case "Reviews": return <Reviewgallery/>
       
       // Maintenance
       case "User Management": return <UserManagement />

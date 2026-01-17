@@ -3,7 +3,9 @@
 import React, { useState, useEffect } from "react"
 import Image from "next/image"
 import { motion } from "framer-motion"
+
 import {
+  Star,
   ArrowRight,
   PlayCircle,
   Mail,
@@ -16,6 +18,7 @@ import {
   Sparkles,
   X,
   ChevronLeft,
+  MessageSquareQuote,
 } from "lucide-react"
 import Swal from "sweetalert2"
 
@@ -25,7 +28,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Navbar } from "../components/navigation/navbar"
 import { Footer } from "../components/navigation/footer"
-
+import { FloatingChatWidget } from "../components/chatbot"
 // ---------- TYPES ----------
 interface GalleryItem {
   _id: string
@@ -34,6 +37,15 @@ interface GalleryItem {
   category?: string
   name?: string
   price?: number | string
+}
+
+interface Review {
+  _id: string;
+  name: string;
+  stars: number;
+  description: string;
+  userImage?: string;
+  isVisible: boolean;
 }
 
 // ---------- LIGHTBOX / IMAGE MODAL ----------
@@ -348,7 +360,108 @@ const TattooSection = ({ openModal }: { openModal: (imgs: string[], i: number) =
       </div>
     </section>
   )
-}// ---------- PRODUCTS SECTION ----------
+}
+export const ReviewsSection = () => {
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/reviews")
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          // I-filter lang ang mga naka-SHOW/Visible
+          setReviews(data.filter((r) => r.isVisible));
+        }
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  return (
+    <section id="reviews-section" className="py-16 bg-zinc-950 px-4 border-t border-white/5">
+      <div className="container mx-auto max-w-4xl">
+        {/* HEADER - KAPAREHAS NG TATTOO SECTION */}
+        <div className="text-center mb-10 space-y-2">
+          <Badge className="bg-white text-black text-[10px] uppercase font-black tracking-[0.2em] px-3 italic">
+            Testimonials
+          </Badge>
+          <h2 className="text-2xl md:text-4xl font-black uppercase text-white tracking-tighter">
+            Client Stories
+          </h2>
+        </div>
+
+        {loading ? (
+          /* LOADING STATE */
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-pulse">
+            {[1, 2].map((_, idx) => (
+              <div key={idx} className="h-40 bg-zinc-900 rounded-xl" />
+            ))}
+          </div>
+        ) : (
+          <>
+            {/* REVIEWS GRID */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {reviews.slice(0, 4).map((item, idx) => (
+                <motion.div
+                  key={item._id}
+                  initial={{ opacity: 0, y: 10 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: idx * 0.1 }}
+                  className="group relative overflow-hidden rounded-xl border border-white/5 bg-zinc-900/50 p-6 flex flex-col justify-between"
+                >
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex gap-1">
+                        {[...Array(5)].map((_, i) => (
+                          <Star
+                            key={i}
+                            size={10}
+                            className={i < item.stars ? "fill-orange-500 text-orange-500" : "text-zinc-700"}
+                          />
+                        ))}
+                      </div>
+                      <MessageSquareQuote size={16} className="text-zinc-800 group-hover:text-orange-600 transition-colors" />
+                    </div>
+                    
+                    <p className="text-zinc-400 text-xs leading-relaxed uppercase tracking-tight italic font-medium">
+                      "{item.description}"
+                    </p>
+                  </div>
+
+                  <div className="mt-6 flex items-center gap-3">
+                    <img
+                      src={item.userImage || "https://avatar.iran.liara.run/public"}
+                      alt={item.name}
+                      className="w-8 h-8 rounded-full border border-white/10 grayscale group-hover:grayscale-0 transition-all"
+                    />
+                    <div>
+                      <p className="text-white text-[10px] font-black uppercase tracking-widest">
+                        {item.name}
+                      </p>
+                      <p className="text-zinc-600 text-[8px] uppercase font-bold">Verified Member</p>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+
+            {/* SEE MORE BUTTON */}
+            <div className="mt-8 flex justify-center">
+              <Button 
+                variant="link" 
+                className="text-zinc-500 hover:text-orange-500 text-[10px] uppercase font-black tracking-widest"
+              >
+                Read All Reviews <ChevronRight size={14} className="ml-1" />
+              </Button>
+            </div>
+          </>
+        )}
+      </div>
+    </section>
+  );
+}
+// ---------- PRODUCTS SECTION ----------
 const ProductSection = () => {
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -456,12 +569,14 @@ export default function Dashboard() {
   const [modalOpen, setModalOpen] = useState(false)
   const [modalImages, setModalImages] = useState<string[]>([])
   const [modalIndex, setModalIndex] = useState(0)
-
+  
   const openModal = (imgs: string[], i: number) => {
     setModalImages(imgs)
     setModalIndex(i)
     setModalOpen(true)
   }
+
+  
 
   return (
     <div className="bg-black text-white selection:bg-yellow-400/30 font-sans">
@@ -482,8 +597,9 @@ export default function Dashboard() {
         <GallerySection openModal={openModal} />
         <TattooSection openModal={openModal} />
         <ProductSection/>
+        <ReviewsSection/>
       </main>
-
+      <FloatingChatWidget/>
       <Footer />
     </div>
   )

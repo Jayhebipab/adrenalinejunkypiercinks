@@ -58,6 +58,7 @@ const data = {
             items: [
                 { title: "Tattoo Gallery", id: "Tattoo Gallery" },
                 { title: "Piercing Gallery", id: "Piercing Gallery" },
+                { title: "Reviews", id: "Reviews" },
             ],
         },
         {
