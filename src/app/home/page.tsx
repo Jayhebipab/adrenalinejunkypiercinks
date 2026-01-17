@@ -525,7 +525,7 @@ const ProductSection = () => {
                     />
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                       <Button className="bg-white text-black hover:bg-yellow-500 font-bold rounded-full text-xs h-9 px-4">
-                        <ShoppingBag className="mr-1.5 h-3 w-3" /> Buy Now
+                        <ShoppingBag className="mr-1.5 h-3 w-3" /> Buy sow
                       </Button>
                     </div>
                   </div>
