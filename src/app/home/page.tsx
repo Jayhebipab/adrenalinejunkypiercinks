@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react"
 import Image from "next/image"
 import { motion } from "framer-motion"
-
+import { Card } from "@/components/ui/card";
 import {
   Star,
   ArrowRight,
@@ -19,6 +19,9 @@ import {
   X,
   ChevronLeft,
   MessageSquareQuote,
+  Quote,
+  Loader2,
+
 } from "lucide-react"
 import Swal from "sweetalert2"
 
@@ -127,7 +130,6 @@ const ImageModal = ({
     </div>
   )
 }
-
 // ---------- HERO ----------
 const Hero = () => (
   <section id="home" className="relative flex min-h-[100vh] items-center justify-center overflow-hidden bg-black">
@@ -135,9 +137,12 @@ const Hero = () => (
       className="absolute inset-0 bg-cover bg-center"
       style={{ backgroundImage: "url('/images/about2.jpeg')", backgroundPosition: "center 45%" }}
     >
-      <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/80 to-black"></div>
+      {/* BINABAWASAN ANG DILIM DITO: Mula 60/80/100, ginawa nating 30/40/60 */}
+      <div className="absolute inset-0 bg-gradient-to-b from-black/75 via-black/50 to-black/99"></div>
     </div>
+    
     <div className="container relative z-10 text-center px-4">
+      {/* ... rest of your code (buttons, h1, etc) stay the same ... */}
       <motion.div
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
@@ -155,14 +160,7 @@ const Hero = () => (
           </span>
         </h1>
 
-        <div className="flex gap-4 justify-center pt-8">
-          <Button size="lg" className="h-12 md:h-14 rounded-full px-8 bg-white text-black font-bold hover:bg-yellow-400">
-            View Gallery <ArrowRight className="ml-2 h-4 w-4" />
-          </Button>
-          <Button size="lg" className="h-12 md:h-14 rounded-full px-8 border border-white/50 text-white hover:border-yellow-400 hover:text-yellow-400">
-            Book Now
-          </Button>
-        </div>
+
       </motion.div>
     </div>
   </section>
@@ -171,8 +169,8 @@ const Hero = () => (
 // ---------- Improved AboutUs for Mobile & Desktop ----------
 const AboutUs = () => (
   <section id="about" className="relative py-20 md:py-32 bg-black border-y border-white/5 overflow-hidden">
-    {/* Background Glow Effect - Para sa extra aesthetic */}
-    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] bg-red-600/10 blur-[120px] rounded-full pointer-events-none" />
+    {/* Background Glow Effect - Ginawang Fire Gradient Glow */}
+    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] bg-orange-600/10 blur-[120px] rounded-full pointer-events-none" />
 
     <div className="container mx-auto px-6 max-w-6xl relative z-10">
       <div className="flex flex-col lg:grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
@@ -192,8 +190,8 @@ const AboutUs = () => (
               className="object-cover scale-110 hover:scale-100 transition-transform duration-700" 
             />
           </div>
-          {/* Decorative element sa likod ng image */}
-          <div className="absolute -inset-4 border border-red-600/20 rounded-[2.5rem] md:rounded-[3.5rem] -z-10 -rotate-3" />
+          {/* Decorative element - In-adjust ang border color para bumagay sa fire theme */}
+          <div className="absolute -inset-4 border border-orange-600/20 rounded-[2.5rem] md:rounded-[3.5rem] -z-10 -rotate-3" />
         </motion.div>
 
         {/* TEXT CONTENT */}
@@ -204,7 +202,8 @@ const AboutUs = () => (
           className="text-center lg:text-left space-y-6 md:space-y-8"
         >
           <div className="inline-flex items-center gap-2 bg-white/5 border border-white/10 px-4 py-1.5 rounded-full">
-            <span className="w-2 h-2 bg-red-600 rounded-full animate-pulse" />
+            {/* Pulsing dot - Orange/Yellow naman para maiba */}
+            <span className="w-2 h-2 bg-orange-500 rounded-full animate-pulse" />
             <span className="text-white uppercase text-[10px] md:text-xs tracking-[0.3em] font-black">
               EST. 2019
             </span>
@@ -213,25 +212,31 @@ const AboutUs = () => (
           <div className="space-y-2">
             <h2 className="text-4xl md:text-6xl font-black uppercase text-white leading-[0.9] tracking-tighter">
               Adrenaline Junky<br /> 
-              <span className="text-transparent bg-clip-text bg-gradient-to-b from-white to-zinc-600">Piercinks</span>
+              {/* GRADIENT DITO PAR */}
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-600 via-orange-500 to-yellow-400">
+                Piercinks
+              </span>
             </h2>
-            <h3 className="text-xl md:text-3xl font-bold uppercase text-red-600 tracking-tight">
-             Tattoo & Piercing.
+            <h3 className="text-xl md:text-3xl font-bold uppercase tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-red-600 via-orange-500 to-yellow-400">
+               Tattoo & Piercing.
             </h3>
           </div>
 
-          <p className="text-zinc-400 text-sm md:text-lg leading-relaxed max-w-md mx-auto lg:mx-0">
-
-Wedding & Any Event Tattoo Sponsor/Souvenir.
+          <p className="text-zinc-400 text-sm md:text-lg leading-relaxed max-w-md mx-auto lg:mx-0 font-medium">
+            Wedding & Any Event Tattoo Sponsor/Souvenir.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 pt-4">
-            <Button className="w-full sm:w-auto h-14 rounded-full px-10 bg-white text-black font-black hover:bg-red-600 hover:text-white transition-all duration-300 shadow-xl shadow-white/5">
+            {/* OUR STORY BUTTON - Hover effect matches the fire gradient */}
+            <Button className="w-full sm:w-auto h-14 rounded-full px-10 bg-white text-black font-black hover:bg-gradient-to-r hover:from-red-600 hover:to-orange-500 hover:text-white transition-all duration-300 shadow-xl shadow-white/5">
               OUR STORY
             </Button>
+            
             <Button variant="ghost" className="text-white hover:bg-white/5 group">
               <span className="flex items-center text-xs uppercase tracking-widest font-bold">
-                Watch Video <PlayCircle className="ml-2 h-5 w-5 group-hover:text-red-600 transition-colors" />
+                Watch Video 
+                {/* ICON GLOW - Nilagyan natin ng orange/yellow hover */}
+                <PlayCircle className="ml-2 h-5 w-5 group-hover:text-orange-500 transition-colors" />
               </span>
             </Button>
           </div>
@@ -254,45 +259,59 @@ const GallerySection = ({ openModal }: { openModal: (imgs: string[], i: number) 
   }, [])
 
   return (
-    <section id="gallery-section" className="py-16 bg-black px-4">
-      <div className="container mx-auto max-w-4xl">
-        <div className="text-center mb-10 space-y-2">
-          <Badge className="bg-red-600 text-[10px] uppercase font-black tracking-widest px-3 italic">Piercings</Badge>
-          <h2 className="text-2xl md:text-4xl font-black uppercase text-white tracking-tighter">The Gallery</h2>
+    <section id="gallery-section" className="py-20 bg-black px-6">
+      {/* Nilakihan ang max-width mula 4xl patungong 6xl para mas malapad ang display */}
+      <div className="container mx-auto max-w-6xl">
+        <div className="text-center mb-12 space-y-4">
+
+         <h2 className="text-3xl md:text-4xl font-black uppercase tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-red-600 via-orange-400 to-yellow-400">
+    The ART OF BODY PIERCINGS
+  </h2>
         </div>
 
         {loading ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 animate-pulse">
-            {[1, 2, 3, 4].map((_, idx) => (
-              <div key={idx} className="aspect-square bg-zinc-900 rounded-xl" />
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-8 animate-pulse">
+            {[1, 2, 3, 4, 5, 6].map((_, idx) => (
+              <div key={idx} className="aspect-[3/4] bg-zinc-900 rounded-2xl" />
             ))}
           </div>
         ) : (
           <>
-            {/* GRID LOGIC: 2 Cols sa Mobile, 3 Cols sa Desktop */}
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              {galleryItems.slice(0, 4).map((item, idx) => (
+            {/* GRID LOGIC: Gap-3 sa mobile, Gap-8 sa desktop para mas hinga ang images */}
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-8">
+              {galleryItems.slice(0, 6).map((item, idx) => (
                 <motion.div
                   key={item._id}
+                  whileHover={{ y: -10 }} // Aangat nang kaunti pag hino-hover sa desktop
                   whileTap={{ scale: 0.97 }}
-                  className="group relative overflow-hidden rounded-xl border border-white/5 aspect-square cursor-pointer"
-                  onClick={() => openModal(galleryItems.slice(0, 4).map(g => g.image), idx)}
+                  className="group relative overflow-hidden rounded-2xl border border-white/5 aspect-[3/4] cursor-pointer shadow-2xl"
+                  onClick={() => openModal(galleryItems.slice(0, 6).map(g => g.image), idx)}
                 >
                   <img
                     src={item.image}
                     alt={item.placement}
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                   />
-                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center p-2">
-                    <p className="text-white text-[9px] font-bold uppercase tracking-widest text-center">{item.placement}</p>
+                  
+                  {/* Overlay with Fire Gradient Border on hover */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center p-6">
+                    <p className="text-white text-xs md:text-sm font-black uppercase tracking-[0.2em] text-center bg-black/50 backdrop-blur-sm px-4 py-2 rounded-lg border-b-2 border-orange-500">
+                      {item.placement}
+                    </p>
                   </div>
                 </motion.div>
               ))}
             </div>
             
-            <div className="mt-8 flex justify-center">
-              <Button variant="link" className="text-zinc-500 hover:text-red-500 text-[10px] uppercase font-black tracking-widest">
-                See More Piercings <ChevronRight size={14} className="ml-1" />
+            <div className="mt-12 flex justify-center">
+              <Button 
+                variant="ghost" 
+                className="text-zinc-400 hover:text-white transition-all group"
+              >
+                <span className="text-[11px] font-black uppercase tracking-[0.3em] flex items-center">
+                  See More Piercings 
+                  <ChevronRight size={16} className="ml-2 group-hover:translate-x-2 transition-transform text-orange-500" />
+                </span>
               </Button>
             </div>
           </>
@@ -301,7 +320,6 @@ const GallerySection = ({ openModal }: { openModal: (imgs: string[], i: number) 
     </section>
   )
 }
-
 // ---------- TATTOO SECTION ----------
 const TattooSection = ({ openModal }: { openModal: (imgs: string[], i: number) => void }) => {
   const [tattoos, setTattoos] = useState<GalleryItem[]>([])
@@ -315,44 +333,60 @@ const TattooSection = ({ openModal }: { openModal: (imgs: string[], i: number) =
   }, [])
 
   return (
-    <section id="tattoo-section" className="py-16 bg-zinc-950 px-4">
-      <div className="container mx-auto max-w-4xl">
-        <div className="text-center mb-10 space-y-2">
-          <Badge className="bg-orange-600 text-[10px] uppercase font-black tracking-widest px-3 italic">Ink Art</Badge>
-          <h2 className="text-2xl md:text-4xl font-black uppercase text-white tracking-tighter">Masterpieces</h2>
+    <section id="tattoo-section" className="py-20 bg-zinc-950 px-6">
+      {/* Nilakihan sa max-w-6xl para bumuka ang grid sa desktop */}
+      <div className="container mx-auto max-w-6xl">
+        <div className="text-center mb-12 space-y-4">
+          {/* Fire Gradient Badge */}
+         <h2 className="text-3xl md:text-4xl font-black uppercase tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-red-600 via-orange-400 to-yellow-400">
+    The ART OF BODY TATTOO
+  </h2>
         </div>
 
         {loading ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 animate-pulse">
-            {[1, 2, 3, 4].map((_, idx) => (
-              <div key={idx} className="aspect-square bg-zinc-900 rounded-xl" />
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-8 animate-pulse">
+            {[1, 2, 3, 4, 5, 6].map((_, idx) => (
+              <div key={idx} className="aspect-[3/4] bg-zinc-900 rounded-2xl" />
             ))}
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              {tattoos.slice(0, 4).map((item, idx) => (
+            {/* GRID LOGIC: Nilakihan ang gap sa md:gap-8 */}
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-8">
+              {/* Slice 0, 6 para punan ang 3 columns sa desktop */}
+              {tattoos.slice(0, 6).map((item, idx) => (
                 <motion.div
                   key={item._id}
+                  whileHover={{ y: -10 }} // Float effect pag hover
                   whileTap={{ scale: 0.97 }}
-                  className="group relative overflow-hidden rounded-xl border border-white/5 aspect-square cursor-pointer"
-                  onClick={() => openModal(tattoos.slice(0, 4).map(t => t.image), idx)}
+                  className="group relative overflow-hidden rounded-2xl border border-white/5 aspect-[3/4] cursor-pointer shadow-2xl"
+                  onClick={() => openModal(tattoos.slice(0, 6).map(t => t.image), idx)}
                 >
                   <img
                     src={item.image}
                     alt={item.placement}
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                   />
-                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center p-2">
-                    <p className="text-white text-[9px] font-bold uppercase tracking-widest text-center">{item.placement}</p>
+                  
+                  {/* Fire Gradient Bottom Overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center p-6">
+                    <p className="text-white text-xs md:text-sm font-black uppercase tracking-[0.2em] text-center bg-black/50 backdrop-blur-sm px-4 py-2 rounded-lg border-b-2 border-orange-500">
+                      {item.placement}
+                    </p>
                   </div>
                 </motion.div>
               ))}
             </div>
 
-            <div className="mt-8 flex justify-center">
-              <Button variant="link" className="text-zinc-500 hover:text-orange-500 text-[10px] uppercase font-black tracking-widest">
-                See More Tattoos <ChevronRight size={14} className="ml-1" />
+            <div className="mt-12 flex justify-center">
+              <Button 
+                variant="ghost" 
+                className="text-zinc-400 hover:text-white transition-all group"
+              >
+                <span className="text-[11px] font-black uppercase tracking-[0.3em] flex items-center">
+                  See More Tattoos 
+                  <ChevronRight size={16} className="ml-2 group-hover:translate-x-2 transition-transform text-yellow-500" />
+                </span>
               </Button>
             </div>
           </>
@@ -365,102 +399,141 @@ export const ReviewsSection = () => {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const container = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: { staggerChildren: 0.15 },
+  },
+};
+
+const cardItem = {
+  hidden: { opacity: 0, y: 30 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.5 } },
+};
+
   useEffect(() => {
     fetch("/api/reviews")
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data)) {
-          // I-filter lang ang mga naka-SHOW/Visible
+          // Filter lang ang Visible
           setReviews(data.filter((r) => r.isVisible));
         }
       })
+      .catch(() => console.error("Failed to fetch reviews"))
       .finally(() => setLoading(false));
   }, []);
 
   return (
-    <section id="reviews-section" className="py-16 bg-zinc-950 px-4 border-t border-white/5">
-      <div className="container mx-auto max-w-4xl">
-        {/* HEADER - KAPAREHAS NG TATTOO SECTION */}
-        <div className="text-center mb-10 space-y-2">
-          <Badge className="bg-white text-black text-[10px] uppercase font-black tracking-[0.2em] px-3 italic">
+    <section id="reviews-section" className="py-20 bg-zinc-950 px-4 border-t border-white/5 overflow-hidden">
+      <div className="container mx-auto max-w-5xl">
+        
+        {/* HEADER */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6 }}
+          className="text-center mb-12 md:mb-16 space-y-4"
+        >
+          <Badge className="bg-white text-black text-[10px] uppercase font-black tracking-[0.2em] px-4 py-1 italic">
             Testimonials
           </Badge>
-          <h2 className="text-2xl md:text-4xl font-black uppercase text-white tracking-tighter">
-            Client Stories
+          <h2 className="text-3xl md:text-5xl font-black uppercase text-white tracking-tighter italic">
+            Client <span className="text-orange-600">Stories</span>
           </h2>
-        </div>
+          <p className="mx-auto max-w-xl text-zinc-500 text-xs md:text-sm uppercase tracking-wide font-medium">
+            Trusted by junkies for exceptional ink and precision piercing results.
+          </p>
+        </motion.div>
 
         {loading ? (
-          /* LOADING STATE */
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-pulse">
-            {[1, 2].map((_, idx) => (
-              <div key={idx} className="h-40 bg-zinc-900 rounded-xl" />
-            ))}
+          <div className="flex flex-col items-center justify-center py-20 space-y-4">
+            <Loader2 className="h-10 w-10 animate-spin text-orange-600 opacity-50" />
+            <p className="text-[10px] uppercase font-black tracking-widest text-zinc-600">Loading Stories...</p>
           </div>
         ) : (
           <>
-            {/* REVIEWS GRID */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <motion.div
+              variants={container}
+              initial="hidden"
+              whileInView="show"
+              viewport={{ once: true }}
+              className="grid gap-6 grid-cols-1 md:grid-cols-2"
+            >
               {reviews.slice(0, 4).map((item, idx) => (
-                <motion.div
-                  key={item._id}
-                  initial={{ opacity: 0, y: 10 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: idx * 0.1 }}
-                  className="group relative overflow-hidden rounded-xl border border-white/5 bg-zinc-900/50 p-6 flex flex-col justify-between"
-                >
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex gap-1">
-                        {[...Array(5)].map((_, i) => (
-                          <Star
-                            key={i}
-                            size={10}
-                            className={i < item.stars ? "fill-orange-500 text-orange-500" : "text-zinc-700"}
-                          />
-                        ))}
-                      </div>
-                      <MessageSquareQuote size={16} className="text-zinc-800 group-hover:text-orange-600 transition-colors" />
-                    </div>
-                    
-                    <p className="text-zinc-400 text-xs leading-relaxed uppercase tracking-tight italic font-medium">
-                      "{item.description}"
-                    </p>
-                  </div>
+                <motion.div key={item._id} variants={cardItem}>
+                  <Card className="group relative h-full overflow-hidden border-white/5 bg-zinc-900/40 p-6 md:p-8 transition-all duration-300 hover:border-orange-600/30 hover:bg-zinc-900/60">
+                    {/* Background Quote Icon */}
+                    <Quote className="absolute top-4 right-4 h-12 w-12 text-white/[0.03] transition-colors group-hover:text-orange-600/10" />
 
-                  <div className="mt-6 flex items-center gap-3">
-                    <img
-                      src={item.userImage || "https://avatar.iran.liara.run/public"}
-                      alt={item.name}
-                      className="w-8 h-8 rounded-full border border-white/10 grayscale group-hover:grayscale-0 transition-all"
-                    />
-                    <div>
-                      <p className="text-white text-[10px] font-black uppercase tracking-widest">
-                        {item.name}
-                      </p>
-                      <p className="text-zinc-600 text-[8px] uppercase font-bold">Verified Member</p>
+                    <div className="relative z-10 flex flex-col h-full justify-between">
+                      <div>
+                        {/* Rating Stars */}
+                        <div className="mb-6 flex gap-1">
+                          {[...Array(5)].map((_, i) => (
+                            <Star
+                              key={i}
+                              size={12}
+                              className={i < item.stars ? "fill-orange-600 text-orange-600" : "text-zinc-800"}
+                            />
+                          ))}
+                        </div>
+
+                        {/* Testimonial Content */}
+                        <p className="text-sm md:text-base leading-relaxed text-zinc-400 italic font-medium mb-8">
+                          &quot;{item.description}&quot;
+                        </p>
+                      </div>
+
+                      {/* User Info */}
+                      <div className="flex items-center gap-4 border-t border-white/5 pt-6">
+                        <div className="relative">
+                          <img
+                            src={item.userImage || "https://avatar.iran.liara.run/public"}
+                            alt={item.name}
+                            className="w-10 h-10 rounded-full border border-white/10 grayscale group-hover:grayscale-0 transition-all duration-500 object-cover"
+                          />
+                          <div className="absolute -bottom-1 -right-1 bg-orange-600 rounded-full p-1">
+                            <MessageSquareQuote size={8} className="text-white" />
+                          </div>
+                        </div>
+                        <div>
+                          <h4 className="text-white text-xs md:text-sm font-black uppercase tracking-widest">
+                            {item.name}
+                          </h4>
+                          <p className="text-zinc-600 text-[9px] uppercase font-black tracking-tighter">
+                            Verified Junkie • Customer
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  </Card>
                 </motion.div>
               ))}
-            </div>
+            </motion.div>
 
-            {/* SEE MORE BUTTON */}
-            <div className="mt-8 flex justify-center">
+            {/* FOOTER ACTION */}
+            <motion.div 
+              initial={{ opacity: 0 }}
+              whileInView={{ opacity: 1 }}
+              className="mt-12 flex justify-center"
+            >
               <Button 
-                variant="link" 
-                className="text-zinc-500 hover:text-orange-500 text-[10px] uppercase font-black tracking-widest"
+                variant="ghost" 
+                className="group text-zinc-500 hover:text-orange-600 text-[10px] uppercase font-black tracking-[0.3em] transition-all"
               >
-                Read All Reviews <ChevronRight size={14} className="ml-1" />
+                Read All Reviews 
+                <ChevronRight size={14} className="ml-2 transition-transform group-hover:translate-x-1" />
               </Button>
-            </div>
+            </motion.div>
           </>
         )}
       </div>
     </section>
   );
-}
+};
 // ---------- PRODUCTS SECTION ----------
 const ProductSection = () => {
   const [products, setProducts] = useState<any[]>([]);
@@ -525,7 +598,7 @@ const ProductSection = () => {
                     />
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                       <Button className="bg-white text-black hover:bg-yellow-500 font-bold rounded-full text-xs h-9 px-4">
-                        <ShoppingBag className="mr-1.5 h-3 w-3" /> Buy sow
+                        <ShoppingBag className="mr-1.5 h-3 w-3" /> Buy Now
                       </Button>
                     </div>
                   </div>

@@ -31,6 +31,7 @@ import {
     SidebarMenu,
     SidebarMenuItem,
     SidebarMenuButton,
+    useSidebar, // Import ito para sa mobile fix
 } from "@/components/ui/sidebar"
 
 const data = {
@@ -70,6 +71,7 @@ const data = {
                 { title: "Category", id: "Category" },
                 { title: "Equipment", id: "Equipment" },
                 { title: "Supplier", id: "Supplier" },
+                { title: "Vat Management", id: "Vat" },
                 { title: "User Management", id: "User Management" },
             ],
         },
@@ -98,6 +100,8 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 
 export function AppSidebar({ onNavigate, ...props }: AppSidebarProps) {
     const { theme, setTheme } = useTheme()
+    const { setOpenMobile, isMobile } = useSidebar() // Hook para sa mobile control
+    
     const [userData, setUserData] = useState({
         username: "PABLO",
         role: "Super Admin"
@@ -118,6 +122,14 @@ export function AppSidebar({ onNavigate, ...props }: AppSidebarProps) {
         }
     }, [])
 
+    // Function na tatawagin para sa navigation at pag-close ng sidebar
+    const handleNavigation = (view: string) => {
+        onNavigate(view);
+        if (isMobile) {
+            setOpenMobile(false); // Isasara ang sidebar pagka-click sa phone
+        }
+    }
+
     const handleLogout = async () => {
         try {
             await fetch("/api/auth/logout", { method: "POST" })
@@ -136,13 +148,13 @@ export function AppSidebar({ onNavigate, ...props }: AppSidebarProps) {
 
     return (
         <Sidebar collapsible="icon" {...props} className="border-r border-border/50">
-            {/* --- HEADER: USERNAME & ROLE --- */}
+            {/* --- HEADER --- */}
             <SidebarHeader>
                 <SidebarMenu>
                     <SidebarMenuItem>
                         <SidebarMenuButton
                             size="lg"
-                            onClick={() => onNavigate("Dashboard")}
+                            onClick={() => handleNavigation("Dashboard")}
                             className="hover:bg-transparent cursor-pointer group py-6"
                         >
                             <div className="flex aspect-square size-9 items-center justify-center rounded-xl bg-zinc-900 text-white transition-all duration-300 group-hover:bg-primary shadow-lg">
@@ -150,14 +162,10 @@ export function AppSidebar({ onNavigate, ...props }: AppSidebarProps) {
                             </div>
 
                             <div className="grid flex-1 text-left ml-2 leading-[0.8]">
-                                {/* STORE NAME: Mas malaki at dikit-dikit ang letters */}
                                 <span className="truncate font-black text-xl italic tracking-tighter uppercase text-black dark:text-black">
                                     Junky Piercinks
                                 </span>
-
-                                {/* ROLE PANEL: Sobrang nipis pero malawak ang spacing */}
-                                <span className={`truncate text-[9px] font-extrabold tracking-[0.25em] uppercase mt-1 ${userData.role === 'Super Admin' ? 'text-red-600' : 'text-zinc-500'
-                                    }`}>
+                                <span className={`truncate text-[9px] font-extrabold tracking-[0.25em] uppercase mt-1 ${userData.role === 'Super Admin' ? 'text-red-600' : 'text-zinc-500'}`}>
                                     {userData.role} • PANEL
                                 </span>
                             </div>
@@ -172,7 +180,7 @@ export function AppSidebar({ onNavigate, ...props }: AppSidebarProps) {
                         <SidebarMenuItem>
                             <SidebarMenuButton
                                 tooltip="Dashboard"
-                                onClick={() => onNavigate("Dashboard")}
+                                onClick={() => handleNavigation("Dashboard")}
                                 className="hover:bg-primary/10 hover:text-primary transition-colors group cursor-pointer h-11"
                             >
                                 <LayoutDashboard className="group-hover:text-primary size-5" />
@@ -182,14 +190,14 @@ export function AppSidebar({ onNavigate, ...props }: AppSidebarProps) {
                     </SidebarMenu>
                 </div>
 
-                <NavMain items={data.navMain} onViewChange={onNavigate} />
-                <NavProjects projects={data.projects} onViewChange={onNavigate} />
+                {/* Ipinapasa ang handleNavigation function sa mga sub-menus */}
+                <NavMain items={data.navMain} onViewChange={handleNavigation} />
+                <NavProjects projects={data.projects} onViewChange={handleNavigation} />
             </SidebarContent>
 
-            {/* --- FOOTER: LEFT-ALIGNED ICONS WITH HOVER --- */}
+            {/* --- FOOTER --- */}
             <SidebarFooter className="border-t border-border/40 p-3">
                 <div className="flex items-center justify-start gap-1">
-                    {/* Dark Mode Toggle with Hover */}
                     <button
                         onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
                         className="p-2 rounded-lg text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white transition-all active:scale-90"
@@ -198,7 +206,6 @@ export function AppSidebar({ onNavigate, ...props }: AppSidebarProps) {
                         {theme === "dark" ? <Sun className="size-5" /> : <Moon className="size-5" />}
                     </button>
 
-                    {/* Logout with Hover */}
                     <button
                         onClick={handleLogout}
                         className="p-2 rounded-lg text-zinc-500 hover:bg-red-50 dark:hover:bg-red-950/30 hover:text-red-600 transition-all active:scale-90"

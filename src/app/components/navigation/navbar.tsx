@@ -7,13 +7,12 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const navLinks = [
-  { name: "Home", href: "#home" },
-  { name: "About", href: "#about" },
+  { name: "Home", href: "/home" },
   { name: "Artists", href: "#artists" },
-  { name: "Gallery", href: "#gallery" },
+  { name: "Tattoo", href: "#gallery" },
+  { name: "Piercing", href: "#gallery" },
   { name: "Shop", href: "#shop" },
-  { name: "Blog", href: "#blog" },
-  { name: "Contact", href: "#contact" },
+  { name: "Contact", href: "/contact" },
 ];
 
 export function Navbar() {
@@ -52,20 +51,20 @@ export function Navbar() {
           </div>
 
           {/* Desktop Navigation */}
-          <div className="hidden lg:block">
-            <div className="flex items-center space-x-10">
-              {navLinks.map((link) => (
-                <a
-                  key={link.name}
-                  href={link.href}
-                  className="group relative text-[12px] font-bold uppercase tracking-[0.2em] text-gray-300 transition-all duration-300 hover:text-white"
-                >
-                  {link.name}
-                  <span className="absolute -bottom-1 left-1/2 h-[2px] w-0 -translate-x-1/2 rounded-full bg-white transition-all duration-300 group-hover:w-full"></span>
-                </a>
-              ))}
-            </div>
-          </div>
+<div className="hidden lg:block">
+  <div className="flex items-center space-x-10">
+    {navLinks.map((link) => (
+      <a
+        key={link.name}
+        href={link.href}
+        className="relative text-[14px] font-bold uppercase tracking-[0.2em] text-gray-400 transition-all duration-300 hover:text-white hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]"
+      >
+        {link.name}
+        {/* Tinanggal na natin yung span na underline dito */}
+      </a>
+    ))}
+  </div>
+</div>
 
           {/* Desktop Action Buttons */}
           <div className="hidden items-center gap-4 md:flex">

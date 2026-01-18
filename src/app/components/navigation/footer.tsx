@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { signIn, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
+import Link from "next/link"; // Import Link for routing
 import {
   ArrowUp,
   Facebook,
@@ -18,15 +19,29 @@ import {
 const footerLinks = [
   {
     title: "Studio",
-    links: ["Gallery", "Artists", "Aftercare", "Book Now"],
+    links: [
+      { label: "Gallery", href: "/gallery" },
+      { label: "Artists", href: "/artists" },
+      { label: "Aftercare", href: "/aftercare" },
+      { label: "Book Now", href: "/book" },
+    ],
   },
   {
     title: "Company",
-    links: ["Our Story", "Reviews", "Blog", "Contact"],
+    links: [
+      { label: "Our Story", href: "/about" }, // About page
+      { label: "Reviews", href: "/reviews" },
+      { label: "Blog", href: "/blog" },       // Blog page
+      { label: "Contact", href: "/contact" },
+    ],
   },
   {
     title: "Legal",
-    links: ["Privacy Policy", "Terms of Service", "Safety Protocols"],
+    links: [
+      { label: "Privacy Policy", href: "/privacy" },
+      { label: "Terms of Service", href: "/terms" },
+      { label: "Safety Protocols", href: "/safety" },
+    ],
   },
 ];
 
@@ -51,24 +66,23 @@ export function Footer() {
   };
 
   return (
-    <footer className="relative w-full border-t border-zinc-100 bg-white pt-20 pb-10">
+    <footer className="relative w-full border-t border-zinc-900 bg-black pt-20 pb-10">
       <div className="mx-auto max-w-6xl px-6 lg:px-8">
         
         {/* --- REGISTRATION / USER SECTION --- */}
         <div className="flex flex-col items-center text-center space-y-8 mb-24">
           <div className="space-y-2">
-            <h2 className="text-3xl md:text-4xl font-medium tracking-[0.15em] text-zinc-900 uppercase">
+            <h2 className="text-3xl md:text-4xl font-black italic tracking-[0.1em] text-white uppercase">
               {session ? "Exclusive Access" : "Be the first in line"}
             </h2>
-            <p className="text-xs tracking-[0.2em] text-zinc-500 uppercase font-bold">
+            <p className="text-[10px] tracking-[0.3em] text-zinc-500 uppercase font-black">
               {session 
-                ? `Welcome, ${session.user?.name?.split(' ')[0]}! You are now a priority member.` 
-                : "Receive latest updates & priority booking"}
+                ? `Welcome, ${session.user?.name?.split(' ')[0]}! Priority member active.` 
+                : "Join the cult for latest updates & priority booking"}
             </p>
           </div>
 
           {session ? (
-            /* --- USER PANEL BUTTON --- */
             <motion.div 
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -76,34 +90,24 @@ export function Footer() {
             >
               <Button 
                 onClick={() => router.push('/user-panel')}
-                className="bg-black text-white hover:bg-zinc-800 px-10 py-7 rounded-none uppercase tracking-[0.3em] font-black text-[10px] transition-all flex items-center gap-3 border border-black group"
+                className="bg-orange-600 text-white hover:bg-orange-700 px-10 py-7 rounded-none uppercase tracking-[0.3em] font-black text-[10px] transition-all flex items-center gap-3 group"
               >
-                <UserCircle size={18} className="text-zinc-400 group-hover:text-white" />
+                <UserCircle size={18} className="text-white/70 group-hover:text-white" />
                 Go to your panel <ChevronRight size={18} />
               </Button>
-              
-              <div className="flex flex-col items-center gap-1">
-                <p className="text-[9px] uppercase tracking-widest text-emerald-600 font-bold">
-                  ✓ Member Account Active
-                </p>
-                <p className="text-[8px] uppercase tracking-[0.2em] text-zinc-400">
-                  ID: {session.user?.email}
-                </p>
-              </div>
             </motion.div>
           ) : (
-            /* --- JOIN FORM --- */
             <form onSubmit={handleJoin} className="relative w-full max-w-xl group">
-              <div className="flex items-center border-b border-zinc-200 py-4 transition-colors focus-within:border-black">
+              <div className="flex items-center border-b border-zinc-800 py-4 transition-colors focus-within:border-orange-600">
                 <input
                   type="email"
-                  placeholder="Enter your email to join"
-                  className="w-full bg-transparent px-2 text-lg outline-none placeholder:text-zinc-300 placeholder:uppercase"
+                  placeholder="Enter email to join"
+                  className="w-full bg-transparent px-2 text-lg outline-none text-white placeholder:text-zinc-700 placeholder:uppercase"
                   required
                 />
                 <button 
                   type="submit"
-                  className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-zinc-900 hover:text-red-600 transition-colors"
+                  className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-white hover:text-orange-600 transition-colors"
                 >
                   Join <ChevronRight size={16} />
                 </button>
@@ -115,26 +119,29 @@ export function Footer() {
         {/* --- LINKS SECTION --- */}
         <div className="grid gap-12 md:grid-cols-2 lg:grid-cols-5">
           <div className="lg:col-span-2 space-y-6">
-            <Badge variant="outline" className="text-[13px] uppercase tracking-widest border-zinc-200 px-4 py-1">
+            <Badge variant="outline" className="text-[11px] font-black uppercase tracking-[0.2em] border-orange-600/50 text-orange-600 px-4 py-1">
               Adrenaline Junky Piercinks
             </Badge>
-            <p className="max-w-sm text-sm text-zinc-500 leading-relaxed italic">
+            <p className="max-w-sm text-sm text-zinc-500 leading-relaxed italic font-medium">
               "Premium tattoo and piercing studio. Expressing your true self through 
               art and precision. Sermon is temporary, vanity is forever."
             </p>
           </div>
 
           {footerLinks.map((section) => (
-            <div key={section.title} className="space-y-4">
-              <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-900">
+            <div key={section.title} className="space-y-6">
+              <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-white">
                 {section.title}
               </h4>
               <ul className="space-y-3">
                 {section.links.map((link) => (
-                  <li key={link}>
-                    <a href="#" className="text-sm text-zinc-400 hover:text-black transition-colors font-medium">
-                      {link}
-                    </a>
+                  <li key={link.label}>
+                    <Link 
+                      href={link.href} 
+                      className="text-xs text-zinc-500 hover:text-orange-600 transition-all font-bold uppercase tracking-widest"
+                    >
+                      {link.label}
+                    </Link>
                   </li>
                 ))}
               </ul>
@@ -143,12 +150,12 @@ export function Footer() {
         </div>
 
         {/* --- BOTTOM BAR --- */}
-        <div className="mt-20 flex flex-col items-center justify-between gap-6 border-t border-zinc-100 pt-8 md:flex-row">
-          <div className="space-y-1">
-            <p className="text-[10px] text-zinc-400 uppercase tracking-widest font-bold">
+        <div className="mt-20 flex flex-col items-center justify-between gap-6 border-t border-zinc-900 pt-8 md:flex-row">
+          <div className="space-y-1 text-center md:text-left">
+            <p className="text-[9px] text-zinc-600 uppercase tracking-widest font-black">
               © {new Date().getFullYear()} Adrenaline Junky Piercinks.
             </p>
-            <div className="flex flex-wrap gap-4 text-[9px] text-zinc-400 uppercase tracking-widest">
+            <div className="flex flex-wrap justify-center md:justify-start gap-4 text-[9px] text-zinc-700 uppercase tracking-widest">
               <div className="flex items-center gap-1"><MapPin size={10}/> Manila, PH</div>
               <div className="flex items-center gap-1"><Phone size={10}/> +63 935 595 5699</div>
             </div>
@@ -157,8 +164,8 @@ export function Footer() {
           <div className="flex items-center gap-6">
             <div className="flex gap-6">
               {socialLinks.map((social) => (
-                <a key={social.label} href={social.href} target="_blank" className="text-zinc-400 hover:text-black transition-colors">
-                  <social.icon className="h-4 w-4" />
+                <a key={social.label} href={social.href} target="_blank" className="text-zinc-600 hover:text-orange-600 transition-colors">
+                  <social.icon className="h-5 w-5" />
                 </a>
               ))}
             </div>
@@ -167,9 +174,9 @@ export function Footer() {
               variant="outline" 
               size="icon" 
               onClick={scrollToTop} 
-              className="h-8 w-8 rounded-full border-zinc-200 hover:bg-zinc-50"
+              className="h-10 w-10 rounded-full border-zinc-800 bg-transparent text-zinc-500 hover:border-orange-600 hover:text-orange-600 transition-all"
             >
-              <ArrowUp className="h-3 w-3" />
+              <ArrowUp className="h-4 w-4" />
             </Button>
           </div>
         </div>

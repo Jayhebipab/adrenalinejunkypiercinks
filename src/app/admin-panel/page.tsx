@@ -23,6 +23,7 @@ import CategoryManagement from "../components/maintenance/CategoryManagement"
 import ProductManagement from "../components/maintenance/ProductManagement"
 import SupplierMaintenance from "../components/maintenance/SuppliersMaintenance"
 import EquipmentManagement from "../components/maintenance/EquipmentManagement"
+import VatManagement from "../components/maintenance/VatManagement"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -65,6 +66,7 @@ export default function AdminPanelPage() {
        case "Product Management": return <ProductManagement />
         case "Supplier": return <SupplierMaintenance />
         case "Equipment": return <EquipmentManagement />
+        case "Vat": return <VatManagement />
          case "Inventory": return <Inventory/>
       // Reports
       case "Sales Reports": return <SalesReports />
