@@ -1,24 +1,21 @@
-import { MongoClient, ObjectId } from "mongodb";
+import clientPromise from "@/lib/mongodb";
+import { ObjectId } from "mongodb";
 import { NextResponse } from "next/server";
 
-const uri = process.env.MONGODB_URI;
-let client: MongoClient | null = null;
-
-async function getClient() {
-  if (!uri) throw new Error("MONGODB_URI is not defined");
-  if (!client) client = new MongoClient(uri);
-  return client;
-}
-
 const DB = "adrenalinjunkypiercinks";
-const COL = "equipments";
+const COL = "chats";
 
 export async function GET() {
   try {
-    const mongoClient = await getClient();
-    await mongoClient.connect();
-    const db = mongoClient.db(DB);
-    const data = await db.collection(COL).find({}).sort({ createdAt: -1 }).toArray();
+    const client = await clientPromise;
+    const db = client.db(DB);
+    
+    // Kunin lahat ng messages, sorted by timestamp
+    const data = await db.collection(COL)
+      .find({})
+      .sort({ timestamp: 1 })
+      .toArray();
+      
     return NextResponse.json(data);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -28,30 +25,16 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const mongoClient = await getClient();
-    await mongoClient.connect();
-    const db = mongoClient.db(DB);
+    const client = await clientPromise;
+    const db = client.db(DB);
+
+    // Rekta insert, automatic timestamp
     const result = await db.collection(COL).insertOne({
       ...body,
-      createdAt: new Date()
+      timestamp: new Date(),
     });
-    return NextResponse.json(result, { status: 201 });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-}
 
-export async function PUT(req: Request) {
-  try {
-    const { id, ...updateData } = await req.json();
-    const mongoClient = await getClient();
-    await mongoClient.connect();
-    const db = mongoClient.db(DB);
-    await db.collection(COL).updateOne(
-      { _id: new ObjectId(id) },
-      { $set: { ...updateData, updatedAt: new Date() } }
-    );
-    return NextResponse.json({ message: "Updated" });
+    return NextResponse.json(result, { status: 201 });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
@@ -59,12 +42,20 @@ export async function PUT(req: Request) {
 
 export async function DELETE(req: Request) {
   try {
-    const { id } = await req.json();
-    const mongoClient = await getClient();
-    await mongoClient.connect();
-    const db = mongoClient.db(DB);
-    await db.collection(COL).deleteOne({ _id: new ObjectId(id) });
-    return NextResponse.json({ message: "Deleted" });
+    const { searchParams } = new URL(req.url);
+    const email = searchParams.get("email");
+
+    if (!email) {
+      return NextResponse.json({ error: "Email is required" }, { status: 400 });
+    }
+
+    const client = await clientPromise;
+    const db = client.db(DB);
+
+    // Burahin lahat ng messages ng client na ito
+    await db.collection(COL).deleteMany({ senderEmail: email });
+
+    return NextResponse.json({ message: "Conversation deleted" });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

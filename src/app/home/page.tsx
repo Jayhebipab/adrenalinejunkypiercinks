@@ -21,7 +21,7 @@ import {
   MessageSquareQuote,
   Quote,
   Loader2,
-
+  Calendar, ArrowUpRight
 } from "lucide-react"
 import Swal from "sweetalert2"
 
@@ -31,7 +31,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Navbar } from "../components/navigation/navbar"
 import { Footer } from "../components/navigation/footer"
-import { FloatingChatWidget } from "../components/chatbot"
+import FloatingChatWidget from "../components/chatbot"
 // ---------- TYPES ----------
 interface GalleryItem {
   _id: string
@@ -51,6 +51,33 @@ interface Review {
   isVisible: boolean;
 }
 
+// Sample Data para sa mga Blogs/Posts niyo
+const blogPosts = [
+  {
+    id: 1,
+    category: "Event",
+    title: "Wedding Tattoo Sponsoring: A New Trend",
+    date: "Jan 15, 2024",
+    image: "/images/blog1.png", // Palitan niyo ng actual images
+    link: "#"
+  },
+  {
+    id: 2,
+    category: "Studio News",
+    title: "New Artist Alert: Guest Session this Feb",
+    date: "Jan 20, 2024",
+    image: "/images/blog2.png",
+    link: "#"
+  },
+  {
+    id: 3,
+    category: "Maintenance",
+    title: "Tattoo Aftercare: The Ultimate Guide",
+    date: "Jan 22, 2024",
+    image: "/images/blog3.png",
+    link: "#"
+  }
+];
 // ---------- LIGHTBOX / IMAGE MODAL ----------
 const ImageModal = ({
   images,
@@ -166,86 +193,86 @@ const Hero = () => (
   </section>
 )
 
-// ---------- Improved AboutUs for Mobile & Desktop ----------
-const AboutUs = () => (
-  <section id="about" className="relative py-20 md:py-32 bg-black border-y border-white/5 overflow-hidden">
-    {/* Background Glow Effect - Ginawang Fire Gradient Glow */}
-    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] bg-orange-600/10 blur-[120px] rounded-full pointer-events-none" />
+export const BlogSection = () => (
+  <section id="blogs" className="relative py-20 md:py-32 bg-black border-y border-white/5 overflow-hidden">
+    {/* Background Fire Glow */}
+    <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-orange-600/5 blur-[120px] rounded-full pointer-events-none" />
 
-    <div className="container mx-auto px-6 max-w-6xl relative z-10">
-      <div className="flex flex-col lg:grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
-        
-        {/* IMAGE BOX */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="relative w-full max-w-[350px] lg:max-w-none mx-auto lg:mx-0"
-        >
-          <div className="relative aspect-[4/5] md:aspect-square overflow-hidden rounded-[2rem] md:rounded-[3rem] border border-white/10 shadow-2xl rotate-2 hover:rotate-0 transition-transform duration-500">
-            <Image 
-              src="/images/about3.png" 
-              alt="Our Studio" 
-              fill 
-              className="object-cover scale-110 hover:scale-100 transition-transform duration-700" 
-            />
-          </div>
-          {/* Decorative element - In-adjust ang border color para bumagay sa fire theme */}
-          <div className="absolute -inset-4 border border-orange-600/20 rounded-[2.5rem] md:rounded-[3.5rem] -z-10 -rotate-3" />
-        </motion.div>
-
-        {/* TEXT CONTENT */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="text-center lg:text-left space-y-6 md:space-y-8"
-        >
+    <div className="container mx-auto px-6 max-w-7xl relative z-10">
+      {/* HEADER */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-16">
+        <div className="space-y-4">
           <div className="inline-flex items-center gap-2 bg-white/5 border border-white/10 px-4 py-1.5 rounded-full">
-            {/* Pulsing dot - Orange/Yellow naman para maiba */}
             <span className="w-2 h-2 bg-orange-500 rounded-full animate-pulse" />
-            <span className="text-white uppercase text-[10px] md:text-xs tracking-[0.3em] font-black">
-              EST. 2019
+            <span className="text-white uppercase text-[10px] tracking-[0.3em] font-black">
+              Latest from the Studio
             </span>
           </div>
+          <h2 className="text-4xl md:text-6xl font-black uppercase text-white tracking-tighter leading-none">
+            Our <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-600 via-orange-500 to-yellow-400">Journal</span>
+          </h2>
+        </div>
+        
+        <Button variant="ghost" className="text-zinc-500 hover:text-white group p-0">
+          VIEW ALL POSTS <ChevronRight className="ml-1 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+        </Button>
+      </div>
 
-          <div className="space-y-2">
-            <h2 className="text-4xl md:text-6xl font-black uppercase text-white leading-[0.9] tracking-tighter">
-              Adrenaline Junky<br /> 
-              {/* GRADIENT DITO PAR */}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-600 via-orange-500 to-yellow-400">
-                Piercinks
-              </span>
-            </h2>
-            <h3 className="text-xl md:text-3xl font-bold uppercase tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-red-600 via-orange-500 to-yellow-400">
-               Tattoo & Piercing.
-            </h3>
-          </div>
+      {/* BLOG GRID */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        {blogPosts.map((post, idx) => (
+          <motion.div
+            key={post.id}
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: idx * 0.1 }}
+            className="group relative flex flex-col"
+          >
+            {/* Image Container */}
+            <div className="relative aspect-[16/10] overflow-hidden rounded-3xl border border-white/5 bg-zinc-900">
+              <Image 
+                src={post.image} 
+                alt={post.title}
+                fill
+                className="object-cover transition-transform duration-700 group-hover:scale-110"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-60" />
+              
+              {/* Category Badge */}
+              <div className="absolute top-4 left-4">
+                <span className="bg-black/60 backdrop-blur-md border border-white/10 text-orange-500 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full">
+                  {post.category}
+                </span>
+              </div>
+            </div>
 
-          <p className="text-zinc-400 text-sm md:text-lg leading-relaxed max-w-md mx-auto lg:mx-0 font-medium">
-            Wedding & Any Event Tattoo Sponsor/Souvenir.
-          </p>
-
-          <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 pt-4">
-            {/* OUR STORY BUTTON - Hover effect matches the fire gradient */}
-            <Button className="w-full sm:w-auto h-14 rounded-full px-10 bg-white text-black font-black hover:bg-gradient-to-r hover:from-red-600 hover:to-orange-500 hover:text-white transition-all duration-300 shadow-xl shadow-white/5">
-              OUR STORY
-            </Button>
-            
-            <Button variant="ghost" className="text-white hover:bg-white/5 group">
-              <span className="flex items-center text-xs uppercase tracking-widest font-bold">
-                Watch Video 
-                {/* ICON GLOW - Nilagyan natin ng orange/yellow hover */}
-                <PlayCircle className="ml-2 h-5 w-5 group-hover:text-orange-500 transition-colors" />
-              </span>
-            </Button>
-          </div>
-        </motion.div>
-
+            {/* Content */}
+            <div className="pt-6 space-y-3">
+              <div className="flex items-center text-zinc-500 text-[10px] uppercase tracking-widest font-bold">
+                <Calendar className="mr-2 h-3 w-3 text-orange-600" />
+                {post.date}
+              </div>
+              <h3 className="text-xl font-bold text-white group-hover:text-orange-500 transition-colors line-clamp-2">
+                {post.title}
+              </h3>
+              
+              <a 
+                href={post.link} 
+                className="inline-flex items-center text-xs font-black uppercase tracking-[0.2em] text-white pt-2 group/link"
+              >
+                Read Article 
+                <div className="ml-2 p-1 rounded-full border border-white/10 group-hover/link:bg-orange-600 group-hover/link:border-orange-600 transition-all">
+                  <ArrowUpRight className="h-3 w-3" />
+                </div>
+              </a>
+            </div>
+          </motion.div>
+        ))}
       </div>
     </div>
   </section>
-)
+);
 // ---------- PIERCING GALLERY ----------
 const GallerySection = ({ openModal }: { openModal: (imgs: string[], i: number) => void }) => {
   const [galleryItems, setGalleryItems] = useState<GalleryItem[]>([])
@@ -665,7 +692,7 @@ export default function Dashboard() {
 
       <main>
         <Hero />
-        <AboutUs />
+        <BlogSection />
         
         <GallerySection openModal={openModal} />
         <TattooSection openModal={openModal} />

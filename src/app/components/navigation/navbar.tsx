@@ -67,21 +67,25 @@ export function Navbar() {
 </div>
 
           {/* Desktop Action Buttons */}
-          <div className="hidden items-center gap-4 md:flex">
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="rounded-full text-gray-400 hover:bg-white/10 hover:text-white"
-            >
-              <ShoppingCart className="h-5 w-5" />
-            </Button>
-            <Button 
-              size="lg" 
-              className="rounded-full bg-white text-black px-8 font-black uppercase tracking-widest transition-all hover:bg-gray-200 hover:scale-105 active:scale-95"
-            >
-              Book Now
-            </Button>
-          </div>
+<div className="hidden items-center gap-4 md:flex">
+  <Button 
+    variant="ghost" 
+    size="icon" 
+    className="rounded-full text-gray-400 hover:bg-white/10 hover:text-white"
+  >
+    <ShoppingCart className="h-5 w-5" />
+  </Button>
+  
+  {/* Link added here using a tag */}
+  <a href="/book">
+    <Button 
+      size="lg" 
+      className="rounded-full bg-white text-black px-8 font-black uppercase tracking-widest transition-all hover:bg-gray-200 hover:scale-105 active:scale-95"
+    >
+      Book Now
+    </Button>
+  </a>
+</div>
 
           {/* Mobile Menu Toggle - Itinira natin ang hamburger */}
           <div className="lg:hidden">
@@ -124,13 +128,15 @@ export function Navbar() {
                 </motion.a>
               ))}
               <div className="pt-6 border-t border-white/10">
-                <Button 
-                  onClick={() => setIsOpen(false)}
-                  className="w-full h-14 rounded-full bg-white text-xs font-black uppercase tracking-widest text-black active:scale-95 transition-transform"
-                >
-                  Book Appointment
-                </Button>
-              </div>
+  {/* Link added here for mobile */}
+  <a href="/contact" onClick={() => setIsOpen(false)}>
+    <Button 
+      className="w-full h-14 rounded-full bg-white text-xs font-black uppercase tracking-widest text-black active:scale-95 transition-transform"
+    >
+      Book Appointment
+    </Button>
+  </a>
+</div>
             </div>
           </motion.div>
         )}

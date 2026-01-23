@@ -24,6 +24,8 @@ import ProductManagement from "../components/maintenance/ProductManagement"
 import SupplierMaintenance from "../components/maintenance/SuppliersMaintenance"
 import EquipmentManagement from "../components/maintenance/EquipmentManagement"
 import VatManagement from "../components/maintenance/VatManagement"
+import { Messenger } from "../components/reservation/Messenger";
+
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -50,6 +52,8 @@ export default function AdminPanelPage() {
       // Reservation
       case "List": return <BookingList />
       case "Booking Request": return <BookingRequest />
+      case "Messenger": return <Messenger/>
+
       
       // Shop
       case "Product": return <ProductList />

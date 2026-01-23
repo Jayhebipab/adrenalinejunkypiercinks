@@ -7,7 +7,7 @@ if (!MONGODB_URI) {
   throw new Error("Pakilagay ang MONGODB_URI sa iyong .env.local file");
 }
 
-// --- MONGOOSE SETUP (Para sa custom queries mo) ---
+// --- MONGOOSE SETUP (Connection only, no models) ---
 let cached = (global as any).mongoose || { conn: null, promise: null };
 
 export const connectToDatabase = async () => {
@@ -28,7 +28,7 @@ export const connectToDatabase = async () => {
   return cached.conn;
 };
 
-// --- NATIVE MONGODB CLIENT (Para sa NextAuth Adapter) ---
+// --- NATIVE MONGODB CLIENT (Para sa NextAuth) ---
 const options = {};
 let client: MongoClient;
 let clientPromise: Promise<MongoClient>;
@@ -48,5 +48,4 @@ if (process.env.NODE_ENV === "development") {
   clientPromise = client.connect();
 }
 
-// Eto yung kailangan ni NextAuth para mawala yung error sa route.ts
 export default clientPromise;
