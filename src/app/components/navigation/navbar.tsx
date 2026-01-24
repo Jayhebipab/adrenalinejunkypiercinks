@@ -8,11 +8,10 @@ import { cn } from "@/lib/utils";
 
 const navLinks = [
   { name: "Home", href: "/home" },
-  { name: "Artists", href: "#artists" },
-  { name: "Tattoo", href: "#gallery" },
-  { name: "Piercing", href: "#gallery" },
-  { name: "Shop", href: "#shop" },
-  { name: "Contact", href: "/contact" },
+  { name: "Artists", href: "artists" },
+  { name: "Tattoo", href: "tattoo" },
+  { name: "Piercing", href: "piercing" },
+  { name: "Shop", href: "shop" },
 ];
 
 export function Navbar() {
@@ -129,7 +128,7 @@ export function Navbar() {
               ))}
               <div className="pt-6 border-t border-white/10">
   {/* Link added here for mobile */}
-  <a href="/contact" onClick={() => setIsOpen(false)}>
+  <a href="/book" onClick={() => setIsOpen(false)}>
     <Button 
       className="w-full h-14 rounded-full bg-white text-xs font-black uppercase tracking-widest text-black active:scale-95 transition-transform"
     >

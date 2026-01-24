@@ -43,7 +43,6 @@ const data = {
                 { title: "List", id: "List" },
                 { title: "Booking Request", id: "Booking Request" },
                 { title: "Messenger", id: "Messenger" },
-                { title: "Inquiries", id: "Inquiries" },
             ],
         },
         {

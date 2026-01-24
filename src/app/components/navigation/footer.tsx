@@ -123,8 +123,7 @@ export function Footer() {
               Adrenaline Junky Piercinks
             </Badge>
             <p className="max-w-sm text-sm text-zinc-500 leading-relaxed italic font-medium">
-              "Premium tattoo and piercing studio. Expressing your true self through 
-              art and precision. Sermon is temporary, vanity is forever."
+              To fulfill that commitment, we at the Adrenaline Junky Piercinks are ready to offer you extra service; Replacement of jewelries, cleaning of piercing & consultations for Free!
             </p>
           </div>
 
@@ -156,8 +155,9 @@ export function Footer() {
               © {new Date().getFullYear()} Adrenaline Junky Piercinks.
             </p>
             <div className="flex flex-wrap justify-center md:justify-start gap-4 text-[9px] text-zinc-700 uppercase tracking-widest">
-              <div className="flex items-center gap-1"><MapPin size={10}/> Manila, PH</div>
               <div className="flex items-center gap-1"><Phone size={10}/> +63 935 595 5699</div>
+              <div className="flex items-center gap-1"><MapPin size={10}/> 7/11, 2nd Flr, National Road, Putatan, Muntinlupa City, PH</div>
+              
             </div>
           </div>
           

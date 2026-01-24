@@ -1,322 +1,155 @@
 "use client";
 
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import React, { useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Trash2, Mail, User, Clock, MessageSquare, X, Eye } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils";
-import { AnimatePresence, motion } from "framer-motion";
-import {
-  CheckCheck,
-  MoreVertical,
-  Paperclip,
-  Search,
-  Send,
-  Circle,
-  Inbox,
-  MessageSquare,
-  Trash2
-} from "lucide-react";
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 
-// FIREBASE IMPORTS
-import { db } from "@/lib/firebase";
-import { 
-  collection, 
-  query, 
-  orderBy, 
-  onSnapshot, 
-  addDoc, 
-  serverTimestamp, 
-  where,
-  getDocs,
-  writeBatch,
-  doc
-} from "firebase/firestore";
+export default function Inquiries() {
+  const [inquiries, setInquiries] = useState([]);
+  const [selectedInquiry, setSelectedInquiry] = useState<any>(null);
 
-// UI IMPORTS (Siguraduhin na may dropdown menu ka or gamitin ang simple button)
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  const fetchInquiries = async () => {
+    const res = await fetch("/api/contact");
+    const data = await res.json();
+    setInquiries(data);
+  };
 
-type Message = {
-  id: string;
-  sender: "user" | "contact";
-  author: string;
-  text: string;
-  timestamp: string;
-  isAdmin: boolean;
-};
-
-type Conversation = {
-  id: string;
-  name: string;
-  email: string;
-  status: "online" | "offline";
-  initials: string;
-  messages: Message[];
-  quickReplies: string[];
-  hasUnread: boolean; // Para sa notification badge
-};
-
-export function Messenger() {
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [selectedConversationId, setSelectedConversationId] = useState<string>("");
-  const [draft, setDraft] = useState("");
-  const [searchTerm, setSearchTerm] = useState("");
-  const [adminSession, setAdminSession] = useState<any>(null);
-  
-  const messagesContainerRef = useRef<HTMLDivElement | null>(null);
+  const deleteInquiry = async (id: string) => {
+    const res = await fetch("/api/contact", {
+      method: "DELETE",
+      body: JSON.stringify({ id }),
+    });
+    if (res.ok) {
+      setInquiries(inquiries.filter((item: any) => item.id !== id));
+      toast.success("Inquiry removed from list");
+    }
+  };
 
   useEffect(() => {
-    const session = localStorage.getItem("disruptive_user_session");
-    if (session) setAdminSession(JSON.parse(session));
+    fetchInquiries();
+    const interval = setInterval(fetchInquiries, 10000); // Auto refresh 10s
+    return () => clearInterval(interval);
   }, []);
 
-  // 1. REAL-TIME FETCH WITH UNREAD DETECTION
-  useEffect(() => {
-    const q = query(
-      collection(db, "chats"),
-      where("website", "==", "disruptivesolutionsinc"),
-      orderBy("timestamp", "asc")
-    );
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const grouped: Record<string, Conversation> = {};
-
-      snapshot.docs.forEach((doc) => {
-        const data = doc.data();
-        const clientEmail = data.senderEmail;
-
-        if (!grouped[clientEmail]) {
-          grouped[clientEmail] = {
-            id: clientEmail,
-            email: clientEmail,
-            name: data.senderName || "Guest Client",
-            status: "online",
-            initials: (data.senderName || "G").substring(0, 2).toUpperCase(),
-            messages: [],
-            quickReplies: ["I'll check on this.", "Copy that.", "Can you provide more details?"],
-            hasUnread: false
-          };
-        }
-
-        const msgIsAdmin = data.isAdmin || false;
-        grouped[clientEmail].messages.push({
-          id: doc.id,
-          sender: msgIsAdmin ? "user" : "contact",
-          author: data.senderName,
-          text: data.message,
-          timestamp: data.timestamp?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) || "...",
-          isAdmin: msgIsAdmin
-        });
-
-        // NOTIFICATION LOGIC: 
-        // Kung ang huling message sa thread ay hindi galing sa Admin, mark as Unread.
-        const lastMsg = grouped[clientEmail].messages[grouped[clientEmail].messages.length - 1];
-        grouped[clientEmail].hasUnread = !lastMsg.isAdmin;
-      });
-
-      const convList = Object.values(grouped);
-      setConversations(convList);
-
-      if (!selectedConversationId && convList.length > 0) {
-        setSelectedConversationId(convList[0].id);
-      }
-    });
-
-    return () => unsubscribe();
-  }, [selectedConversationId]);
-
-  // 2. DELETE CONVERSATION FUNCTION
-  const handleDeleteConversation = async (clientEmail: string) => {
-    if (!confirm("Sigurado ka par? Mabubura lahat ng messages sa thread na 'to.")) return;
-
-    try {
-      const q = query(
-        collection(db, "chats"),
-        where("senderEmail", "==", clientEmail),
-        where("website", "==", "disruptivesolutionsinc")
-      );
-      
-      const querySnapshot = await getDocs(q);
-      const batch = writeBatch(db);
-
-      querySnapshot.forEach((document) => {
-        batch.delete(doc(db, "chats", document.id));
-      });
-
-      await batch.commit();
-      setSelectedConversationId(""); // Reset selection
-    } catch (err) {
-      console.error("Delete Error:", err);
-    }
-  };
-
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!draft.trim() || !selectedConversationId || !adminSession) return;
-
-    try {
-      await addDoc(collection(db, "chats"), {
-        senderEmail: selectedConversationId,
-        senderName: adminSession.displayName || "Admin",
-        message: draft.trim(),
-        isAdmin: true,
-        timestamp: serverTimestamp(),
-        website: "disruptivesolutionsinc"
-      });
-      setDraft("");
-    } catch (err) {
-      console.error("Firebase Send Error:", err);
-    }
-  };
-
-  const activeConversation = useMemo(() => {
-    return conversations.find((c) => c.id === selectedConversationId);
-  }, [conversations, selectedConversationId]);
-
-  const filteredConversations = conversations.filter(c => 
-    c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    c.email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
   return (
-    <section className="w-full h-[calc(100vh-120px)] flex gap-6 p-4 lg:p-0">
-      {/* SIDEBAR */}
-      <div className="w-full lg:w-80 flex flex-col bg-card border rounded-2xl overflow-hidden shadow-sm">
-        <div className="p-4 border-b space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="font-bold text-lg tracking-tight">Messages</h2>
-            <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-600 border-none">
-              <Circle className="w-2 h-2 fill-current mr-1.5 animate-pulse" /> Live
-            </Badge>
-          </div>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input 
-              placeholder="Search clients..." 
-              className="pl-9 bg-muted/50 border-none rounded-xl"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-2">
-          {filteredConversations.map((conv) => (
-            <button
-              key={conv.id}
-              onClick={() => setSelectedConversationId(conv.id)}
-              className={cn(
-                "w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 mb-1 text-left relative group",
-                selectedConversationId === conv.id ? "bg-primary text-primary-foreground shadow-md" : "hover:bg-muted"
-              )}
-            >
-              <div className="relative">
-                <Avatar className="h-10 w-10 border-2 border-background shadow-sm">
-                  <AvatarFallback className={cn(selectedConversationId === conv.id ? "bg-white/20" : "bg-primary/10 text-primary")}>
-                    {conv.initials}
-                  </AvatarFallback>
-                </Avatar>
-                {/* NOTIFICATION BADGE */}
-                {conv.hasUnread && selectedConversationId !== conv.id && (
-                  <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500 border-2 border-white"></span>
-                  </span>
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex justify-between items-center">
-                  <p className="text-sm font-semibold truncate">{conv.name}</p>
-                </div>
-                <p className={cn("text-xs truncate opacity-70", selectedConversationId === conv.id ? "text-white" : "text-muted-foreground")}>
-                  {conv.messages[conv.messages.length - 1]?.text}
-                </p>
-              </div>
-            </button>
-          ))}
-        </div>
+    <div className="w-full space-y-4">
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-xl font-black uppercase italic text-white tracking-widest">
+          Live Feed <span className="text-orange-600">({inquiries.length})</span>
+        </h2>
       </div>
 
-      {/* CHAT WINDOW */}
-      <div className="hidden lg:flex flex-1 flex-col bg-card border rounded-2xl overflow-hidden shadow-sm relative">
-        <AnimatePresence mode="wait">
-          {activeConversation ? (
-            <motion.div key={activeConversation.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col h-full">
-              {/* Header */}
-              <div className="p-4 border-b flex items-center justify-between bg-card/50 backdrop-blur-sm">
-                <div className="flex items-center gap-3">
-                  <Avatar className="h-10 w-10"><AvatarFallback className="bg-primary text-white font-bold">{activeConversation.initials}</AvatarFallback></Avatar>
+      <div className="grid gap-4">
+        <AnimatePresence mode="popLayout">
+          {inquiries.map((item: any) => (
+            <motion.div
+              key={item.id}
+              layout
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="group relative bg-zinc-900/40 border border-white/5 hover:border-orange-600/30 rounded-2xl p-5 transition-all duration-300"
+            >
+              <div className="flex justify-between items-start gap-4">
+                <div className="flex-1 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <Badge className="bg-orange-600 text-[9px] font-black uppercase tracking-tighter">
+                      {item.service}
+                    </Badge>
+                    <span className="text-zinc-600 text-[10px] font-bold flex items-center gap-1">
+                      <Clock className="w-3 h-3" /> {item.timestamp}
+                    </span>
+                  </div>
+
                   <div>
-                    <h3 className="text-sm font-bold">{activeConversation.name}</h3>
-                    <p className="text-[11px] text-muted-foreground">{activeConversation.email}</p>
+                    <h3 className="text-white font-black text-sm uppercase tracking-tight flex items-center gap-2">
+                      <User className="w-3 h-3 text-orange-600" /> {item.name}
+                    </h3>
+                    <p className="text-zinc-500 text-[11px] font-medium italic">{item.email}</p>
                   </div>
                 </div>
-                
-                {/* DELETE BUTTON IN DROPDOWN */}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="rounded-full"><MoreVertical className="w-4 h-4" /></Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-40 rounded-xl">
-                    <DropdownMenuItem 
-                      className="text-destructive focus:text-destructive cursor-pointer"
-                      onClick={() => handleDeleteConversation(activeConversation.id)}
-                    >
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      Delete Thread
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
 
-              {/* Messages Container */}
-              <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-6 space-y-6 bg-muted/20">
-                {activeConversation.messages.map((msg) => (
-                  <div key={msg.id} className={cn("flex", msg.sender === "user" ? "justify-end" : "justify-start")}>
-                    <div className={cn("flex flex-col max-w-[70%]", msg.sender === "user" ? "items-end" : "items-start")}>
-                      <div className={cn("px-4 py-2.5 rounded-2xl text-sm shadow-sm", msg.sender === "user" ? "bg-primary text-white rounded-tr-none" : "bg-background border rounded-tl-none")}>
-                        <p>{msg.text}</p>
-                      </div>
-                      <span className="text-[9px] text-muted-foreground mt-1 uppercase font-bold">{msg.timestamp}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Input */}
-              <div className="p-4 bg-background border-t">
-                <form onSubmit={handleSubmit}>
-                  <div className="bg-muted/50 rounded-2xl border p-2">
-                    <Textarea 
-                      value={draft}
-                      onChange={(e) => setDraft(e.target.value)}
-                      placeholder="Type a professional reply..."
-                      className="min-h-20 w-full bg-transparent border-none focus-visible:ring-0 text-sm p-3"
-                    />
-                    <div className="flex items-center justify-end gap-2 mt-2 pt-2 border-t">
-                      <Button type="submit" size="sm" disabled={!draft.trim()} className="rounded-lg h-8">
-                        <Send className="w-3.5 h-3.5 mr-2" /> Reply
-                      </Button>
-                    </div>
-                  </div>
-                </form>
+                <div className="flex flex-col gap-2">
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => setSelectedInquiry(item)}
+                    className="h-8 w-8 rounded-full bg-zinc-800/50 text-zinc-400 hover:bg-orange-600 hover:text-white"
+                  >
+                    <Eye className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => deleteInquiry(item.id)}
+                    className="h-8 w-8 rounded-full bg-zinc-800/50 text-zinc-400 hover:bg-red-600 hover:text-white"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
             </motion.div>
-          ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground">
-              <MessageSquare className="w-12 h-12 opacity-10 mb-4" />
-              <p>Select a client to view conversation</p>
-            </div>
-          )}
+          ))}
         </AnimatePresence>
+
+        {inquiries.length === 0 && (
+          <div className="py-20 text-center border-2 border-dashed border-zinc-900 rounded-3xl">
+            <p className="text-zinc-600 font-bold uppercase text-xs tracking-[0.2em]">No Active Inquiries</p>
+          </div>
+        )}
       </div>
-    </section>
+
+      {/* --- MESSAGE MODAL --- */}
+      <AnimatePresence>
+        {selectedInquiry && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/80 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="w-full max-w-lg bg-zinc-950 border border-orange-600/20 rounded-[2.5rem] p-8 relative overflow-hidden shadow-2xl"
+            >
+              <div className="absolute top-0 left-0 w-full h-1 bg-orange-600" />
+              
+              <button 
+                onClick={() => setSelectedInquiry(null)}
+                className="absolute top-6 right-6 text-zinc-500 hover:text-white"
+              >
+                <X className="w-6 h-6" />
+              </button>
+
+              <div className="mb-8">
+                <Badge className="bg-orange-600 mb-4 uppercase text-[10px] font-black italic">
+                  {selectedInquiry.service}
+                </Badge>
+                <h2 className="text-2xl font-black text-white uppercase italic tracking-tighter">
+                  {selectedInquiry.name}
+                </h2>
+                <p className="text-zinc-500 font-bold text-xs">{selectedInquiry.email}</p>
+              </div>
+
+              <div className="bg-zinc-900/50 rounded-2xl p-6 border border-white/5">
+                <p className="text-zinc-400 text-xs font-black uppercase tracking-widest mb-3 flex items-center gap-2">
+                  <MessageSquare className="w-3 h-3 text-orange-600" /> Project Details
+                </p>
+                <p className="text-zinc-200 text-sm leading-relaxed italic">
+                  "{selectedInquiry.message}"
+                </p>
+              </div>
+
+              <Button 
+                onClick={() => setSelectedInquiry(null)}
+                className="w-full mt-8 bg-zinc-100 text-black hover:bg-orange-600 hover:text-white font-black uppercase text-xs tracking-widest h-12 rounded-xl transition-all"
+              >
+                Close Message
+              </Button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }
