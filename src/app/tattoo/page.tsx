@@ -138,7 +138,7 @@ export default function TattooGalleryPage() {
             {Object.keys(groupedTattoos).length === 0 ? (
               <div className="flex flex-col items-center py-20 border border-zinc-900 rounded-4xl">
                 <CameraOff className="w-12 h-12 text-zinc-800 mb-4" />
-                <p className="text-zinc-600 text-xs font-black uppercase tracking-widest">No matching tattoos found</p>
+                <p className="text-zinc-600 text-xs font-black uppercase tracking-widest">No matching tattoos foundd</p>
               </div>
             ) : (
               Object.entries(groupedTattoos).map(([placement, items]) => (
