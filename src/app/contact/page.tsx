@@ -28,7 +28,7 @@ const contactInfo = [
     icon: MapPin,
     label: "Studio Location",
     value: "7/11, 2nd Flr, National Road, Putatan, Muntinlupa City",
-    href: "https://maps.google.com",
+    href: "https://maps.app.goo.gl/FS9ikVYdepAUTBwF6",
   },
 ];
 

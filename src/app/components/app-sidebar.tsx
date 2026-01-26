@@ -57,9 +57,11 @@ const data = {
             title: "Pages",
             icon: FileText,
             items: [
+                { title: "Artist", id: "Artist" },
                 { title: "Tattoo Gallery", id: "Tattoo Gallery" },
                 { title: "Piercing Gallery", id: "Piercing Gallery" },
                 { title: "Reviews", id: "Reviews" },
+                { title: "Blogs", id: "Blogs" },
             ],
         },
         {

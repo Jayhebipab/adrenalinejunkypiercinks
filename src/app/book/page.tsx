@@ -16,6 +16,8 @@ import { cn } from "@/lib/utils";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
+import FloatingChatWidget from "../components/chatbot";
+import BookingPopup from "../components/popup";
 
 const contactInfo = [
   { icon: Mail, label: "Email Us", value: "caranicolas.819@icloud.com", href: "mailto:caranicolas.819@icloud.com" },
@@ -90,6 +92,8 @@ export default function ContactPage() {
 
   return (
     <>
+     <BookingPopup/>
+     <FloatingChatWidget/>
       <Navbar />
       <main className="bg-black min-h-screen">
         {/* HERO SECTION */}
@@ -283,7 +287,7 @@ export default function ContactPage() {
                 </div>
                 <Card className="rounded-[2rem] border-white/5 bg-zinc-900/20 overflow-hidden h-[300px] relative shadow-2xl">
                   <iframe
-                    src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d15456.88583492576!2d121.0346337!3d14.385566!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3397d057a6e1f37d%3A0x7d06e2a87d0e8e6d!2sPutatan%2C%20Muntinlupa%2C%20Metro%20Manila!5e0!3m2!1sen!2sph!4v1710000000000"
+                    src="https://www.google.com/maps/place/7-Eleven+BRUGER+0078/@14.394639,121.0259206,15z/data=!4m10!1m2!2m1!1s7%2F11,2nd+Flr,+National+Road,+Putatan,+Muntinlupa+City!3m6!1s0x3397d0fa06ec1541:0x2703c40b18fa6b04!8m2!3d14.394639!4d121.044975!15sCjU3LzExLDJuZCBGbHIsIE5hdGlvbmFsIFJvYWQsIFB1dGF0YW4sIE11bnRpbmx1cGEgQ2l0eSIDiAEBWjQiMjcgMTEgMm5kIGZsciBuYXRpb25hbCByb2FkIHB1dGF0YW4gbXVudGlubHVwYSBjaXR5kgERY29udmVuaWVuY2Vfc3RvcmWaAURDaTlEUVVsUlFVTnZaRU5vZEhsalJqbHZUMjF3Umxrd1ZsZGlhbEpXVWpOT2NsWklVakpoVm1SbVYxZDRUbVZyUlJBQuABAPoBBQiWBxAT!16s%2Fg%2F1tf73193?entry=ttu&g_ep=EgoyMDI2MDEyMS4wIKXMDSoASAFQAw%3D%3D"
                     width="100%" height="100%" style={{ border: 0, filter: "grayscale(1) invert(0.9) contrast(1.2)" }} allowFullScreen loading="lazy"
                   ></iframe>
                 </Card>

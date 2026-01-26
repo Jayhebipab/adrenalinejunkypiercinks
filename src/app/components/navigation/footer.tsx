@@ -17,15 +17,7 @@ import {
 } from "lucide-react";
 
 const footerLinks = [
-  {
-    title: "Studio",
-    links: [
-      { label: "Gallery", href: "/gallery" },
-      { label: "Artists", href: "/artists" },
-      { label: "Aftercare", href: "/aftercare" },
-      { label: "Book Now", href: "/book" },
-    ],
-  },
+
   {
     title: "Company",
     links: [

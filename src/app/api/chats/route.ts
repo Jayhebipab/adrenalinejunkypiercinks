@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 
 const WEBSITE_IDENTIFIER = "disruptivesolutionsinc";
 
+// --- FETCH CHATS ---
 export async function GET() {
   try {
     await connectToDatabase();
@@ -20,33 +21,44 @@ export async function GET() {
   }
 }
 
+// --- SEND MESSAGE (WITH IMAGE TYPE SUPPORT) ---
 export async function POST(req: Request) {
   try {
     await connectToDatabase();
     const mongoose = (global as any).mongoose.conn;
     const body = await req.json();
 
-    // Dito ang fix par, dapat laging may website field pag nag-save
+    const { senderEmail, senderName, message, isAdmin, type } = body;
+
+    // Validation: Siguraduhin na hindi empty ang message
+    if (!message || !senderEmail) {
+        return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    }
+
     const result = await mongoose.connection.db
       .collection("chats")
       .insertOne({
-        ...body,
+        senderEmail,
+        senderName,
+        message, // Dito mapupunta ang text string o Base64 image string
+        isAdmin: isAdmin || false,
+        type: type || "text", // Default sa 'text' kung walang pinasa
         website: WEBSITE_IDENTIFIER,
         timestamp: new Date()
       });
 
-    return NextResponse.json(result);
+    return NextResponse.json({ success: true, id: result.insertedId });
   } catch (error) {
     return NextResponse.json({ error: "Failed to send message" }, { status: 500 });
   }
 }
 
+// --- DELETE THREAD ---
 export async function DELETE(req: Request) {
   try {
     await connectToDatabase();
     const mongoose = (global as any).mongoose.conn;
     
-    // Kunin ang email mula sa query params: /api/chats?email=customer@client.com
     const { searchParams } = new URL(req.url);
     const email = searchParams.get("email");
 
@@ -61,7 +73,7 @@ export async function DELETE(req: Request) {
         website: WEBSITE_IDENTIFIER 
       });
 
-    return NextResponse.json(result);
+    return NextResponse.json({ success: true, deletedCount: result.deletedCount });
   } catch (error) {
     return NextResponse.json({ error: "Failed to delete thread" }, { status: 500 });
   }

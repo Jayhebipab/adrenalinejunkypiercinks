@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import {
   Loader2, Calendar, User, Phone,
   X, RefreshCw, Clock, Eye, Sparkles, Maximize2,
-  ChevronRight, Hash, Mail, LucideIcon
+  ChevronRight, Hash, Mail, LucideIcon, Edit3
 } from "lucide-react";
 import { toast, Toaster } from "sonner";
 import {
@@ -39,6 +39,11 @@ export default function BookingRequest() {
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  
+  // States for Reschedule
+  const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
+  const [newDate, setNewDate] = useState("");
+  const [newTime, setNewTime] = useState("");
 
   const fetchBookings = useCallback(async () => {
     setLoading(true);
@@ -74,6 +79,34 @@ export default function BookingRequest() {
       }
     } catch (error) {
       toast.error("Update failed");
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  // BAGONG FUNCTION: Update Date/Time Adjustment
+  const handleAdjustment = async () => {
+    if (!editingBooking) return;
+    setUpdatingId(editingBooking._id);
+    try {
+      const res = await fetch(`/api/bookings`, {
+        method: 'PATCH',
+        body: JSON.stringify({ 
+          id: editingBooking._id, 
+          preferredDate: newDate, 
+          preferredTime: newTime 
+        }),
+        headers: { 'Content-Type': 'application/json' }
+      });
+      if (res.ok) {
+        toast.success("Schedule Updated!");
+        setBookings(prev =>
+          prev.map(b => b._id === editingBooking._id ? { ...b, preferredDate: newDate, preferredTime: newTime } : b)
+        );
+        setEditingBooking(null);
+      }
+    } catch (error) {
+      toast.error("Adjustment failed");
     } finally {
       setUpdatingId(null);
     }
@@ -118,7 +151,7 @@ export default function BookingRequest() {
           disabled={loading}
           className="h-14 border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-900 hover:text-white rounded-full px-8 transition-all duration-300 shadow-sm disabled:opacity-50"
         >
-          <RefreshCw className={cn("h-3 w-2 mr-3", loading && "animate-spin")} />
+          <RefreshCw className={cn("h-3.5 w-3.5 mr-3", loading && "animate-spin")} />
           <span className="text-xs font-bold uppercase tracking-widest">Refresh</span>
         </Button>
       </header>
@@ -148,7 +181,7 @@ export default function BookingRequest() {
                 </div>
               )}
 
-              <div className="absolute top-6 left-6">
+              <div className="absolute top-6 left-6 flex gap-2">
                 <Badge className={cn("px-4 py-1.5 rounded-full uppercase text-[10px] font-bold tracking-tighter border-none shadow-sm",
                   booking.status === 'pending' ? 'bg-amber-400 text-amber-950' :
                     booking.status === 'approved' ? 'bg-emerald-500 text-white' : 'bg-zinc-900 text-white')}>
@@ -183,9 +216,7 @@ export default function BookingRequest() {
                   </DialogTrigger>
 
                   <DialogContent className="max-w-2xl p-0 overflow-hidden border-none rounded-[3rem] bg-white shadow-2xl">
-                    {/* Tinanggal ang flex-row at image side. Ginawang max-h para sa scrolling. */}
                     <div className="w-full p-8 md:p-14 max-h-[90vh] overflow-y-auto bg-white">
-
                       <DialogHeader className="mb-12 text-center md:text-left">
                         <div className="space-y-1">
                           <DialogTitle className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-400">
@@ -198,27 +229,19 @@ export default function BookingRequest() {
                       </DialogHeader>
 
                       <div className="grid grid-cols-1 gap-8">
-                        {/* Grid Container - Dynamic columns para hindi siksikan */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-10 gap-y-10">
                           <DetailItem label="Lead Artist" value={booking.artist} icon={User} />
                           <DetailItem label="Service Type" value={booking.service} icon={Sparkles} />
                           <DetailItem label="Time Slot" value={booking.preferredTime || "Flexible"} icon={Clock} />
                           <DetailItem label="Target Date" value={formatDate(booking.preferredDate)} icon={Calendar} />
                           <DetailItem label="Contact" value={booking.phone} icon={Phone} />
-                          <DetailItem
-                            label="Email Address"
-                            value={booking.email}
-                            icon={Mail}
-                          />
+                          <DetailItem label="Email Address" value={booking.email} icon={Mail} />
                         </div>
 
                         <Separator className="bg-zinc-100/80" />
 
-                        {/* Client Notes Section - Mas malaki ang breathing room */}
                         <div className="space-y-4">
-                          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400">
-                            Client Notes
-                          </p>
+                          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400">Client Notes</p>
                           <div className="bg-zinc-50/50 p-8 md:p-5 rounded-4xl border border-zinc-100/50 shadow-inner">
                             <p className="text-zinc-700 leading-relaxed italic text-sm md:text-sm text-center md:text-left">
                               {booking.message || "No additional notes provided."}
@@ -226,23 +249,36 @@ export default function BookingRequest() {
                           </div>
                         </div>
 
-                        {/* Action Buttons - Pinaghiwalay ng maayos */}
+                        {/* ACTION BUTTONS */}
                         <div className="pt-6 space-y-6">
-                          <div className="flex flex-col sm:flex-row gap-4">
+                          <div className="flex flex-col gap-4">
+                            <div className="flex flex-col sm:flex-row gap-4">
+                              <Button
+                                onClick={() => updateStatus(booking._id, 'approved')}
+                                disabled={updatingId === booking._id}
+                                className="flex-1 h-16 bg-zinc-900 text-white rounded-2xl font-bold uppercase tracking-widest text-xs hover:bg-zinc-800 transition-all shadow-xl shadow-zinc-200 cursor-pointer"
+                              >
+                                {updatingId === booking._id ? <Loader2 className="animate-spin h-5 w-5" /> : "Approve Session"}
+                              </Button>
+                              <Button
+                                variant="outline"
+                                onClick={() => {
+                                  setEditingBooking(booking);
+                                  setNewDate(booking.preferredDate.split('T')[0]);
+                                  setNewTime(booking.preferredTime || "");
+                                }}
+                                className="h-16 px-8 border-zinc-200 rounded-2xl font-bold uppercase tracking-widest text-xs text-zinc-900 hover:bg-zinc-50 transition-all cursor-pointer"
+                              >
+                                <Edit3 className="h-4 w-4 mr-2" /> Adjust Time
+                              </Button>
+                            </div>
                             <Button
-                              onClick={() => updateStatus(booking._id, 'approved')}
-                              disabled={updatingId === booking._id}
-                              className="flex-1 h-16 bg-zinc-900 text-white rounded-2xl font-bold uppercase tracking-widest text-xs hover:bg-zinc-800 transition-all shadow-xl shadow-zinc-200 cursor-pointer"
-                            >
-                              {updatingId === booking._id ? <Loader2 className="animate-spin h-5 w-5" /> : "Approve Session"}
-                            </Button>
-                            <Button
-                              variant="outline"
+                              variant="ghost"
                               onClick={() => updateStatus(booking._id, 'rejected')}
                               disabled={updatingId === booking._id}
-                              className="h-16 px-10 border-zinc-200 rounded-2xl font-bold uppercase tracking-widest text-xs text-zinc-400 hover:bg-red-50 hover:text-red-500 hover:border-red-100 transition-all cursor-pointer"
+                              className="h-14 w-full font-bold uppercase tracking-widest text-[10px] text-zinc-400 hover:text-red-500 hover:bg-red-50 transition-all cursor-pointer"
                             >
-                              Decline
+                              Decline Request
                             </Button>
                           </div>
                           <p className="text-center text-[9px] font-bold text-zinc-300 uppercase tracking-[0.2em]">
@@ -262,6 +298,46 @@ export default function BookingRequest() {
           </div>
         ))}
       </div>
+
+      {/* UPDATE MODAL: ADJUST DATE & TIME */}
+      <Dialog open={!!editingBooking} onOpenChange={() => setEditingBooking(null)}>
+        <DialogContent className="max-w-md p-8 bg-white rounded-[2rem] border-none shadow-2xl">
+          <DialogHeader className="mb-6">
+            <DialogTitle className="text-2xl font-black uppercase tracking-tighter">Adjustment</DialogTitle>
+            <DialogDescription className="text-xs uppercase font-bold tracking-widest text-zinc-400">Modify session schedule</DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 pl-1">Preferred Date</label>
+              <input 
+                type="date" 
+                value={newDate}
+                onChange={(e) => setNewDate(e.target.value)}
+                className="w-full h-14 px-5 rounded-xl border border-zinc-100 bg-zinc-50 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 pl-1">Preferred Time</label>
+              <input 
+                type="text" 
+                placeholder="e.g. 2:00 PM"
+                value={newTime}
+                onChange={(e) => setNewTime(e.target.value)}
+                className="w-full h-14 px-5 rounded-xl border border-zinc-100 bg-zinc-50 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+              />
+            </div>
+            
+            <Button 
+              onClick={handleAdjustment}
+              disabled={updatingId !== null}
+              className="w-full h-16 bg-zinc-900 text-white rounded-xl font-black uppercase tracking-widest text-xs hover:bg-zinc-800 transition-all shadow-lg"
+            >
+              {updatingId !== null ? <Loader2 className="animate-spin h-5 w-5" /> : "Confirm Adjustments"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* FULL-SCREEN IMAGE VIEW */}
       <Dialog open={!!selectedImage} onOpenChange={() => setSelectedImage(null)}>
