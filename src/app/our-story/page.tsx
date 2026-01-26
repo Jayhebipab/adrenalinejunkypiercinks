@@ -1,119 +1,225 @@
 "use client";
 
-import React from "react";
-import { motion } from "framer-motion";
-import { MoveRight } from "lucide-react";
+import React, { useEffect, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  X, 
+  Maximize2, 
+  CameraOff, 
+  Flame, 
+  Filter, 
+  ChevronRight, 
+  Download // Import Download icon
+} from 'lucide-react';
+import { Navbar } from '../components/navigation/navbar';
+import { Footer } from '../components/navigation/footer';
+import { cn } from "@/lib/utils";
+import FloatingChatWidget from '../components/chatbot';
 
-// Ginawa nating PascalCase ang function name (standard sa React)
-export function OurStory() {
-  return (
-    <section className="relative min-h-screen w-full bg-black py-24 lg:py-32 overflow-hidden selection:bg-orange-500 selection:text-white">
-      <div className="mx-auto max-w-[1400px] px-6 sm:px-10 lg:px-12">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 lg:gap-24 items-center">
-          
-          {/* LEFT SIDE: Visual/Image Section */}
-          <motion.div 
-            initial={{ opacity: 0, x: -50 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.8, ease: "easeOut" }}
-            viewport={{ once: true }}
-            className="relative group"
-          >
-            {/* Background Decorative Text - Mas pinalabo natin para di agaw pansin */}
-            <span className="absolute -top-16 -left-10 text-[120px] font-black text-white/[0.02] select-none uppercase tracking-tighter hidden md:block">
-              Est. 2024
-            </span>
-            
-            {/* Main Image Frame */}
-            <div className="relative aspect-[4/5] overflow-hidden rounded-2xl border border-white/10 bg-zinc-900">
-              <img 
-                src="https://images.unsplash.com/photo-1598371839696-5c5bb00bdc28?q=80&w=2071&auto=format&fit=crop" 
-                alt="ADRNLN Studio Interior" 
-                className="h-full w-full object-cover grayscale transition-all duration-1000 group-hover:scale-105 group-hover:grayscale-0"
-              />
-              
-              {/* Overlay Gradient */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
-              
-              {/* Floating Stat Card */}
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5 }}
-                className="absolute bottom-6 left-6 right-6 bg-black/40 backdrop-blur-md border border-white/10 p-6 rounded-xl"
-              >
-                <p className="text-white font-black text-xl lg:text-2xl uppercase tracking-tighter">Pure Craftsmanship</p>
-                <p className="text-zinc-400 text-[10px] uppercase font-bold tracking-[0.2em] mt-1">High-End Tattoo & Piercing Studio</p>
-              </motion.div>
-            </div>
-          </motion.div>
+interface Tattoo {
+  _id: string;
+  image: string;
+  placement: string;
+  category: string;
+}
 
-          {/* RIGHT SIDE: Content Section */}
-          <motion.div 
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-            viewport={{ once: true }}
-            className="flex flex-col space-y-10"
-          >
-            <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                <span className="h-[1px] w-8 bg-orange-500"></span>
-                <h2 className="text-orange-500 font-black text-xs uppercase tracking-[0.5em]">The Journey</h2>
-              </div>
-              <h3 className="text-white text-5xl lg:text-8xl font-black uppercase italic tracking-tighter leading-[0.9]">
-                More Than Just <br /> 
-                <span className="text-transparent stroke-text">Ink & Skin.</span>
-              </h3>
-            </div>
+export default function TattooGalleryPage() {
+  const [tattoos, setTattoos] = useState<Tattoo[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedImg, setSelectedImg] = useState<Tattoo | null>(null);
+  const [activeFilter, setActiveFilter] = useState<string>("All");
 
-            <div className="space-y-6 text-zinc-400 text-lg lg:text-xl leading-relaxed font-medium max-w-xl">
-              <p>
-                Ang <span className="text-white font-bold italic underline decoration-orange-500/50 underline-offset-4">ADRNLN</span> ay hindi lang basta tattoo shop. Ito ay santuwaryo para sa mga taong gustong ilabas ang kanilang kwento sa pamamagitan ng sining.
-              </p>
-              <p className="text-base lg:text-lg">
-                Mula sa pinong detalye hanggang sa pinaka-matapang na obra, pinagsasama namin ang hygiene, safety, at world-class creativity. Bawat marka ay isang kolaborasyon na tatagal habambuhay.
-              </p>
-            </div>
+  useEffect(() => {
+    fetch("/api/gallery")
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) setTattoos(data);
+      })
+      .finally(() => setLoading(false));
+  }, []);
 
-            {/* CTA Button */}
-            <div>
-              <motion.button 
-                whileHover={{ gap: "2rem" }}
-                className="flex items-center gap-6 text-white font-black uppercase tracking-[0.3em] text-xs group transition-all"
-              >
-                Learn Our Philosophy 
-                <span className="h-12 w-12 rounded-full border border-white/20 flex items-center justify-center group-hover:bg-orange-500 group-hover:border-orange-500 group-hover:text-black transition-all duration-500">
-                  <MoveRight size={20} />
-                </span>
-              </motion.button>
-            </div>
+  // DOWNLOAD FUNCTION
+  const handleDownload = async (imageUrl: string, filename: string) => {
+    try {
+      const response = await fetch(imageUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `AdrenalineJunky-${filename}.jpg`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Download failed:", error);
+      // Fallback: Open in new tab if blob fails
+      window.open(imageUrl, '_blank');
+    }
+  };
 
-            {/* Mini Stats - Adjusted for better spacing */}
-            <div className="grid grid-cols-3 pt-12 border-t border-white/10 gap-4">
-              <div className="space-y-1">
-                <p className="text-white font-black text-3xl lg:text-4xl tracking-tighter">10+</p>
-                <p className="text-zinc-600 text-[9px] uppercase font-black tracking-widest">Master Artists</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-white font-black text-3xl lg:text-4xl tracking-tighter">5k+</p>
-                <p className="text-zinc-600 text-[9px] uppercase font-black tracking-widest">Stories Inked</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-white font-black text-3xl lg:text-4xl tracking-tighter">100%</p>
-                <p className="text-zinc-600 text-[9px] uppercase font-black tracking-widest">Medical Grade</p>
-              </div>
-            </div>
-          </motion.div>
+  const filterOptions = ["All", ...Array.from(new Set(tattoos.map(t => t.placement).filter(Boolean)))];
 
-        </div>
+  const filteredTattoos = activeFilter === "All" 
+    ? tattoos 
+    : tattoos.filter(t => t.placement === activeFilter);
+
+  const groupedTattoos = filteredTattoos.reduce((acc: { [key: string]: Tattoo[] }, tattoo) => {
+    const key = tattoo.placement || "Others";
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(tattoo);
+    return acc;
+  }, {});
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
+        <div className="text-orange-500 animate-pulse font-black uppercase tracking-[0.5em]">Loading Archive...</div>
       </div>
+    );
+  }
 
-      <style jsx>{`
-        .stroke-text {
-          -webkit-text-stroke: 1.5px rgba(255,255,255,0.2);
-        }
-      `}</style>
-    </section>
+  return (
+    <div className="min-h-screen bg-zinc-950 text-zinc-200">
+    <FloatingChatWidget/>
+      <Navbar />
+
+      {/* --- HERO SECTION --- */}
+      <section className="relative h-[50vh] w-full flex items-center justify-center overflow-hidden border-b border-white/5">
+        <div 
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat bg-fixed grayscale opacity-40"
+          style={{ backgroundImage: `url('https://images.unsplash.com/photo-1590201845110-386f5c888e93?q=80&w=2000')` }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/40 to-transparent" />
+        
+        <div className="relative z-10 text-center space-y-4">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-orange-500/20 bg-orange-500/5 mb-2">
+            <Flame className="w-3 h-3 text-orange-500" />
+            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-orange-500">Our Artwork Gallery</span>
+          </motion.div>
+          <h1 className="text-6xl md:text-7xl font-black uppercase tracking-tighter">
+            THE ART OF BODY <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-600 via-orange-400 to-yellow-400">PIERCING</span>
+          </h1>
+        </div>
+      </section>
+
+      {/* --- MAIN CONTENT --- */}
+      <main className="container mx-auto max-w-7xl px-6 py-20">
+        <div className="flex flex-col lg:flex-row gap-12">
+          
+          {/* SIDEBAR */}
+          <aside className="w-full lg:w-64 flex-shrink-0">
+            <div className="sticky top-28 space-y-8">
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 px-2">
+                  <Filter className="w-3 h-3 text-orange-600" />
+                  <h3 className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Select Area</h3>
+                </div>
+                <nav className="flex flex-col gap-1">
+                  {filterOptions.map((option) => (
+                    <button
+                      key={option}
+                      onClick={() => setActiveFilter(option)}
+                      className={cn(
+                        "flex items-center justify-between px-4 py-3 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all",
+                        activeFilter === option ? "bg-orange-600 text-white" : "bg-zinc-900/50 text-zinc-500 hover:bg-zinc-900"
+                      )}
+                    >
+                      {option}
+                      <ChevronRight className={cn("w-4 h-4", activeFilter === option ? "opacity-100" : "opacity-0")} />
+                    </button>
+                  ))}
+                </nav>
+              </div>
+            </div>
+          </aside>
+
+          {/* GALLERY GRID */}
+          <div className="flex-1 space-y-24">
+            {Object.keys(groupedTattoos).length === 0 ? (
+              <div className="flex flex-col items-center py-20 border border-zinc-900 rounded-4xl">
+                <CameraOff className="w-12 h-12 text-zinc-800 mb-4" />
+                <p className="text-zinc-600 text-xs font-black uppercase tracking-widest">No matching tattoos found</p>
+              </div>
+            ) : (
+              Object.entries(groupedTattoos).map(([placement, items]) => (
+                <section key={placement} className="space-y-8">
+                  <div className="flex items-center gap-4">
+                    <h2 className="text-2xl font-black uppercase tracking-widest text-white">{placement}</h2>
+                    <div className="h-[1px] flex-1 bg-linear-to-r from-orange-600/50 to-transparent" />
+                  </div>
+
+                  <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                    {items.map((item) => (
+                      <motion.div
+                        key={item._id}
+                        layout
+                        whileHover={{ y: -8 }}
+                        className="relative group aspect-[3/4] overflow-hidden rounded-2xl bg-zinc-900 border border-white/5 cursor-pointer"
+                      >
+                        <img
+                          src={item.image}
+                          alt={item.placement}
+                          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                          onClick={() => setSelectedImg(item)}
+                        />
+                        {/* Hover Overlay with Download */}
+                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-4">
+                          <div className="flex justify-end">
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); handleDownload(item.image, item.placement); }}
+                              className="p-2 rounded-full bg-white/10 hover:bg-orange-600 text-white transition-colors"
+                            >
+                              <Download size={16} />
+                            </button>
+                          </div>
+                          <div className="flex items-center justify-between" onClick={() => setSelectedImg(item)}>
+                             <span className="text-[9px] font-black uppercase text-orange-500">{item.category}</span>
+                             <Maximize2 className="text-white w-4 h-4" />
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                </section>
+              ))
+            )}
+          </div>
+        </div>
+      </main>
+
+      {/* --- LIGHTBOX MODAL --- */}
+      <AnimatePresence>
+        {selectedImg && (
+          <motion.div 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/95 backdrop-blur-sm p-6"
+            onClick={() => setSelectedImg(null)}
+          >
+            <div className="absolute top-8 right-8 flex gap-4">
+              {/* DOWNLOAD IN MODAL */}
+              <button 
+                onClick={(e) => { e.stopPropagation(); handleDownload(selectedImg.image, selectedImg.placement); }}
+                className="flex items-center gap-2 px-4 py-2 rounded-full bg-orange-600 hover:bg-orange-700 text-white text-[10px] font-black uppercase tracking-widest transition-all shadow-xl"
+              >
+                <Download size={16} /> Download
+              </button>
+              <button className="text-white/50 hover:text-white transition-colors"><X size={32} /></button>
+            </div>
+
+            <motion.div 
+              initial={{ scale: 0.9 }} animate={{ scale: 1 }}
+              className="relative max-w-3xl w-full text-center"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <img src={selectedImg.image} className="max-h-[75vh] mx-auto rounded-xl shadow-2xl border border-white/10" />
+              <h3 className="text-white text-2xl font-black uppercase tracking-widest mt-6">{selectedImg.placement}</h3>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <Footer />
+    </div>
   );
 }
