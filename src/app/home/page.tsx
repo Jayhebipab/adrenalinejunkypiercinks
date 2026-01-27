@@ -380,7 +380,7 @@ const GallerySection = ({ openModal }: { openModal: (imgs: string[], i: number) 
                       </div>
 
                       <div className="text-center">
-                        <p className="text-[10px] font-black uppercase tracking-[0.4em] text-orange-500 mb-1">Crafted By</p>
+                        <p className="text-[10px] font-black uppercase tracking-[0.4em] text-orange-500 mb-1">Done By</p>
                         <p className="text-xl md:text-2xl font-black text-white uppercase tracking-tighter italic leading-none mb-4">
                           {item.artistName || "Master Artist"}
                         </p>
