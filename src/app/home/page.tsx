@@ -226,11 +226,6 @@ export const BlogSection = () => {
             </h2>
           </div>
           
-          <Link href="/blog" passHref>
-            <Button variant="ghost" className="text-zinc-500 hover:text-white group p-0">
-              VIEW ALL POSTS <ChevronRight className="ml-1 h-4 w-4 group-hover:translate-x-1 transition-transform" />
-            </Button>
-          </Link>
         </div>
 
         {loading ? (
@@ -304,9 +299,22 @@ export const BlogSection = () => {
               </motion.div>
             ))}
           </div>
+          
         )}
       </div>
+       <div className="mt-20 flex justify-center">
+              <Link href="/piercings" passHref>
+              <Button 
+                variant="ghost" 
+                className="group text-zinc-500 hover:text-orange-600 text-[10px] uppercase font-black tracking-[0.3em] transition-all"
+              >
+                VIEW ALL POSTS
+                <ChevronRight size={14} className="ml-2 transition-transform group-hover:translate-x-1" />
+              </Button>
+              </Link>
+            </div>
     </section>
+    
   );
 };
 // ---------- PIERCING GALLERY (WITH PROMINENT ARTIST PROFILE) ----------
@@ -329,7 +337,6 @@ const GallerySection = ({ openModal }: { openModal: (imgs: string[], i: number) 
           <h2 className="text-4xl md:text-5xl font-black uppercase tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-red-600 via-orange-500 to-yellow-400 italic">
             The art of body Piercings
           </h2>
-          <div className="h-1 w-20 bg-orange-600 mx-auto rounded-full" />
         </div>
 
         {loading ? (
@@ -407,15 +414,13 @@ const GallerySection = ({ openModal }: { openModal: (imgs: string[], i: number) 
             
             <div className="mt-20 flex justify-center">
               <Link href="/piercings" passHref>
-                <Button 
-                  variant="outline" 
-                  className="h-16 px-12 rounded-full border-white/10 hover:border-orange-600 transition-all group overflow-hidden relative bg-transparent"
-                >
-                  <span className="relative z-10 text-[12px] font-black uppercase tracking-[0.4em] text-zinc-400 group-hover:text-white flex items-center">
-                    Explore Full Archive
-                    <ChevronRight size={18} className="ml-3 group-hover:translate-x-2 transition-transform text-orange-600" /> 
-                  </span>
-                </Button>
+              <Button 
+                variant="ghost" 
+                className="group text-zinc-500 hover:text-orange-600 text-[10px] uppercase font-black tracking-[0.3em] transition-all"
+              >
+                Explore Full Archive
+                <ChevronRight size={14} className="ml-2 transition-transform group-hover:translate-x-1" />
+              </Button>
               </Link>
             </div>
           </>
@@ -443,7 +448,6 @@ const TattooSection = ({ openModal }: { openModal: (imgs: string[], i: number) =
           <h2 className="text-4xl md:text-5xl font-black uppercase tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-red-600 via-orange-500 to-yellow-400 italic">
             The art of body Tattoo
           </h2>
-          <div className="h-1 w-20 bg-orange-600 mx-auto rounded-full" />
         </div>
 
         {loading ? (
@@ -521,15 +525,13 @@ const TattooSection = ({ openModal }: { openModal: (imgs: string[], i: number) =
             
             <div className="mt-20 flex justify-center">
               <Link href="/tattoo" passHref>
-                <Button 
-                  variant="outline" 
-                  className="h-16 px-12 rounded-full border-white/10 hover:border-orange-600 transition-all group overflow-hidden relative bg-transparent"
-                >
-                  <span className="relative z-10 text-[12px] font-black uppercase tracking-[0.4em] text-zinc-400 group-hover:text-white flex items-center">
-                    Explore Full Archive
-                    <ChevronRight size={18} className="ml-3 group-hover:translate-x-2 transition-transform text-orange-600" /> 
-                  </span>
-                </Button>
+              <Button 
+                variant="ghost" 
+                className="group text-zinc-500 hover:text-orange-600 text-[10px] uppercase font-black tracking-[0.3em] transition-all"
+              >
+                Explore Full Archive
+                <ChevronRight size={14} className="ml-2 transition-transform group-hover:translate-x-1" />
+              </Button>
               </Link>
             </div>
           </>
@@ -768,13 +770,11 @@ const ProductSection = () => {
             <div className="mt-12 flex justify-center">
                <Link href="/shop" passHref> {/* Palitan ang /piercings kung ano ang actual link mo */}
               <Button 
-                variant="outline" 
-                className="group rounded-full px-8 h-12 border-white/10 hover:border-yellow-500 text-white hover:bg-transparent"
+                variant="ghost" 
+                className="group text-zinc-500 hover:text-orange-600 text-[10px] uppercase font-black tracking-[0.3em] transition-all"
               >
-                <span className="flex items-center text-[10px] font-black uppercase tracking-[0.2em]">
-                  Browse All Items 
-                  <ChevronRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
-                </span>
+                Browse all items
+                <ChevronRight size={14} className="ml-2 transition-transform group-hover:translate-x-1" />
               </Button>
               </Link>
             </div>

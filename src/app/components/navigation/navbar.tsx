@@ -12,7 +12,7 @@ export function Navbar() {
   const [scrolled, setIsScrolled] = useState(false);
   const [isArtistHovered, setIsArtistHovered] = useState(false);
   const [dynamicArtists, setDynamicArtists] = useState<string[]>([]);
-
+  const [mobileArtistsOpen, setMobileArtistsOpen] = useState(false);
   useEffect(() => {
     fetch("/api/artists")
       .then((res) => res.json())
@@ -43,23 +43,19 @@ export function Navbar() {
     <nav
       className={cn(
         "fixed top-0 z-50 w-full transition-all duration-700",
-        scrolled 
-          ? "lg:bg-black/90 lg:backdrop-blur-md lg:py-3 lg:border-b lg:border-white/5" 
+        scrolled
+          ? "lg:bg-black/90 lg:backdrop-blur-md lg:py-3 lg:border-b lg:border-white/5"
           : "bg-transparent py-8",
-        "max-lg:bg-transparent" 
+        "max-lg:bg-transparent"
       )}
     >
       <div className="mx-auto max-w-[1400px] px-6 sm:px-10 lg:px-12">
         <div className="flex items-center justify-between">
-          
+
           {/* Logo Section - Malaki at Clear */}
-          <Link href="/home" className="flex items-center gap-4 group">
+          {/* Logo Section - Lalabas lang 'to sa Desktop (lg screen pataas) */}
+          <Link href="/home" className="hidden lg:flex items-center gap-4 group">
             <div className="h-20 w-20 md:h-24 md:w-24 transition-transform duration-500 group-hover:scale-110">
-              <img
-                src="/images/logo/pic4.png" 
-                alt="Adrenaline Junky Logo"
-                className="h-full w-full object-contain drop-shadow-[0_0_8px_rgba(255,165,0,0.3)]"
-              />
             </div>
           </Link>
 
@@ -67,21 +63,21 @@ export function Navbar() {
           <div className="hidden lg:block">
             <div className="flex items-center space-x-12">
               {navLinks.map((link) => (
-                <div 
+                <div
                   key={link.name}
                   className="relative group"
                   onMouseEnter={() => link.name === "Artists" && setIsArtistHovered(true)}
                   onMouseLeave={() => link.name === "Artists" && setIsArtistHovered(false)}
                 >
                   {link.name === "Artists" ? (
-                    <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.4em] text-zinc-400 cursor-pointer transition-all duration-300 group-hover:text-white italic">
+                    <div className="flex items-center mt-1 gap-2 text-[13px] font-black uppercase tracking-[0.4em] text-zinc-400 cursor-pointer transition-all duration-300 group-hover:text-white italic">
                       {link.name}
                       <ChevronDown size={10} className={cn("transition-transform duration-500", isArtistHovered && "rotate-180 text-orange-500")} />
                     </div>
                   ) : (
                     <Link
                       href={link.href}
-                      className="text-[13px] font-black uppercase tracking-[0.4em] text-zinc-400 transition-all duration-300 hover:text-white italic hover:drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]"
+                      className="text-[13px] font-black uppercase tracking-[0.4em] text-zinc-400 transition-all duration-300 hover:text-w hover:drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]"
                     >
                       {link.name}
                     </Link>
@@ -98,7 +94,7 @@ export function Navbar() {
                       >
                         <div className="flex flex-col gap-4 items-center py-4">
                           {dynamicArtists.map((artist) => (
-                            <Link 
+                            <Link
                               key={artist}
                               href={`/artists/${artist.toLowerCase().replace(/\s+/g, '-')}`}
                               className="whitespace-nowrap text-[12px] font-black uppercase tracking-[0.3em] text-zinc-500 hover:text-orange-500 transition-all duration-300 hover:scale-110 italic drop-shadow-md"
@@ -121,21 +117,20 @@ export function Navbar() {
               <ShoppingCart className="h-5 w-5 text-zinc-400 hover:text-white transition-colors cursor-pointer" />
             </Link>
             <Link href="/book">
-              <Button size="lg" className="rounded-full bg-white text-black px-10 py-6 font-black text-[10px] uppercase tracking-[0.2em] transition-all hover:bg-orange-600 hover:text-white hover:scale-105 active:scale-95 shadow-xl">
+              <Button size="lg" className="box-full bg-white text-black px-10 py-6 font-black text-[12px] uppercase tracking-[0.2em] transition-all hover:bg-orange-600 hover:text-white hover:scale-105 active:scale-95 shadow-xl">
                 Book Now
               </Button>
             </Link>
           </div>
 
-{/* Mobile Menu Toggle - Custom Pen Icon */}
-          <div className="lg:hidden">
+          <div className="lg:hidden flex flex-1 justify-end">
             <Button
               variant="ghost"
               size="icon"
               onClick={() => setIsOpen(!isOpen)}
               className={cn(
                 "relative group rounded-full h-12 w-12 transition-all duration-500",
-                isOpen ? "bg-orange-600 text-white" : "text-white hover:bg-white/10"
+                isOpen ? "bg-orange-600 text-white shadow-[0_0_20px_rgba(234,88,12,0.5)]" : "text-white hover:bg-white/10"
               )}
             >
               <div className="relative h-6 w-6 flex items-center justify-center">
@@ -159,14 +154,13 @@ export function Navbar() {
                       transition={{ duration: 0.2 }}
                       className="flex items-center justify-center"
                     >
-                      {/* Ginamit ko ang Lucide 'Pen' icon pero pinatulis natin ang dating */}
-                      <svg 
-                        viewBox="0 0 24 24" 
-                        fill="none" 
-                        stroke="currentColor" 
-                        strokeWidth="2.5" 
-                        strokeLinecap="round" 
-                        strokeLinejoin="round" 
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
                         className="h-6 w-6"
                       >
                         <path d="m12 19 7-7 3 3-7 7-3-3z" />
@@ -183,8 +177,7 @@ export function Navbar() {
         </div>
       </div>
 
-      {/* MOBILE MENU - FULL SCREEN WITH BACKGROUND */}
-{/* MOBILE MENU OVERLAY - ENHANCED VERSION */}
+
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -198,28 +191,57 @@ export function Navbar() {
               {navLinks.map((link) => (
                 <div key={link.name} className="flex flex-col items-center gap-5 w-full">
                   {link.name === "Artists" ? (
-                    <div className="flex flex-col items-center gap-4">
-                      <span className="text-[10px] font-black uppercase tracking-[0.5em] text-orange-500 italic opacity-80">
-                        The Crew
-                      </span>
-                      <div className="flex flex-wrap justify-center gap-x-6 gap-y-4 pb-2 max-w-[280px]">
-                        {link.subLinks && link.subLinks.map((artist) => (
-                          <Link
-                            key={artist}
-                            href={`/artists/${artist.toLowerCase().replace(/\s+/g, '-')}`}
-                            onClick={() => setIsOpen(false)}
-                            className="text-[12px] font-black uppercase tracking-[0.2em] text-zinc-400 active:text-white italic transition-colors"
+                    <div className="flex flex-col items-center w-full gap-4">
+
+                      {/* Artists Toggle */}
+                      <button
+                        onClick={() => setMobileArtistsOpen(!mobileArtistsOpen)}
+                        className="flex items-center gap-3 text-sm font-black uppercase tracking-[0.3em] text-zinc-100 italic transition-all active:scale-95"
+                      >
+                        Artists
+                      </button>
+
+                      {/* DROPDOWN */}
+                      <AnimatePresence>
+                        {mobileArtistsOpen && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.3, ease: "easeInOut" }}
+                            className="overflow-hidden"
                           >
-                            {artist}
-                          </Link>
-                        ))}
-                      </div>
+                            <div className="mt-4 flex flex-col items-center gap-4">
+                              <span className="text-[10px] font-black uppercase tracking-[0.5em] text-orange-500 italic opacity-80">
+                                The Crew
+                              </span>
+
+                              <div className="flex flex-wrap justify-center gap-x-6 gap-y-4 max-w-[280px]">
+                                {link.subLinks?.map((artist) => (
+                                  <Link
+                                    key={artist}
+                                    href={`/artists/${artist.toLowerCase().replace(/\s+/g, "-")}`}
+                                    onClick={() => {
+                                      setIsOpen(false);
+                                      setMobileArtistsOpen(false);
+                                    }}
+                                    className="text-[14px] font-black uppercase tracking-[0.2em] text-zinc-400 active:text-orange-500 italic transition-colors"
+                                  >
+                                    {artist}
+                                  </Link>
+                                ))}
+                              </div>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+
                     </div>
                   ) : (
                     <Link
                       href={link.href}
                       onClick={() => setIsOpen(false)}
-                      className="text-lg font-black uppercase tracking-[0.3em] text-zinc-100 italic transition-all active:text-orange-500 active:scale-95"
+                      className="text-sm font-black uppercase tracking-[0.3em] text-zinc-100 italic transition-all active:text-orange-500 active:scale-95"
                     >
                       {link.name}
                     </Link>
