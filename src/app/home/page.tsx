@@ -22,7 +22,7 @@ import {
   MessageSquareQuote,
   Quote,
   Loader2,
-  Calendar, ArrowUpRight
+  Calendar, ArrowUpRight, Zap
 } from "lucide-react"
 import Swal from "sweetalert2"
 
@@ -208,8 +208,8 @@ export const BlogSection = () => {
 
   return (
     <section id="blogs" className="relative py-20 md:py-32 bg-black border-y border-white/5 overflow-hidden">
-      {/* Background Fire Glow */}
-      <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-orange-600/5 blur-[120px] rounded-full pointer-events-none" />
+      {/* Background Fire Glow - Updated to v4 canonical class */}
+      <div className="absolute top-0 right-0 w-125 h-125 bg-orange-600/5 blur-[120px] rounded-full pointer-events-none" />
 
       <div className="container mx-auto px-6 max-w-7xl relative z-10">
         {/* HEADER */}
@@ -222,10 +222,9 @@ export const BlogSection = () => {
               </span>
             </div>
             <h2 className="text-4xl md:text-6xl font-black uppercase text-white tracking-tighter leading-none">
-              Our <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-600 via-orange-500 to-yellow-400">Journal</span>
+              Our <span className="text-transparent bg-clip-text bg-linear-to-r from-red-600 via-orange-500 to-yellow-400">Journal</span>
             </h2>
           </div>
-          
         </div>
 
         {loading ? (
@@ -233,11 +232,10 @@ export const BlogSection = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {[1, 2, 3].map((_, idx) => (
               <div key={idx} className="space-y-6 animate-pulse">
-                <div className="aspect-[16/10] bg-zinc-900 rounded-3xl border border-white/5" />
+                <div className="aspect-16/10 bg-zinc-900 rounded-3xl border border-white/5" />
                 <div className="space-y-3">
                   <div className="h-3 bg-zinc-900 rounded w-1/4" />
                   <div className="h-6 bg-zinc-900 rounded w-full" />
-                  <div className="h-6 bg-zinc-900 rounded w-2/3" />
                 </div>
               </div>
             ))}
@@ -247,7 +245,7 @@ export const BlogSection = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {blogItems.slice(0, 3).map((post, idx) => (
               <motion.div
-                key={post._id}
+                key={post.id || post._id}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
@@ -255,14 +253,15 @@ export const BlogSection = () => {
                 className="group relative flex flex-col"
               >
                 {/* Image Container */}
-                <div className="relative aspect-[8/10] overflow-hidden rounded-3xl border border-white/5 bg-zinc-900">
+                <div className="relative aspect-8/10 overflow-hidden rounded-3xl border border-white/5 bg-zinc-900">
                   <Image 
                     src={post.image} 
                     alt={post.title}
                     fill
                     className="object-cover transition-transform duration-700 group-hover:scale-110"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-60" />
+                  {/* Updated Gradient Class */}
+                  <div className="absolute inset-0 bg-linear-to-t from-black via-transparent to-transparent opacity-60" />
                   
                   {/* Category Badge */}
                   <div className="absolute top-4 left-4">
@@ -276,7 +275,7 @@ export const BlogSection = () => {
                 <div className="pt-6 space-y-3">
                   <div className="flex items-center text-zinc-500 text-[10px] uppercase tracking-widest font-bold">
                     <Calendar className="mr-2 h-3 w-3 text-orange-600" />
-                    {new Date(post.createdAt || Date.now()).toLocaleDateString('en-US', { 
+                    {new Date(post.createdAt?.seconds ? post.createdAt.seconds * 1000 : post.createdAt || Date.now()).toLocaleDateString('en-US', { 
                       month: 'long', 
                       day: 'numeric', 
                       year: 'numeric' 
@@ -287,7 +286,7 @@ export const BlogSection = () => {
                   </h3>
                   
                   <Link 
-                    href={post.link || `/blog/${post._id}`} 
+                    href={`/blog/${post.id || post._id}`} 
                     className="inline-flex items-center text-xs font-black uppercase tracking-[0.2em] text-white pt-2 group/link"
                   >
                     Read Article 
@@ -299,33 +298,38 @@ export const BlogSection = () => {
               </motion.div>
             ))}
           </div>
-          
         )}
+
+        <div className="mt-20 flex justify-center">
+          <Link href="/blog">
+            <Button 
+              variant="ghost" 
+              className="group text-zinc-500 hover:text-orange-600 text-[10px] uppercase font-black tracking-[0.3em] transition-all"
+            >
+              VIEW ALL POSTS
+              <ChevronRight size={14} className="ml-2 transition-transform group-hover:translate-x-1" />
+            </Button>
+          </Link>
+        </div>
       </div>
-       <div className="mt-20 flex justify-center">
-              <Link href="/piercings" passHref>
-              <Button 
-                variant="ghost" 
-                className="group text-zinc-500 hover:text-orange-600 text-[10px] uppercase font-black tracking-[0.3em] transition-all"
-              >
-                VIEW ALL POSTS
-                <ChevronRight size={14} className="ml-2 transition-transform group-hover:translate-x-1" />
-              </Button>
-              </Link>
-            </div>
     </section>
-    
   );
 };
-// ---------- PIERCING GALLERY (WITH PROMINENT ARTIST PROFILE) ----------
+// ---------- PIERCING GALLERY (DYNAMIC VERSION) ----------
 const GallerySection = ({ openModal }: { openModal: (imgs: string[], i: number) => void }) => {
   const [galleryItems, setGalleryItems] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    // Siguraduhin na /api/gallery ang endpoint mo for piercings
     fetch("/api/gallery")
       .then(res => res.json())
-      .then(data => Array.isArray(data) ? setGalleryItems(data) : null)
+      .then(data => {
+        if (Array.isArray(data)) {
+          // Filter kung piercing lang dapat, at kunin lang ang unang 6
+          setGalleryItems(data.filter(item => item.category === "Piercing").slice(0, 6))
+        }
+      })
       .catch(err => console.error("Gallery fetch error:", err))
       .finally(() => setLoading(false))
   }, [])
@@ -348,13 +352,13 @@ const GallerySection = ({ openModal }: { openModal: (imgs: string[], i: number) 
         ) : (
           <>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-6 md:gap-10">
-              {galleryItems.slice(0, 6).map((item, idx) => (
+              {galleryItems.map((item, idx) => (
                 <motion.div
                   key={item._id}
                   whileHover={{ y: -15 }}
                   transition={{ type: "spring", stiffness: 300 }}
                   className="group relative overflow-hidden rounded-[2.5rem] border border-white/10 aspect-[3/4] cursor-pointer bg-zinc-900 shadow-[0_20px_50px_rgba(0,0,0,0.8)]"
-                  onClick={() => openModal(galleryItems.slice(0, 6).map(g => g.image), idx)}
+                  onClick={() => openModal(galleryItems.map(g => g.image), idx)}
                 >
                   {/* MAIN PIERCING IMAGE */}
                   <img
@@ -369,10 +373,10 @@ const GallerySection = ({ openModal }: { openModal: (imgs: string[], i: number) 
                     {/* Artist Details */}
                     <motion.div 
                       initial={{ opacity: 0, y: 20 }}
-                      whileHover={{ opacity: 1, y: 0 }}
+                      whileInView={{ opacity: 1, y: 0 }}
                       className="flex flex-col items-center space-y-4"
                     >
-                      {/* Malaking Artist Avatar */}
+                      {/* Artist Avatar (Dynamic) */}
                       <div className="relative">
                         <div className="w-20 h-20 md:w-24 md:h-24 rounded-2xl overflow-hidden border-2 border-orange-500 rotate-3 shadow-2xl transition-transform group-hover:rotate-0 duration-500">
                           <img 
@@ -382,14 +386,14 @@ const GallerySection = ({ openModal }: { openModal: (imgs: string[], i: number) 
                           />
                         </div>
                         <div className="absolute -bottom-2 -right-2 bg-orange-600 text-white p-1 rounded-md shadow-lg">
-                           <svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                           <Zap size={12} fill="currentColor" />
                         </div>
                       </div>
 
                       <div className="text-center">
-                        <p className="text-[10px] font-black uppercase tracking-[0.4em] text-orange-500 mb-1">Done By</p>
+                        <p className="text-[10px] font-black uppercase tracking-[0.4em] text-orange-500 mb-1">Pierced By</p>
                         <p className="text-xl md:text-2xl font-black text-white uppercase tracking-tighter italic leading-none mb-4">
-                          {item.artistName || "Master Artist"}
+                          {item.artistName || "Master Piercer"}
                         </p>
                       </div>
 
@@ -404,8 +408,8 @@ const GallerySection = ({ openModal }: { openModal: (imgs: string[], i: number) 
 
                   {/* Top Subtle Label (Visible when not hovered) */}
                   <div className="absolute top-6 left-6 group-hover:opacity-0 transition-opacity">
-                    <span className="text-[10px] font-black text-white/50 uppercase tracking-[0.3em] vertical-text">
-                      AJ / {item.placement}
+                    <span className="text-[12px] font-black text-white/50 uppercase tracking-[0.3em] [writing-mode:vertical-lr]">
+                      {item.placement}
                     </span>
                   </div>
                 </motion.div>
@@ -414,13 +418,13 @@ const GallerySection = ({ openModal }: { openModal: (imgs: string[], i: number) 
             
             <div className="mt-20 flex justify-center">
               <Link href="/piercings" passHref>
-              <Button 
-                variant="ghost" 
-                className="group text-zinc-500 hover:text-orange-600 text-[10px] uppercase font-black tracking-[0.3em] transition-all"
-              >
-                Explore Full Archive
-                <ChevronRight size={14} className="ml-2 transition-transform group-hover:translate-x-1" />
-              </Button>
+                <Button 
+                  variant="ghost" 
+                  className="group text-zinc-500 hover:text-orange-600 text-[10px] uppercase font-black tracking-[0.3em] transition-all"
+                >
+                  Explore Full Archive
+                  <ChevronRight size={14} className="ml-2 transition-transform group-hover:translate-x-1" />
+                </Button>
               </Link>
             </div>
           </>
@@ -429,20 +433,27 @@ const GallerySection = ({ openModal }: { openModal: (imgs: string[], i: number) 
     </section>
   )
 }
+// ---------- TATTOO GALLERY (DYNAMIC VERSION) ----------
 const TattooSection = ({ openModal }: { openModal: (imgs: string[], i: number) => void }) => {
   const [galleryItems, setGalleryItems] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    // Kinukuha ang data sa /api/tattoo
     fetch("/api/tattoo")
       .then(res => res.json())
-      .then(data => Array.isArray(data) ? setGalleryItems(data) : null)
-      .catch(err => console.error("Gallery fetch error:", err))
+      .then(data => {
+        if (Array.isArray(data)) {
+          // Kunin lang ang top 6 para sa landing page gallery
+          setGalleryItems(data.slice(0, 6))
+        }
+      })
+      .catch(err => console.error("Tattoo fetch error:", err))
       .finally(() => setLoading(false))
   }, [])
 
   return (
-    <section id="gallery-section" className="py-20 bg-black px-6 overflow-hidden">
+    <section id="tattoo-gallery" className="py-20 bg-black px-6 overflow-hidden">
       <div className="container mx-auto max-w-6xl">
         <div className="text-center mb-16 space-y-4">
           <h2 className="text-4xl md:text-5xl font-black uppercase tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-red-600 via-orange-500 to-yellow-400 italic">
@@ -458,32 +469,31 @@ const TattooSection = ({ openModal }: { openModal: (imgs: string[], i: number) =
           </div>
         ) : (
           <>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-6 md:gap-10">
-              {galleryItems.slice(0, 6).map((item, idx) => (
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-6 md:gap-10">
+              {galleryItems.map((item, idx) => (
                 <motion.div
                   key={item._id}
                   whileHover={{ y: -15 }}
                   transition={{ type: "spring", stiffness: 300 }}
                   className="group relative overflow-hidden rounded-[2.5rem] border border-white/10 aspect-[3/4] cursor-pointer bg-zinc-900 shadow-[0_20px_50px_rgba(0,0,0,0.8)]"
-                  onClick={() => openModal(galleryItems.slice(0, 6).map(g => g.image), idx)}
+                  onClick={() => openModal(galleryItems.map(g => g.image), idx)}
                 >
-                  {/* MAIN PIERCING IMAGE */}
+                  {/* MAIN TATTOO IMAGE */}
                   <img
                     src={item.image}
                     alt={item.placement}
                     className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110 group-hover:rotate-2"
                   />
                   
-                  {/* --- PROMINENT ARTIST OVERLAY --- */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500 flex flex-col justify-end p-8">
+                  {/* --- ARTIST OVERLAY --- */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500 flex flex-col justify-end p-8">
                     
-                    {/* Artist Details */}
                     <motion.div 
                       initial={{ opacity: 0, y: 20 }}
-                      whileHover={{ opacity: 1, y: 0 }}
+                      whileInView={{ opacity: 1, y: 0 }}
                       className="flex flex-col items-center space-y-4"
                     >
-                      {/* Malaking Artist Avatar */}
+                      {/* Artist Avatar */}
                       <div className="relative">
                         <div className="w-20 h-20 md:w-24 md:h-24 rounded-2xl overflow-hidden border-2 border-orange-500 rotate-3 shadow-2xl transition-transform group-hover:rotate-0 duration-500">
                           <img 
@@ -492,46 +502,48 @@ const TattooSection = ({ openModal }: { openModal: (imgs: string[], i: number) =
                             className="w-full h-full object-cover"
                           />
                         </div>
+                        {/* Star Badge */}
                         <div className="absolute -bottom-2 -right-2 bg-orange-600 text-white p-1 rounded-md shadow-lg">
-                           <svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                           <Star size={12} fill="currentColor" />
                         </div>
                       </div>
 
                       <div className="text-center">
-                        <p className="text-[10px] font-black uppercase tracking-[0.4em] text-orange-500 mb-1">Crafted By</p>
+                        <p className="text-[10px] font-black uppercase tracking-[0.4em] text-orange-500 mb-1">Inked By</p>
                         <p className="text-xl md:text-2xl font-black text-white uppercase tracking-tighter italic leading-none mb-4">
                           {item.artistName || "Master Artist"}
                         </p>
                       </div>
 
-                      {/* Placement Tag */}
+                      {/* Style/Placement Tag */}
                       <div className="bg-white/10 backdrop-blur-md border border-white/20 px-6 py-2 rounded-full shadow-xl">
                         <p className="text-white text-[10px] md:text-xs font-black uppercase tracking-[0.2em]">
-                          {item.placement}
+                          {item.placement || "Custom Design"}
                         </p>
                       </div>
                     </motion.div>
                   </div>
 
-                  {/* Top Subtle Label (Visible when not hovered) */}
+                  {/* Vertical Side Label */}
                   <div className="absolute top-6 left-6 group-hover:opacity-0 transition-opacity">
-                    <span className="text-[10px] font-black text-white/50 uppercase tracking-[0.3em] vertical-text">
-                      AJ / {item.placement}
+                    <span className="text-[12px] font-black text-white/50 uppercase tracking-[0.3em] [writing-mode:vertical-lr]">
+                      {item.placement}
                     </span>
                   </div>
                 </motion.div>
               ))}
             </div>
             
+            {/* CTA Button */}
             <div className="mt-20 flex justify-center">
               <Link href="/tattoo" passHref>
-              <Button 
-                variant="ghost" 
-                className="group text-zinc-500 hover:text-orange-600 text-[10px] uppercase font-black tracking-[0.3em] transition-all"
-              >
-                Explore Full Archive
-                <ChevronRight size={14} className="ml-2 transition-transform group-hover:translate-x-1" />
-              </Button>
+                <Button 
+                  variant="ghost" 
+                  className="group text-zinc-500 hover:text-orange-600 text-[10px] uppercase font-black tracking-[0.3em] transition-all"
+                >
+                  Explore Full Archive
+                  <ChevronRight size={14} className="ml-2 transition-transform group-hover:translate-x-1" />
+                </Button>
               </Link>
             </div>
           </>
@@ -688,7 +700,7 @@ const ProductSection = () => {
 
   useEffect(() => {
     fetch("/api/products")
-      .then((res) => res.json())
+      .then((res) => res.ok ? res.json() : [])
       .then((data) => {
         if (Array.isArray(data)) setProducts(data);
       })
@@ -699,8 +711,10 @@ const ProductSection = () => {
   return (
     <section id="shop" className="py-20 bg-black px-6">
       <div className="container mx-auto max-w-5xl">
+        
+        {/* --- HEADER SECTION (SAMA NA DITO PAR) --- */}
         <div className="flex flex-col items-center text-center mb-12 space-y-3">
-          <Badge className="bg-yellow-500 text-black px-3 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest">
+          <Badge className="bg-yellow-500 text-black px-3 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest border-none">
             Premium Supplies
           </Badge>
           <div className="space-y-1">
@@ -716,7 +730,7 @@ const ProductSection = () => {
         {loading ? (
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-8">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="aspect-square bg-zinc-900 rounded-2xl animate-pulse" />
+              <div key={`skeleton-${i}`} className="aspect-square bg-zinc-900/50 rounded-[2rem] animate-pulse" />
             ))}
           </div>
         ) : (
@@ -724,7 +738,7 @@ const ProductSection = () => {
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-8">
               {products.slice(0, 3).map((product) => (
                 <motion.div
-                  key={product._id}
+                  key={product.id || product.name} 
                   initial={{ opacity: 0, y: 10 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
@@ -756,10 +770,10 @@ const ProductSection = () => {
                     </h3>
                     <div className="flex justify-between items-center">
                       <p className="text-zinc-500 text-[9px] md:text-[10px] uppercase font-bold tracking-widest">
-                        Available In-Store
+                        In-Store Only
                       </p>
                       <span className="text-yellow-500 font-black text-sm md:text-base">
-                        ₱{product.cost_price}
+                        ₱{(Number(product.selling_price) || 0).toLocaleString()}
                       </span>
                     </div>
                   </div>
@@ -767,15 +781,16 @@ const ProductSection = () => {
               ))}
             </div>
 
+            {/* BROWSE ALL BUTTON */}
             <div className="mt-12 flex justify-center">
-               <Link href="/shop" passHref> {/* Palitan ang /piercings kung ano ang actual link mo */}
-              <Button 
-                variant="ghost" 
-                className="group text-zinc-500 hover:text-orange-600 text-[10px] uppercase font-black tracking-[0.3em] transition-all"
-              >
-                Browse all items
-                <ChevronRight size={14} className="ml-2 transition-transform group-hover:translate-x-1" />
-              </Button>
+              <Link href="/shop" passHref>
+                <Button 
+                  variant="ghost" 
+                  className="group text-zinc-500 hover:text-yellow-500 text-[10px] uppercase font-black tracking-[0.3em] transition-all"
+                >
+                  Browse all items
+                  <ChevronRight size={14} className="ml-2 transition-transform group-hover:translate-x-1" />
+                </Button>
               </Link>
             </div>
           </>
@@ -819,7 +834,6 @@ export default function Dashboard() {
         <ProductSection/>
         <ReviewsSection/>
       </main>
-      <FloatingChatWidget/>
       <Footer />
     </div>
   )

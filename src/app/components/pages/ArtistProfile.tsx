@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import Script from "next/script"; // IMPORTANTE: Para sa Cloudinary Widget
 import { Button } from "@/components/ui/button"; 
 import ArtistModal from "../../components/ArtistModal";
 import { Plus, Loader2, ShieldCheck, UserPlus, Search, Trash2, Mail, Phone, Instagram, Eye, EyeOff, Circle } from "lucide-react";
@@ -27,6 +28,7 @@ export default function ArtistProfile() {
         try {
             const res = await fetch("/api/artists");
             const data = await res.json();
+            // Naka-array dapat ang data galing sa API route mo
             if (Array.isArray(data)) setArtists(data);
         } catch (err) {
             toast.error("Failed to load team data.");
@@ -36,17 +38,20 @@ export default function ArtistProfile() {
     const handleSave = async (payload: any) => {
         setLoading(true);
         try {
-            const isUpdate = payload._id ? true : false;
-            // Siguraduhin na may default status na 'active' kung bagong artist
+            // Check kung 'id' (Firebase) o '_id' (Old Mongo data) ang meron
+            const artistId = payload.id || payload._id;
+            const isUpdate = !!artistId;
+
             const finalPayload = { 
                 ...payload, 
                 status: payload.status || "active" 
             };
 
             const res = await fetch("/api/artists", {
+                // Pinapasa natin yung 'id' sa PUT body para sa doc(db, "artists", id)
                 method: isUpdate ? "PUT" : "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(isUpdate ? { id: payload._id, ...finalPayload } : finalPayload),
+                body: JSON.stringify(isUpdate ? { id: artistId, ...finalPayload } : finalPayload),
             });
 
             if (res.ok) {
@@ -61,14 +66,15 @@ export default function ArtistProfile() {
 
     // --- QUICK STATUS TOGGLE ---
     const toggleStatus = async (e: React.MouseEvent, artist: any) => {
-        e.stopPropagation(); // Iwas bukas ng modal pag clinick yung status button
+        e.stopPropagation(); 
+        const artistId = artist.id || artist._id;
         const newStatus = artist.status === "inactive" ? "active" : "inactive";
         
         try {
             const res = await fetch("/api/artists", {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ id: artist._id, ...artist, status: newStatus }),
+                body: JSON.stringify({ ...artist, id: artistId, status: newStatus }),
             });
             if (res.ok) {
                 toast.info(`Artist visibility set to ${newStatus}`);
@@ -81,20 +87,28 @@ export default function ArtistProfile() {
 
     const deleteArtist = async (id: string) => {
         if (!confirm("Are you sure? This will delete the entire profile and portfolio.")) return;
-        await fetch("/api/artists", { 
-            method: "DELETE", 
-            body: JSON.stringify({ id }),
-            headers: { "Content-Type": "application/json" }
-        });
-        toast.error("Artist profile deleted.");
-        fetchArtists();
+        try {
+            const res = await fetch("/api/artists", { 
+                method: "DELETE", 
+                body: JSON.stringify({ id }),
+                headers: { "Content-Type": "application/json" }
+            });
+            if (res.ok) {
+                toast.error("Artist profile deleted.");
+                fetchArtists();
+            }
+        } catch (err) {
+            toast.error("Delete failed.");
+        }
     };
 
     // --- FILTER LOGIC ---
     const filteredArtists = useMemo(() => {
         return artists.filter(a => {
-            const matchesSearch = a.fullName.toLowerCase().includes(search.toLowerCase()) || 
-                                 a.position.toLowerCase().includes(search.toLowerCase());
+            const fullName = a.fullName || "";
+            const position = a.position || "";
+            const matchesSearch = fullName.toLowerCase().includes(search.toLowerCase()) || 
+                                 position.toLowerCase().includes(search.toLowerCase());
             const matchesTab = activeTab === "all" ? true : a.status === activeTab;
             return matchesSearch && matchesTab;
         });
@@ -102,9 +116,12 @@ export default function ArtistProfile() {
 
     return (
         <div className="p-6 md:p-12 max-w-7xl mx-auto space-y-10 bg-zinc-50 min-h-screen text-black font-sans">
+            {/* Heto yung kailangan para gumana ang upload feature ng modal */}
+            <Script src="https://upload-widget.cloudinary.com/global/all.js" strategy="afterInteractive" />
+            
             <Toaster position="top-right" richColors />
             
-            <header className="flex flex-col md:flex-row justify-between items-center bg-zinc-900 p-10 rounded-4xl text-white shadow-2xl gap-6">
+            <header className="flex flex-col md:flex-row justify-between items-center bg-zinc-900 p-10 rounded-[2.5rem] text-white shadow-2xl gap-6">
                 <div className="flex items-center gap-5">
                     <div className="p-4 bg-white rounded-3xl -rotate-6 shadow-xl">
                         <ShieldCheck size={32} className="text-black" />
@@ -138,7 +155,7 @@ export default function ArtistProfile() {
 
                 <div className="relative group w-full md:w-96">
                     <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-zinc-400 group-focus-within:text-black transition-colors" />
-                    <input type="text" placeholder="Search team by name or role..." className="w-full pl-16 pr-8 py-4.5 bg-white rounded-3xl shadow-sm outline-none font-bold focus:ring-2 ring-black transition-all" onChange={e => setSearch(e.target.value)} />
+                    <input type="text" placeholder="Search team by name or role..." className="w-full pl-16 pr-8 py-4 bg-white rounded-3xl shadow-sm outline-none font-bold focus:ring-2 ring-black transition-all text-black" onChange={e => setSearch(e.target.value)} />
                 </div>
             </div>
 
@@ -150,9 +167,9 @@ export default function ArtistProfile() {
                     </div>
                 ) : filteredArtists.map((artist) => (
                     <div 
-                        key={artist._id} 
+                        key={artist.id || artist._id} 
                         onClick={() => setModal({ isOpen: true, data: artist })} 
-                        className={`group bg-white p-8 rounded-4xl shadow-sm border border-zinc-100 cursor-pointer hover:shadow-2xl transition-all relative overflow-hidden ${artist.status === 'inactive' ? 'opacity-60 grayscale-[0.8] hover:grayscale-0 hover:opacity-100' : ''}`}
+                        className={`group bg-white p-8 rounded-[2.5rem] shadow-sm border border-zinc-100 cursor-pointer hover:shadow-2xl transition-all relative overflow-hidden ${artist.status === 'inactive' ? 'opacity-60 grayscale-[0.8] hover:grayscale-0 hover:opacity-100' : ''}`}
                     >
                         {/* --- STATUS BADGE --- */}
                         <div className={`absolute top-8 left-8 px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest flex items-center gap-2 border ${artist.status === 'inactive' ? 'bg-zinc-50 text-zinc-400 border-zinc-100' : 'bg-green-50 text-green-600 border-green-100'}`}>
@@ -161,11 +178,13 @@ export default function ArtistProfile() {
                         </div>
 
                         <div className="flex flex-col items-center">
-                            <div className={`w-28 h-28 rounded-4xl overflow-hidden mb-6 border-4 shadow-inner transition-transform group-hover:rotate-3 ${artist.status === 'inactive' ? 'border-zinc-200' : 'border-white'}`}>
+                            <div className={`w-28 h-28 rounded-[2rem] overflow-hidden mb-6 border-4 shadow-inner transition-transform group-hover:rotate-3 ${artist.status === 'inactive' ? 'border-zinc-200' : 'border-white'}`}>
                                 {artist.profileImage ? (
                                     <img src={artist.profileImage} className="w-full h-full object-cover" alt={artist.fullName} />
                                 ) : (
-                                    <div className="w-full h-full flex items-center justify-center bg-zinc-900 text-white font-black text-2xl uppercase italic">{artist.fullName[0]}</div>
+                                    <div className="w-full h-full flex items-center justify-center bg-zinc-900 text-white font-black text-2xl uppercase italic">
+                                        {artist.fullName ? artist.fullName[0] : "?"}
+                                    </div>
                                 )}
                             </div>
                             <h3 className="text-2xl font-black uppercase italic tracking-tighter text-center leading-none">{artist.fullName}</h3>
@@ -188,7 +207,7 @@ export default function ArtistProfile() {
                                 {artist.status === 'active' ? <EyeOff size={18}/> : <Eye size={18}/>}
                             </button>
                             <button 
-                                onClick={(e) => { e.stopPropagation(); deleteArtist(artist._id); }} 
+                                onClick={(e) => { e.stopPropagation(); deleteArtist(artist.id || artist._id); }} 
                                 className="p-2.5 bg-red-50 text-red-500 hover:bg-red-500 hover:text-white rounded-xl transition-all"
                             >
                                 <Trash2 size={18}/>
@@ -198,7 +217,7 @@ export default function ArtistProfile() {
                 ))}
 
                 {!fetching && filteredArtists.length === 0 && (
-                    <div className="col-span-full py-20 text-center border-2 border-dashed border-zinc-200 rounded-4xl">
+                    <div className="col-span-full py-20 text-center border-2 border-dashed border-zinc-200 rounded-[2.5rem]">
                         <p className="text-zinc-400 font-black uppercase tracking-widest text-xs">No artists found in this category.</p>
                     </div>
                 )}

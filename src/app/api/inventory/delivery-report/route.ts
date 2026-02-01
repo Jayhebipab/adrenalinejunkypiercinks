@@ -1,14 +1,8 @@
-import { MongoClient, ObjectId } from "mongodb";
+import { db } from "@/lib/firebase";
+import { 
+  collection, doc, writeBatch, serverTimestamp, increment 
+} from "firebase/firestore";
 import { NextResponse } from "next/server";
-
-const uri = process.env.MONGODB_URI;
-let client: MongoClient | null = null;
-
-async function getClient() {
-  if (!uri) throw new Error("MONGODB_URI is not defined");
-  if (!client) client = new MongoClient(uri);
-  return client;
-}
 
 export async function POST(req: Request) {
   try {
@@ -18,40 +12,38 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid items list" }, { status: 400 });
     }
 
-    const mongoClient = await getClient();
-    await mongoClient.connect();
-    const db = mongoClient.db("adrenalinjunkypiercinks");
+    // Initialize ang Batch (Katumbas ng bulkWrite sa Mongo)
+    const batch = writeBatch(db);
 
-    // Gagamit tayo ng Bulk Operations para mabilis at sabay-sabay ang update
-    const operations = items.map((item) => ({
-      updateOne: {
-        filter: { _id: new ObjectId(item.product_id) },
-        update: {
-          $inc: { quantity: item.quantity }, // Dagdag sa kasalukuyang stock
-          $set: { 
-            selling_price: parseFloat(item.selling_price),
-            last_dr: dr_number,
-            updatedAt: new Date()
-          }
-        }
-      }
-    }));
+    // 1. I-map ang items para sa inventory updates
+    items.forEach((item: any) => {
+      // Tandaan: Sa Firebase, yung item.product_id ay rekta nang string ID
+      const productRef = doc(db, "inventory", item.product_id);
+      
+      batch.update(productRef, {
+        quantity: increment(parseInt(item.quantity)), // $inc: Dagdag sa kasalukuyang stock
+        selling_price: parseFloat(item.selling_price),
+        last_dr: dr_number,
+        updatedAt: serverTimestamp() // Mas safe gamitin ang server side time
+      });
+    });
 
-    // Isang tawag lang sa DB para sa lahat ng items
-    const result = await db.collection("inventory").bulkWrite(operations);
-
-    // OPTIONAL: I-save ang transaction record para sa history
-    await db.collection("delivery_logs").insertOne({
+    // 2. I-save ang transaction record sa delivery_logs history
+    const logRef = doc(collection(db, "delivery_logs"));
+    batch.set(logRef, {
       dr_number,
       supplier_id,
-      date_delivered,
+      date_delivered: new Date(date_delivered),
       items_count: items.length,
-      createdAt: new Date()
+      createdAt: serverTimestamp()
     });
+
+    // Isang bagsakan na commit sa database
+    await batch.commit();
 
     return NextResponse.json({ 
       message: "Stock updated successfully", 
-      modifiedCount: result.modifiedCount 
+      modifiedCount: items.length 
     });
 
   } catch (error: any) {

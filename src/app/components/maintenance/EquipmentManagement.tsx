@@ -1,182 +1,171 @@
 "use client"
 import { useState, useEffect } from "react"
+import { db } from "@/lib/firebase"
+import { collection, doc, writeBatch, serverTimestamp } from "firebase/firestore"
 import { Button } from "@/components/ui/button"
-import { 
-  Trash2, Edit3, Search, RotateCcw, Plus, X, 
-  Loader2, Wrench, Boxes, Tag, Banknote 
-} from "lucide-react"
+import { Trash2, Edit3, Search, Plus, X, Loader2, Wrench, ChevronDown, Calendar } from "lucide-react"
 import { Toaster, toast } from "sonner"
 
 interface Equipment {
-  _id: string;
+  id: string;
   name: string;
   category: string;
   cost_price: number;
   quantity: number;
+  supplier: string;
+  delivery_date?: string;
 }
 
 export default function EquipmentMaintenance() {
   const [equipments, setEquipments] = useState<Equipment[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [suppliers, setSuppliers] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [fetching, setFetching] = useState(true);
-  
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
-  const [currentEquip, setCurrentEquip] = useState<Equipment | null>(null);
   
-  const [formData, setFormData] = useState({ 
-    name: "", 
-    category: "", 
-    cost_price: 0, 
-    quantity: 0 
-  });
+  // FIX: Initialize currentEquip with empty strings instead of null 
+  // to avoid "uncontrolled to controlled" error
+  const emptyEquip: Equipment = {
+    id: "",
+    name: "",
+    category: "",
+    cost_price: 0,
+    quantity: 0,
+    supplier: "",
+    delivery_date: new Date().toISOString().split('T')[0]
+  };
 
-  const fetchEquipments = async () => {
+  const [currentEquip, setCurrentEquip] = useState<Equipment>(emptyEquip);
+  const [formData, setFormData] = useState(emptyEquip);
+
+  const loadRegistryData = async () => {
     setFetching(true);
     try {
-      const res = await fetch("/api/equipments");
-      const data = await res.json();
-      if (Array.isArray(data)) setEquipments(data);
+      const [equipRes, catRes, supRes] = await Promise.all([
+        fetch("/api/equipments"),
+        fetch("/api/categories"),
+        fetch("/api/suppliers")
+      ]);
+      const [eData, cData, sData] = await Promise.all([equipRes.json(), catRes.json(), supRes.json()]);
+      
+      if (Array.isArray(eData)) setEquipments(eData);
+      if (Array.isArray(cData)) setCategories(cData);
+      if (Array.isArray(sData)) setSuppliers(sData);
     } catch (err) {
-      toast.error("Failed to load records.");
-    } finally {
-      setFetching(false);
-    }
+      toast.error("Registry sync failed.");
+    } finally { setFetching(false); }
   };
 
-  useEffect(() => { fetchEquipments(); }, []);
+  useEffect(() => { loadRegistryData(); }, []);
 
-  const handleAdd = async (e: React.FormEvent) => {
+  const handleAction = async (e: React.FormEvent, method: 'POST' | 'PUT') => {
     e.preventDefault();
+    const payload = method === 'POST' ? formData : currentEquip;
+
     toast.promise(async () => {
+      // 1. Update API call for Equipment
       const res = await fetch("/api/equipments", {
-        method: "POST",
-        body: JSON.stringify(formData),
+        method: method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
       });
-      if (!res.ok) throw new Error();
-      setFormData({ name: "", category: "", cost_price: 0, quantity: 0 });
+
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || "Action failed");
+
+      // 2. FIRESTORE LOGIC: Add to delivery_reports
+      // Ginagamit ang batch para siguradong "atomically" updated ang records
+      const batch = writeBatch(db);
+      const reportRef = doc(collection(db, "delivery_reports"));
+      
+      batch.set(reportRef, {
+        item_id: payload.id || result.id, // Kung bago, gamitin yung ID galing API
+        item_name: payload.name,
+        type: "EQUIPMENT",
+        action: method === 'POST' ? "REGISTERED" : "MAINTENANCE_UPDATE",
+        quantity: payload.quantity,
+        supplier: payload.supplier || "N/A",
+        delivery_date: payload.delivery_date,
+        createdAt: serverTimestamp(),
+        updatedBy: "Admin", // Pwede mong palitan ng actual user session name
+        status: "COMPLETED"
+      });
+
+      await batch.commit();
+
       setIsAddOpen(false);
-      fetchEquipments();
-    }, {
-      loading: 'Saving equipment...',
-      success: 'Equipment added!',
-      error: 'Failed to save',
-    });
-  };
-
-  const handleUpdate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!currentEquip) return;
-    toast.promise(async () => {
-      const res = await fetch(`/api/equipments`, {
-        method: "PUT",
-        body: JSON.stringify({ 
-          id: currentEquip._id, 
-          name: currentEquip.name,
-          category: currentEquip.category,
-          cost_price: Number(currentEquip.cost_price),
-          quantity: Number(currentEquip.quantity)
-        }),
-      });
-      if (!res.ok) throw new Error();
       setIsEditOpen(false);
-      fetchEquipments();
+      loadRegistryData();
     }, {
-      loading: 'Updating...',
-      success: 'Updated successfully!',
-      error: 'Update failed',
-    });
-  };
-
-  const handleDelete = async (id: string) => {
-    if (!confirm("Burahin na ba ito?")) return;
-    toast.promise(async () => {
-      const res = await fetch("/api/equipments", {
-        method: "DELETE",
-        body: JSON.stringify({ id }),
-      });
-      if (!res.ok) throw new Error();
-      fetchEquipments();
-    }, {
-      loading: 'Deleting...',
-      success: 'Equipment removed!',
-      error: 'Delete failed',
+      loading: 'Updating Registry & Logs...',
+      success: 'Matrix & Reports Updated Successfully!',
+      error: (err) => err.message,
     });
   };
 
   const filtered = equipments.filter(e => 
-    e.name.toLowerCase().includes(search.toLowerCase()) || 
-    e.category.toLowerCase().includes(search.toLowerCase())
+    e.name?.toLowerCase().includes(search.toLowerCase()) || 
+    e.category?.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
-    <div className="p-4 md:p-8 bg-gray-50 min-h-screen text-slate-900">
+    <div className="p-4 md:p-10 bg-zinc-50 min-h-screen text-zinc-900">
       <Toaster position="top-right" richColors />
-
-      <div className="max-w-6xl mx-auto space-y-6">
+      <div className="max-w-7xl mx-auto space-y-8">
+        
         {/* HEADER */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-blue-600 rounded-2xl shadow-lg shadow-blue-100">
-              <Wrench className="text-white w-7 h-7" />
-            </div>
+        <header className="flex flex-col md:flex-row justify-between items-center bg-zinc-900 p-10 rounded-[2.5rem] text-white shadow-2xl gap-6">
+          <div className="flex items-center gap-5">
+            <div className="p-4 bg-white rounded-3xl -rotate-6 shadow-xl"><Wrench size={32} className="text-black" /></div>
             <div>
-              <h1 className="text-3xl font-black tracking-tight">Equipment</h1>
-              <p className="text-slate-500 text-sm">Maintain studio tools and assets.</p>
+              <h1 className="text-4xl font-black italic uppercase tracking-tighter">The Gear</h1>
+              <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.4em]">Maintenance Node</p>
             </div>
           </div>
-          <Button onClick={() => setIsAddOpen(true)} className="bg-slate-900 hover:bg-black text-white rounded-2xl h-14 px-8 shadow-xl">
-            <Plus className="w-5 h-5 mr-2" /> Add Equipment
+          <Button onClick={() => { setFormData(emptyEquip); setIsAddOpen(true); }} className="bg-white text-black hover:bg-zinc-200 rounded-2xl h-14 px-10 font-black uppercase text-xs border-none">
+            <Plus size={20} className="mr-3"/> Register Gear
           </Button>
-        </div>
+        </header>
 
         {/* SEARCH */}
-        <div className="bg-white p-2 rounded-3xl shadow-sm border border-gray-100 flex items-center">
-          <div className="relative flex-1">
-            <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-            <input 
-              type="text" 
-              placeholder="Search equipment or category..."
-              className="w-full bg-transparent border-none rounded-2xl px-6 py-5 pl-14 outline-none text-lg"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-          <Button onClick={() => setSearch("")} variant="ghost" className="rounded-2xl h-14 px-6 mr-2"><RotateCcw className="w-4 h-4" /></Button>
+        <div className="relative">
+          <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-zinc-400" />
+          <input type="text" placeholder="Search equipment..." className="w-full bg-white border-2 border-zinc-100 rounded-[2rem] px-8 py-6 pl-16 outline-none font-bold uppercase" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
 
-        {/* TABLE */}
-        <div className="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-50 border-b border-gray-100 text-slate-400 uppercase text-[10px] font-black tracking-widest">
-                <th className="px-8 py-6">Item Name</th>
-                <th className="px-8 py-6">Category</th>
-                <th className="px-8 py-6">Stock & Price</th>
-                <th className="px-8 py-6 text-right">Actions</th>
+        {/* TABLE CONTENT */}
+        <div className="bg-white rounded-[3rem] shadow-xl border border-zinc-100 overflow-hidden">
+          <table className="w-full text-left">
+            <thead className="bg-zinc-50 text-zinc-400 uppercase text-[10px] font-black tracking-widest">
+              <tr>
+                <th className="px-10 py-8">Asset</th>
+                <th className="px-10 py-8">Supplier & Date</th>
+                <th className="px-10 py-8 text-center">Resources</th>
+                <th className="px-10 py-8 text-right">Control</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
+            <tbody className="divide-y">
               {fetching ? (
-                <tr><td colSpan={4} className="py-20 text-center"><Loader2 className="animate-spin mx-auto w-10 h-10 text-blue-600 opacity-20" /></td></tr>
+                <tr><td colSpan={4} className="py-20 text-center"><Loader2 className="animate-spin mx-auto opacity-20" size={40} /></td></tr>
               ) : filtered.map((item) => (
-                <tr key={item._id} className="group hover:bg-blue-50/30 transition-colors">
-                  <td className="px-8 py-5">
-                    <span className="font-black text-slate-800 text-lg uppercase tracking-tight">{item.name}</span>
+                <tr key={item.id} className="group hover:bg-zinc-50/50">
+                  <td className="px-10 py-6">
+                    <p className="font-black text-xl italic uppercase tracking-tighter">{item.name}</p>
+                    <span className="bg-zinc-100 text-zinc-500 px-3 py-1 rounded-lg text-[9px] font-black uppercase">{item.category}</span>
                   </td>
-                  <td className="px-8 py-5">
-                    <span className="bg-slate-100 text-slate-600 px-3 py-1 rounded-full text-xs font-bold uppercase">{item.category}</span>
+                  <td className="px-10 py-6">
+                    <p className="font-bold text-sm uppercase">{item.supplier}</p>
+                    <p className="text-[10px] text-zinc-400 font-bold">{item.delivery_date || 'No Date'}</p>
                   </td>
-                  <td className="px-8 py-5">
-                    <div className="flex flex-col">
-                      <span className="text-slate-900 font-bold flex items-center gap-1">₱{Number(item.cost_price).toLocaleString()}</span>
-                      <span className="text-slate-400 text-xs font-medium flex items-center gap-1"><Boxes className="w-3 h-3" /> Qty: {item.quantity}</span>
-                    </div>
+                  <td className="px-10 py-6 text-center">
+                    <span className="block font-black text-lg">₱{item.cost_price.toLocaleString()}</span>
+                    <span className="text-[9px] text-zinc-400 font-bold uppercase tracking-widest">Qty: {item.quantity}</span>
                   </td>
-                  <td className="px-8 py-5 text-right">
+                  <td className="px-10 py-6 text-right">
                     <div className="flex justify-end gap-2">
-                      <Button onClick={() => { setCurrentEquip(item); setIsEditOpen(true); }} size="sm" variant="ghost" className="rounded-xl text-amber-600 hover:bg-amber-50"><Edit3 className="w-5 h-5" /></Button>
-                      <Button onClick={() => handleDelete(item._id)} size="sm" variant="ghost" className="rounded-xl text-red-600 hover:bg-red-50"><Trash2 className="w-5 h-5" /></Button>
+                      <Button onClick={() => { setCurrentEquip(item); setIsEditOpen(true); }} className="bg-zinc-100 text-zinc-900 hover:bg-zinc-900 hover:text-white rounded-xl h-10 w-10 p-0"><Edit3 size={16} /></Button>
                     </div>
                   </td>
                 </tr>
@@ -188,30 +177,62 @@ export default function EquipmentMaintenance() {
 
       {/* MODAL */}
       {(isAddOpen || isEditOpen) && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-[3rem] shadow-2xl w-full max-w-xl p-10 animate-in zoom-in duration-300">
-            <h2 className="text-3xl font-black mb-8 tracking-tighter">{isAddOpen ? "New Equipment" : "Update Equipment"}</h2>
-            <form onSubmit={isAddOpen ? handleAdd : handleUpdate} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="col-span-full space-y-2">
-                <label className="text-xs font-black uppercase text-slate-400 tracking-widest ml-2">Equipment Name</label>
-                <input required type="text" className="w-full bg-gray-50 rounded-2xl px-6 py-4 outline-none ring-blue-500 focus:ring-2" value={isAddOpen ? formData.name : currentEquip?.name} onChange={e => isAddOpen ? setFormData({...formData, name: e.target.value}) : setCurrentEquip({...currentEquip!, name: e.target.value})} />
+        <div className="fixed inset-0 bg-zinc-900/80 backdrop-blur-xl flex items-center justify-center z-50 p-6">
+          <div className="bg-white rounded-[3rem] w-full max-w-lg p-10 relative animate-in zoom-in duration-200">
+            <button onClick={() => { setIsAddOpen(false); setIsEditOpen(false); }} className="absolute top-8 right-8 text-zinc-300 hover:text-black"><X size={32} /></button>
+            <h2 className="text-3xl font-black italic uppercase tracking-tighter mb-8">{isAddOpen ? "Add Gear" : "Edit Asset"}</h2>
+            
+            <form onSubmit={(e) => handleAction(e, isAddOpen ? 'POST' : 'PUT')} className="space-y-4">
+              {/* FIX: added fallback `|| ""` to prevent uncontrolled input error */}
+              <input required placeholder="EQUIPMENT NAME" className="w-full bg-zinc-50 border-2 rounded-2xl px-6 py-4 font-bold uppercase outline-none" 
+                value={isAddOpen ? formData.name : (currentEquip.name || "")} 
+                onChange={e => isAddOpen ? setFormData({...formData, name: e.target.value}) : setCurrentEquip({...currentEquip, name: e.target.value})} 
+              />
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="relative">
+                  <select required className="w-full bg-zinc-50 border-2 rounded-2xl px-6 py-4 font-bold uppercase appearance-none outline-none" 
+                    value={isAddOpen ? formData.category : (currentEquip.category || "")} 
+                    onChange={e => isAddOpen ? setFormData({...formData, category: e.target.value}) : setCurrentEquip({...currentEquip, category: e.target.value})}
+                  >
+                    <option value="">Category</option>
+                    {categories.map(c => <option key={c.id} value={c.category_name}>{c.category_name}</option>)}
+                  </select>
+                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" size={16} />
+                </div>
+
+                <div className="relative">
+                  <select required className="w-full bg-zinc-50 border-2 rounded-2xl px-6 py-4 font-bold uppercase appearance-none outline-none" 
+                    value={isAddOpen ? formData.supplier : (currentEquip.supplier || "")} 
+                    onChange={e => isAddOpen ? setFormData({...formData, supplier: e.target.value}) : setCurrentEquip({...currentEquip, supplier: e.target.value})}
+                  >
+                    <option value="">Supplier</option>
+                    {suppliers.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                  </select>
+                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" size={16} />
+                </div>
               </div>
-              <div className="space-y-2">
-                <label className="text-xs font-black uppercase text-slate-400 tracking-widest ml-2">Category</label>
-                <input required type="text" className="w-full bg-gray-50 rounded-2xl px-6 py-4 outline-none" value={isAddOpen ? formData.category : currentEquip?.category} onChange={e => isAddOpen ? setFormData({...formData, category: e.target.value}) : setCurrentEquip({...currentEquip!, category: e.target.value})} />
+
+              <div className="grid grid-cols-2 gap-4">
+                <input required type="number" placeholder="QTY" className="w-full bg-zinc-50 border-2 rounded-2xl px-6 py-4 font-bold" 
+                  value={isAddOpen ? formData.quantity : (currentEquip.quantity ?? 0)} 
+                  onChange={e => isAddOpen ? setFormData({...formData, quantity: Number(e.target.value)}) : setCurrentEquip({...currentEquip, quantity: Number(e.target.value)})} 
+                />
+                <input required type="number" placeholder="COST PRICE" className="w-full bg-zinc-900 text-white rounded-2xl px-6 py-4 font-bold" 
+                  value={isAddOpen ? formData.cost_price : (currentEquip.cost_price ?? 0)} 
+                  onChange={e => isAddOpen ? setFormData({...formData, cost_price: Number(e.target.value)}) : setCurrentEquip({...currentEquip, cost_price: Number(e.target.value)})} 
+                />
               </div>
-              <div className="space-y-2">
-                <label className="text-xs font-black uppercase text-slate-400 tracking-widest ml-2">Cost Price</label>
-                <input required type="number" step="0.01" className="w-full bg-gray-50 rounded-2xl px-6 py-4 outline-none" value={isAddOpen ? formData.cost_price : currentEquip?.cost_price} onChange={e => isAddOpen ? setFormData({...formData, cost_price: Number(e.target.value)}) : setCurrentEquip({...currentEquip!, cost_price: Number(e.target.value)})} />
+
+              <div className="relative">
+                <Calendar className="absolute left-6 top-1/2 -translate-y-1/2 text-zinc-400" size={18} />
+                <input required type="date" className="w-full bg-zinc-50 border-2 rounded-2xl px-14 py-4 font-bold outline-none uppercase" 
+                  value={isAddOpen ? formData.delivery_date : (currentEquip.delivery_date?.split('T')[0] || "")} 
+                  onChange={e => isAddOpen ? setFormData({...formData, delivery_date: e.target.value}) : setCurrentEquip({...currentEquip, delivery_date: e.target.value})} 
+                />
               </div>
-              <div className="col-span-full space-y-2">
-                <label className="text-xs font-black uppercase text-slate-400 tracking-widest ml-2">Quantity</label>
-                <input required type="number" className="w-full bg-gray-50 rounded-2xl px-6 py-4 outline-none" value={isAddOpen ? formData.quantity : currentEquip?.quantity} onChange={e => isAddOpen ? setFormData({...formData, quantity: Number(e.target.value)}) : setCurrentEquip({...currentEquip!, quantity: Number(e.target.value)})} />
-              </div>
-              <div className="col-span-full flex gap-3 pt-4">
-                <Button type="button" variant="ghost" className="flex-1 h-16 rounded-2xl font-black uppercase tracking-widest" onClick={() => { setIsAddOpen(false); setIsEditOpen(false); }}>Cancel</Button>
-                <Button type="submit" className="flex-1 h-16 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-blue-100">Save Changes</Button>
-              </div>
+
+              <Button type="submit" className="w-full h-16 bg-zinc-900 text-white rounded-2xl font-black uppercase tracking-widest border-none mt-4">Commit to Registry</Button>
             </form>
           </div>
         </div>

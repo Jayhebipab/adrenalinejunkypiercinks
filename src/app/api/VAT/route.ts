@@ -1,95 +1,123 @@
-import { MongoClient, ObjectId } from "mongodb";
+import { db } from "@/lib/firebase";
+import { 
+  collection, 
+  getDocs, 
+  getDoc, 
+  addDoc, 
+  deleteDoc, 
+  updateDoc, 
+  doc, 
+  query, 
+  where, 
+  orderBy,
+  serverTimestamp 
+} from "firebase/firestore";
 import { NextResponse } from "next/server";
 
-const uri = process.env.MONGODB_URI;
-let client: MongoClient | null = null;
+const VATS_COLLECTION = "vats";
 
-async function getClient() {
-  if (!uri) throw new Error("MONGODB_URI is not defined");
-  if (!client) client = new MongoClient(uri);
-  return client;
-}
-
-// GET: Kunin lahat ng VAT records
+// --- 1. GET: Kunin lahat ng VAT records (Sorted by latest) ---
 export async function GET() {
   try {
-    const mongoClient = await getClient();
-    await mongoClient.connect();
-    const db = mongoClient.db("adrenalinjunkypiercinks");
-    const vats = await db.collection("vats").find({}).sort({ createdAt: -1 }).toArray();
+    const q = query(collection(db, VATS_COLLECTION), orderBy("createdAt", "desc"));
+    const querySnapshot = await getDocs(q);
+    
+    const vats = querySnapshot.docs.map(docSnap => ({
+      id: docSnap.id,
+      ...docSnap.data()
+    }));
+
     return NextResponse.json(vats);
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: "Failed to fetch VAT records" }, { status: 500 });
   }
 }
 
-// POST: Mag-add ng bagong VAT record
+// --- 2. POST: Mag-add ng bagong VAT (With Validation) ---
 export async function POST(req: Request) {
   try {
     const { vat_name, percentage } = await req.json();
-    
-    // Server-side validation: Bawal ang 0 or less, bawal ang lampas 99
+
+    // Basic range validation
     if (percentage < 1 || percentage > 99) {
       return NextResponse.json({ error: "Percentage must be between 1 and 99" }, { status: 400 });
     }
 
-    const mongoClient = await getClient();
-    await mongoClient.connect();
-    const db = mongoClient.db("adrenalinjunkypiercinks");
+    // CHECK DUPLICATE: Bawal ang magkaparehong vat_name
+    const vatsRef = collection(db, VATS_COLLECTION);
+    const q = query(vatsRef, where("vat_name", "==", vat_name));
+    const duplicateCheck = await getDocs(q);
 
-    const result = await db.collection("vats").insertOne({
+    if (!duplicateCheck.empty) {
+      return NextResponse.json({ error: `VAT name '${vat_name}' already exists.` }, { status: 400 });
+    }
+
+    const newVat = {
       vat_name,
       percentage: Number(percentage),
-      createdAt: new Date()
-    });
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    };
 
-    return NextResponse.json(result, { status: 201 });
+    const docRef = await addDoc(collection(db, VATS_COLLECTION), newVat);
+    return NextResponse.json({ id: docRef.id, message: "VAT Created" }, { status: 201 });
+
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
-// PUT: Mag-update ng existing VAT
+// --- 3. PUT: Mag-update ng VAT (With Duplicate Name Protection) ---
 export async function PUT(req: Request) {
   try {
     const { id, vat_name, percentage } = await req.json();
 
-    // Server-side validation
     if (percentage < 1 || percentage > 99) {
       return NextResponse.json({ error: "Percentage must be between 1 and 99" }, { status: 400 });
     }
 
-    const mongoClient = await getClient();
-    await mongoClient.connect();
-    const db = mongoClient.db("adrenalinjunkypiercinks");
+    const docRef = doc(db, VATS_COLLECTION, id);
+    const docSnap = await getDoc(docRef);
 
-    await db.collection("vats").updateOne(
-      { _id: new ObjectId(id) },
-      { 
-        $set: { 
-          vat_name, 
-          percentage: Number(percentage),
-          updatedAt: new Date()
-        } 
+    if (!docSnap.exists()) {
+      return NextResponse.json({ error: "VAT record not found" }, { status: 404 });
+    }
+
+    const currentData = docSnap.data();
+
+    // CHECK DUPLICATE: Kung nagbago ang pangalan, check kung may kapareho sa iba
+    if (vat_name && vat_name !== currentData.vat_name) {
+      const vatsRef = collection(db, VATS_COLLECTION);
+      const q = query(vatsRef, where("vat_name", "==", vat_name));
+      const duplicateCheck = await getDocs(q);
+      
+      if (!duplicateCheck.empty) {
+        return NextResponse.json({ error: "Another VAT record is already using that name." }, { status: 400 });
       }
-    );
+    }
 
-    return NextResponse.json({ message: "VAT Updated" });
+    await updateDoc(docRef, {
+      vat_name,
+      percentage: Number(percentage),
+      updatedAt: serverTimestamp()
+    });
+
+    return NextResponse.json({ message: "VAT Updated successfully" });
+
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
-// DELETE: Magbura ng VAT record
+// --- 4. DELETE: Magbura ng VAT ---
 export async function DELETE(req: Request) {
   try {
     const { id } = await req.json();
-    const mongoClient = await getClient();
-    await mongoClient.connect();
-    const db = mongoClient.db("adrenalinjunkypiercinks");
+    
+    if (!id) return NextResponse.json({ error: "ID is required" }, { status: 400 });
 
-    await db.collection("vats").deleteOne({ _id: new ObjectId(id) });
-    return NextResponse.json({ message: "VAT Deleted" });
+    await deleteDoc(doc(db, VATS_COLLECTION, id));
+    return NextResponse.json({ message: "VAT Deleted successfully" });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

@@ -26,9 +26,7 @@ import VatManagement from "../components/maintenance/VatManagement"
 import { Messenger } from "../components/reservation/Messenger";
 import Inquiries from "../components/reservation/Inquiries";
 import ArtistProfile from "../components/pages/ArtistProfile"
-import { BlogSection
-
- } from "../components/pages/Blogs"
+import BlogAdminPage  from "../components/pages/Blogs"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -97,7 +95,7 @@ export default function AdminPanelPage() {
       case "Checkout": return <Checkout />
       case "Tattoo Gallery": return <TattooGallery />
       case "Piercing Gallery": return <PiercingGallery />
-      case "Blogs": return <BlogSection/>
+      case "Blogs": return <BlogAdminPage/>
       case "Artist" : return <ArtistProfile/>
       case "Reviews": return <Reviewgallery/>
       case "User Management": return <UserManagement />

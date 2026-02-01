@@ -1,96 +1,92 @@
-import { MongoClient, ObjectId } from "mongodb";
+import { db } from "@/lib/firebase";
+import { 
+  collection, getDocs, addDoc, deleteDoc, 
+  updateDoc, doc, query, orderBy, serverTimestamp, where, limit 
+} from "firebase/firestore";
 import { NextResponse } from "next/server";
 
-const uri = process.env.MONGODB_URI;
-let client: MongoClient | null = null;
 
-async function getClient() {
-  if (!uri) throw new Error("MONGODB_URI is not defined");
-  if (!client) client = new MongoClient(uri);
-  return client;
-}
-
-// GET: Kunin lahat ng VAT records
+// --- GET: FETCH ALL ---
 export async function GET() {
   try {
-    const mongoClient = await getClient();
-    await mongoClient.connect();
-    const db = mongoClient.db("adrenalinjunkypiercinks");
-    const vats = await db.collection("vats").find({}).sort({ createdAt: -1 }).toArray();
-    return NextResponse.json(vats);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const q = query(collection(db, "categories"), orderBy("category_name", "asc"));
+    const snapshot = await getDocs(q);
+    const categories = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+    return NextResponse.json(categories);
+  } catch (error) {
+    return NextResponse.json({ error: "Failed to fetch" }, { status: 500 });
   }
 }
-
-// POST: Mag-add ng bagong VAT record
+// --- POST: ADD WITH DUPLICATE CHECK ---
 export async function POST(req: Request) {
   try {
-    const { vat_name, percentage } = await req.json();
-    
-    // Server-side validation: Bawal ang 0 or less, bawal ang lampas 99
-    if (percentage < 1 || percentage > 99) {
-      return NextResponse.json({ error: "Percentage must be between 1 and 99" }, { status: 400 });
+    const { category_name } = await req.json();
+    const cleanName = category_name.trim();
+
+    // 1. Check if name already exists
+    const q = query(
+      collection(db, "categories"), 
+      where("category_name", "==", cleanName),
+      limit(1)
+    );
+    const existing = await getDocs(q);
+
+    if (!existing.empty) {
+      return NextResponse.json({ error: "Classification Label already exists." }, { status: 400 });
     }
 
-    const mongoClient = await getClient();
-    await mongoClient.connect();
-    const db = mongoClient.db("adrenalinjunkypiercinks");
-
-    const result = await db.collection("vats").insertOne({
-      vat_name,
-      percentage: Number(percentage),
-      createdAt: new Date()
+    // 2. Add if unique
+    const docRef = await addDoc(collection(db, "categories"), {
+      category_name: cleanName,
+      createdAt: serverTimestamp()
     });
-
-    return NextResponse.json(result, { status: 201 });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ id: docRef.id }, { status: 201 });
+  } catch (error) {
+    return NextResponse.json({ error: "System Error: Failed to add node." }, { status: 500 });
   }
 }
 
-// PUT: Mag-update ng existing VAT
+// --- PUT: UPDATE WITH DUPLICATE CHECK ---
 export async function PUT(req: Request) {
   try {
-    const { id, vat_name, percentage } = await req.json();
+    const { id, category_name } = await req.json();
+    const cleanName = category_name.trim();
 
-    // Server-side validation
-    if (percentage < 1 || percentage > 99) {
-      return NextResponse.json({ error: "Percentage must be between 1 and 99" }, { status: 400 });
+    // 1. Check if the name is used by OTHER documents
+    const q = query(
+      collection(db, "categories"), 
+      where("category_name", "==", cleanName),
+      limit(2) // We check if there's more than one or if it's someone else's
+    );
+    const existing = await getDocs(q);
+    
+    // Validate if the label exists and doesn't belong to the current ID
+    const isDuplicate = existing.docs.some(doc => doc.id !== id);
+
+    if (isDuplicate) {
+      return NextResponse.json({ error: "Label conflict: Entry already exists." }, { status: 400 });
     }
 
-    const mongoClient = await getClient();
-    await mongoClient.connect();
-    const db = mongoClient.db("adrenalinjunkypiercinks");
-
-    await db.collection("vats").updateOne(
-      { _id: new ObjectId(id) },
-      { 
-        $set: { 
-          vat_name, 
-          percentage: Number(percentage),
-          updatedAt: new Date()
-        } 
-      }
-    );
-
-    return NextResponse.json({ message: "VAT Updated" });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    await updateDoc(doc(db, "categories", id), {
+      category_name: cleanName,
+      updatedAt: serverTimestamp()
+    });
+    return NextResponse.json({ message: "Updated" });
+  } catch (error) {
+    return NextResponse.json({ error: "System Error: Update failed." }, { status: 500 });
   }
 }
 
-// DELETE: Magbura ng VAT record
 export async function DELETE(req: Request) {
   try {
     const { id } = await req.json();
-    const mongoClient = await getClient();
-    await mongoClient.connect();
-    const db = mongoClient.db("adrenalinjunkypiercinks");
-
-    await db.collection("vats").deleteOne({ _id: new ObjectId(id) });
-    return NextResponse.json({ message: "VAT Deleted" });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    await deleteDoc(doc(db, "categories", id));
+    return NextResponse.json({ message: "Deleted" });
+  } catch (error) {
+    return NextResponse.json({ error: "Delete failed" }, { status: 500 });
   }
 }
+// ... rest of the GET and DELETE methods remain the same

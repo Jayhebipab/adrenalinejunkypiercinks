@@ -2,260 +2,239 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { 
-  Trash2, Edit3, Search, RotateCcw, Plus, X, 
-  Loader2, Truck, Phone, MapPin, Building2 
+    Trash2, Edit3, Search, RotateCcw, Plus, X, 
+    Loader2, Truck, Phone, MapPin, Building2 
 } from "lucide-react"
 import { Toaster, toast } from "sonner"
 
 interface Supplier {
-  _id: string;
-  name: string;
-  company_name: string;
-  address: string;
-  contact: string;
+    id: string;
+    name: string;
+    company_name: string;
+    address: string;
+    contact: string;
 }
 
 export default function SupplierMaintenance() {
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [search, setSearch] = useState("");
-  const [fetching, setFetching] = useState(true);
-  
-  const [isAddOpen, setIsAddOpen] = useState(false);
-  const [isEditOpen, setIsEditOpen] = useState(false);
-  const [currentSupplier, setCurrentSupplier] = useState<Supplier | null>(null);
-  
-  const [formData, setFormData] = useState({ 
-    name: "", 
-    company_name: "", 
-    address: "", 
-    contact: "" 
-  });
+    const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+    const [search, setSearch] = useState("");
+    const [fetching, setFetching] = useState(true);
+    const [isAddOpen, setIsAddOpen] = useState(false);
+    const [isEditOpen, setIsEditOpen] = useState(false);
+    const [currentSupplier, setCurrentSupplier] = useState<Supplier | null>(null);
+    const [formData, setFormData] = useState({ name: "", company_name: "", address: "", contact: "" });
 
-  // --- 1. FETCH DATA ---
-  const fetchSuppliers = async () => {
-    setFetching(true);
-    try {
-      const res = await fetch("/api/suppliers");
-      const data = await res.json();
-      if (Array.isArray(data)) setSuppliers(data);
-    } catch (err) {
-      toast.error("Failed to load suppliers.");
-    } finally {
-      setFetching(false);
-    }
-  };
+    // --- FUNCTION 1: FETCH DATA ---
+    const fetchSuppliers = async () => {
+        setFetching(true);
+        try {
+            const res = await fetch("/api/suppliers");
+            const data = await res.json();
+            if (Array.isArray(data)) {
+                setSuppliers(data);
+            }
+        } catch (err) {
+            toast.error("Link to database failed.");
+        } finally {
+            setFetching(false);
+        }
+    };
 
-  useEffect(() => { fetchSuppliers(); }, []);
+    useEffect(() => { fetchSuppliers(); }, []);
 
-  // --- 2. VALIDATION & HANDLERS ---
-  const validateContact = (val: string) => val.replace(/\D/g, '').slice(0, 11);
+    // --- FUNCTION 2: HANDLE ADD / EDIT (POST/PUT) ---
+    const handleAction = async (e: React.FormEvent, type: 'POST' | 'PUT') => {
+        e.preventDefault();
+        const payload = type === 'POST' ? formData : currentSupplier;
+        
+        toast.promise(async () => {
+            const res = await fetch("/api/suppliers", {
+                method: type,
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload),
+            });
+            const result = await res.json();
+            if (!res.ok) throw new Error(result.error || "Action failed");
+            
+            setIsAddOpen(false);
+            setIsEditOpen(false);
+            setFormData({ name: "", company_name: "", address: "", contact: "" });
+            fetchSuppliers();
+        }, {
+            loading: 'Syncing Matrix...',
+            success: 'Registry Updated!',
+            error: (err) => err.message,
+        });
+    };
 
-  const handleAdd = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.name || !formData.contact) return toast.warning("Complete required fields!");
-    if (formData.contact.length !== 11) return toast.error("Contact must be 11 digits!");
+    // --- FUNCTION 3: HANDLE DELETE ---
+    const handleDelete = async (id: string) => {
+        if (!confirm("TERMINATE THIS RECORD?")) return;
 
-    toast.promise(async () => {
-      const res = await fetch("/api/suppliers", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      });
-      if (!res.ok) throw new Error();
-      setFormData({ name: "", company_name: "", address: "", contact: "" });
-      setIsAddOpen(false);
-      fetchSuppliers();
-    }, {
-      loading: 'Saving supplier...',
-      success: 'Supplier added successfully!',
-      error: 'Failed to save',
-    });
-  };
+        toast.promise(async () => {
+            const res = await fetch("/api/suppliers", {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id }),
+            });
+            if (!res.ok) throw new Error();
+            fetchSuppliers();
+        }, {
+            loading: 'Purging node...',
+            success: 'Record Deleted',
+            error: 'Delete failed',
+        });
+    };
 
-  const handleUpdate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!currentSupplier) return;
+    // --- FUNCTION 4: SEARCH FILTER ---
+    const filtered = suppliers.filter(s => 
+        s.name.toLowerCase().includes(search.toLowerCase()) || 
+        s.company_name.toLowerCase().includes(search.toLowerCase()) ||
+        s.contact.includes(search)
+    );
 
-    toast.promise(async () => {
-      const res = await fetch(`/api/suppliers`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-            id: currentSupplier._id, 
-            name: currentSupplier.name,
-            company_name: currentSupplier.company_name,
-            address: currentSupplier.address,
-            contact: currentSupplier.contact
-        }),
-      });
-      if (!res.ok) throw new Error();
-      setIsEditOpen(false);
-      fetchSuppliers();
-    }, {
-      loading: 'Updating...',
-      success: 'Supplier updated!',
-      error: 'Update failed',
-    });
-  };
+    return (
+        <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-6 bg-white min-h-screen font-sans italic antialiased text-zinc-900">
+            <Toaster position="bottom-right" richColors />
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure? This action cannot be undone.")) return;
-
-    toast.promise(async () => {
-      const res = await fetch("/api/suppliers", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id }),
-      });
-      if (!res.ok) throw new Error();
-      fetchSuppliers();
-    }, {
-      loading: 'Deleting...',
-      success: 'Supplier deleted!',
-      error: 'Delete failed',
-    });
-  };
-
-  const filteredSuppliers = suppliers.filter(s => 
-    s.name.toLowerCase().includes(search.toLowerCase()) ||
-    s.company_name.toLowerCase().includes(search.toLowerCase()) ||
-    s.contact.includes(search)
-  );
-
-  return (
-    <div className="p-4 md:p-8 bg-gray-50 min-h-screen text-slate-900 font-sans">
-      <Toaster position="top-right" richColors />
-
-      <div className="max-w-6xl mx-auto space-y-6">
-        {/* HEADER SECTION */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100">
-          <div className="flex items-center gap-4 ml-2">
-            <div className="p-3 bg-green-600 rounded-2xl shadow-lg shadow-green-100">
-                <Truck className="text-white w-7 h-7" />
-            </div>
-            <div>
-                <h1 className="text-3xl font-black tracking-tight text-slate-900">Suppliers</h1>
-                <p className="text-slate-500 text-sm">Manage your business partners and vendors.</p>
-            </div>
-          </div>
-          <Button 
-            onClick={() => setIsAddOpen(true)}
-            className="bg-slate-900 hover:bg-black text-white rounded-2xl h-14 px-8 shadow-xl transition-all hover:scale-105 active:scale-95"
-          >
-            <Plus className="w-5 h-5 mr-2" /> Add Supplier
-          </Button>
+            {/* SUPPLIERS HEADER - THE CREW STYLE WITH REFRESH */}
+<header className="flex flex-col md:flex-row justify-between items-center bg-zinc-900 p-10 rounded-[2.5rem] text-white shadow-2xl gap-6 mb-8 relative overflow-hidden">
+    <div className="flex items-center gap-5">
+        {/* White Rotated Icon Box */}
+        <div className="p-4 bg-white rounded-3xl -rotate-6 shadow-xl shrink-0 transition-transform hover:rotate-0 duration-300">
+            <Truck size={32} className="text-black" />
         </div>
+        
+        <div>
+            <div className="flex items-center gap-4">
+                <h1 className="text-4xl font-black italic uppercase tracking-tighter leading-none">
+                    The Partners
+                </h1>
+                {/* REFRESH BUTTON */}
+                <button 
+                    onClick={fetchSuppliers} 
+                    disabled={fetching}
+                    className="hover:text-white text-zinc-600 transition-colors disabled:opacity-30 mt-1"
+                >
+                    <RotateCcw 
+                        size={20} 
+                        className={fetching ? "animate-spin" : "active:rotate-180 transition-all duration-500"} 
+                    />
+                </button>
+            </div>
+            <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.4em] mt-1">
+                Supplier Registry Node
+            </p>
+        </div>
+    </div>
 
-        {/* SEARCH BOX */}
-        <div className="bg-white p-2 rounded-3xl shadow-sm border border-gray-100 flex items-center">
-            <div className="relative flex-1">
-                <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+    {/* ADD BUTTON */}
+    <Button 
+        onClick={() => setIsAddOpen(true)} 
+        className="bg-white text-black hover:bg-zinc-200 rounded-2xl h-14 px-10 font-black uppercase text-xs tracking-widest shadow-xl transition-all active:scale-95 border-none w-full md:w-auto"
+    >
+        <Plus size={20} className="mr-3"/> Add New Partner
+    </Button>
+
+    {/* Subtle Background Glow */}
+    <div className="absolute -right-10 -top-10 w-40 h-40 bg-zinc-400/5 rounded-full blur-3xl" />
+</header>
+
+            {/* SEARCH AREA */}
+            <div className="relative group">
+                <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-zinc-400 group-focus-within:text-zinc-900 transition-colors" size={20} />
                 <input 
-                type="text" 
-                placeholder="Search by name, company, or contact..."
-                className="w-full bg-transparent border-none rounded-2xl px-6 py-5 pl-14 outline-none text-lg"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                    type="text" 
+                    placeholder="SCAN SUPPLIER DATABASE..." 
+                    className="w-full bg-zinc-50 border border-zinc-200 rounded-3xl py-5 pl-14 pr-8 text-sm outline-none focus:ring-4 ring-zinc-900/5 focus:bg-white transition-all font-bold uppercase tracking-widest shadow-sm"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
                 />
             </div>
-            <Button onClick={() => setSearch("")} variant="ghost" className="rounded-2xl h-14 px-6 mr-2">
-                <RotateCcw className="w-4 h-4" />
-            </Button>
-        </div>
 
-        {/* DATA TABLE */}
-        <div className="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-50 border-b border-gray-100 text-slate-400 uppercase text-[10px] font-black tracking-[0.2em]">
-                <th className="px-8 py-6">Supplier Details</th>
-                <th className="px-8 py-6">Company</th>
-                <th className="px-8 py-6">Contact Info</th>
-                <th className="px-8 py-6 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {fetching ? (
-                <tr>
-                  <td colSpan={4} className="py-20 text-center">
-                    <Loader2 className="animate-spin mx-auto w-10 h-10 text-green-600 opacity-20" />
-                  </td>
-                </tr>
-              ) : filteredSuppliers.map((sup) => (
-                <tr key={sup._id} className="group hover:bg-green-50/30 transition-colors">
-                  <td className="px-8 py-5">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center">
-                            <Building2 className="w-5 h-5 text-slate-500" />
+            {/* DATA TABLE AREA */}
+            <div className="border border-zinc-100 rounded-[3rem] bg-white shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse min-w-[700px]">
+                        <thead className="bg-zinc-50/50 border-b border-zinc-100 text-zinc-400 uppercase text-[10px] font-black tracking-[0.3em]">
+                            <tr>
+                                <th className="px-10 py-6">Identity</th>
+                                <th className="px-10 py-6">Organization</th>
+                                <th className="px-10 py-6">Node Info</th>
+                                <th className="px-10 py-6 text-right">Access</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-zinc-50 font-bold uppercase tracking-tight">
+                            {fetching ? (
+                                <tr><td colSpan={4} className="py-24 text-center"><Loader2 className="animate-spin mx-auto w-10 h-10 text-zinc-200" /></td></tr>
+                            ) : filtered.length === 0 ? (
+                                <tr><td colSpan={4} className="py-24 text-center text-zinc-300 text-xs tracking-widest italic">No Data Nodes Found</td></tr>
+                            ) : filtered.map((sup) => (
+                                <tr key={sup.id} className="hover:bg-zinc-50/50 transition-colors group">
+                                    <td className="px-10 py-6">
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-11 h-11 rounded-2xl bg-zinc-100 flex items-center justify-center text-zinc-400 group-hover:bg-zinc-900 group-hover:text-white transition-all shadow-sm">
+                                                <Building2 size={20} />
+                                            </div>
+                                            <span className="text-sm">{sup.name}</span>
+                                        </div>
+                                    </td>
+                                    <td className="px-10 py-6 text-xs text-zinc-500">{sup.company_name}</td>
+                                    <td className="px-10 py-6">
+                                        <div className="flex flex-col gap-1">
+                                            <span className="text-xs flex items-center gap-2"><Phone size={12} className="text-zinc-300" /> {sup.contact}</span>
+                                            <span className="text-[9px] text-zinc-400 truncate max-w-[150px] italic"><MapPin size={10} /> {sup.address}</span>
+                                        </div>
+                                    </td>
+                                    <td className="px-10 py-6 text-right">
+                                        <div className="flex justify-end gap-3 opacity-40 group-hover:opacity-100 transition-opacity">
+                                            <Button size="icon" variant="ghost" onClick={() => { setCurrentSupplier(sup); setIsEditOpen(true); }} className="h-10 w-10 rounded-xl hover:bg-zinc-900 hover:text-white"><Edit3 size={18} /></Button>
+                                            <Button size="icon" variant="ghost" onClick={() => handleDelete(sup.id)} className="h-10 w-10 rounded-xl hover:bg-red-600 hover:text-white text-zinc-300"><Trash2 size={18} /></Button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {/* MODAL - SM COMPACT SCALE */}
+            {(isAddOpen || isEditOpen) && (
+                <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-sm p-10 space-y-8 animate-in fade-in zoom-in duration-300 border border-zinc-200">
+                        <div className="flex justify-between items-center">
+                            <h2 className="text-xs font-black uppercase tracking-[0.3em]">{isAddOpen ? "Create Node" : "Modify Node"}</h2>
+                            <button onClick={() => { setIsAddOpen(false); setIsEditOpen(false); }} className="text-zinc-300 hover:text-zinc-900 transition-colors"><X size={24}/></button>
                         </div>
-                        <span className="font-black text-slate-800 text-lg uppercase tracking-tight">{sup.name}</span>
+                        
+                        <form onSubmit={(e) => handleAction(e, isAddOpen ? 'POST' : 'PUT')} className="space-y-5">
+                            <div className="space-y-1.5">
+                                <label className="text-[8px] font-black uppercase text-zinc-400 tracking-widest ml-1">Contact Person</label>
+                                <input required className="w-full bg-zinc-50 border border-zinc-100 rounded-2xl px-5 py-4 text-xs font-bold outline-none focus:ring-2 ring-zinc-900 transition-all uppercase" value={isAddOpen ? formData.name : currentSupplier?.name} onChange={e => isAddOpen ? setFormData({...formData, name: e.target.value}) : setCurrentSupplier({...currentSupplier!, name: e.target.value})} />
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-[8px] font-black uppercase text-zinc-400 tracking-widest ml-1">Company Name</label>
+                                <input required className="w-full bg-zinc-50 border border-zinc-100 rounded-2xl px-5 py-4 text-xs font-bold outline-none uppercase" value={isAddOpen ? formData.company_name : currentSupplier?.company_name} onChange={e => isAddOpen ? setFormData({...formData, company_name: e.target.value}) : setCurrentSupplier({...currentSupplier!, company_name: e.target.value})} />
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-1.5">
+                                    <label className="text-[8px] font-black uppercase text-zinc-400 tracking-widest ml-1">Contact</label>
+                                    <input required maxLength={11} className="w-full bg-zinc-900 text-white rounded-2xl px-5 py-4 text-xs font-bold outline-none" value={isAddOpen ? formData.contact : currentSupplier?.contact} onChange={e => {
+                                        const val = e.target.value.replace(/\D/g, '').slice(0,11);
+                                        isAddOpen ? setFormData({...formData, contact: val}) : setCurrentSupplier({...currentSupplier!, contact: val})
+                                    }} />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label className="text-[8px] font-black uppercase text-zinc-400 tracking-widest ml-1">Location</label>
+                                    <input required className="w-full bg-zinc-50 border border-zinc-100 rounded-2xl px-5 py-4 text-xs font-bold outline-none uppercase" value={isAddOpen ? formData.address : currentSupplier?.address} onChange={e => isAddOpen ? setFormData({...formData, address: e.target.value}) : setCurrentSupplier({...currentSupplier!, address: e.target.value})} />
+                                </div>
+                            </div>
+                            <Button type="submit" className="w-full h-14 bg-zinc-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-2xl active:scale-95 transition-all mt-6">Commit Record</Button>
+                        </form>
                     </div>
-                  </td>
-                  <td className="px-8 py-5 text-slate-600 font-medium">{sup.company_name}</td>
-                  <td className="px-8 py-5">
-                    <div className="flex flex-col">
-                        <span className="text-slate-900 font-bold flex items-center gap-1"><Phone className="w-3 h-3 text-green-600" /> {sup.contact}</span>
-                        <span className="text-slate-400 text-xs flex items-center gap-1"><MapPin className="w-3 h-3" /> {sup.address}</span>
-                    </div>
-                  </td>
-                  <td className="px-8 py-5">
-                    <div className="flex justify-end gap-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
-                      <Button onClick={() => { setCurrentSupplier(sup); setIsEditOpen(true); }} size="sm" variant="ghost" className="rounded-xl hover:bg-amber-50 text-amber-600"><Edit3 className="w-5 h-5" /></Button>
-                      <Button onClick={() => handleDelete(sup._id)} size="sm" variant="ghost" className="rounded-xl hover:bg-red-50 text-red-600"><Trash2 className="w-5 h-5" /></Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <div className="bg-slate-50 px-8 py-4 text-[10px] text-slate-400 font-black uppercase tracking-widest">
-            Total Records: {filteredSuppliers.length} suppliers
-          </div>
+                </div>
+            )}
         </div>
-      </div>
-
-      {/* --- MODALS --- */}
-      {(isAddOpen || isEditOpen) && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-[3rem] shadow-2xl w-full max-w-xl p-10 animate-in zoom-in duration-300">
-            <h2 className={`text-3xl font-black mb-8 tracking-tighter ${isAddOpen ? 'text-green-600' : 'text-amber-600'}`}>
-                {isAddOpen ? "New Supplier" : "Update Supplier"}
-            </h2>
-            
-            <form onSubmit={isAddOpen ? handleAdd : handleUpdate} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="col-span-full space-y-2">
-                <label className="text-xs font-black uppercase text-slate-400 ml-2 tracking-widest">Full Name</label>
-                <input required type="text" className="w-full bg-gray-50 rounded-2xl px-6 py-4 outline-none focus:ring-2 ring-blue-500" value={isAddOpen ? formData.name : currentSupplier?.name} onChange={e => isAddOpen ? setFormData({...formData, name: e.target.value}) : setCurrentSupplier({...currentSupplier!, name: e.target.value})} />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-xs font-black uppercase text-slate-400 ml-2 tracking-widest">Company Name</label>
-                <input required type="text" className="w-full bg-gray-50 rounded-2xl px-6 py-4 outline-none" value={isAddOpen ? formData.company_name : currentSupplier?.company_name} onChange={e => isAddOpen ? setFormData({...formData, company_name: e.target.value}) : setCurrentSupplier({...currentSupplier!, company_name: e.target.value})} />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-xs font-black uppercase text-slate-400 ml-2 tracking-widest">Contact No.</label>
-                <input required type="text" maxLength={11} className="w-full bg-gray-50 rounded-2xl px-6 py-4 outline-none" value={isAddOpen ? formData.contact : currentSupplier?.contact} onChange={e => {
-                    const val = validateContact(e.target.value);
-                    isAddOpen ? setFormData({...formData, contact: val}) : setCurrentSupplier({...currentSupplier!, contact: val})
-                }} />
-              </div>
-
-              <div className="col-span-full space-y-2">
-                <label className="text-xs font-black uppercase text-slate-400 ml-2 tracking-widest">Office Address</label>
-                <input required type="text" className="w-full bg-gray-50 rounded-2xl px-6 py-4 outline-none" value={isAddOpen ? formData.address : currentSupplier?.address} onChange={e => isAddOpen ? setFormData({...formData, address: e.target.value}) : setCurrentSupplier({...currentSupplier!, address: e.target.value})} />
-              </div>
-
-              <div className="col-span-full flex gap-3 pt-4">
-                <Button type="button" variant="ghost" className="flex-1 h-16 rounded-2xl font-black uppercase tracking-widest" onClick={() => { setIsAddOpen(false); setIsEditOpen(false); }}>Cancel</Button>
-                <Button type="submit" className={`flex-1 h-16 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl ${isAddOpen ? 'bg-green-600 shadow-green-100' : 'bg-amber-600 shadow-amber-100'}`}>
-                    {isAddOpen ? "Save Supplier" : "Update Changes"}
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-    </div>
-  )
+    )
 }

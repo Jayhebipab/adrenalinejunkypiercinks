@@ -1,120 +1,112 @@
-import { MongoClient, ObjectId } from "mongodb";
+import { db } from "@/lib/firebase";
+import { 
+    collection, getDocs, addDoc, deleteDoc, 
+    updateDoc, doc, query, orderBy, serverTimestamp, where, limit 
+} from "firebase/firestore";
 import { NextResponse } from "next/server";
 
-const uri = process.env.MONGODB_URI;
-let client: MongoClient | null = null;
-
-async function getClient() {
-  if (!uri) throw new Error("MONGODB_URI is not defined in .env.local");
-  if (!client) {
-    client = new MongoClient(uri);
-  }
-  return client;
-}
-
-// 1. GET: Kunin lahat ng products
+// --- GET: FETCH ALL PRODUCTS ---
 export async function GET() {
-  try {
-    const mongoClient = await getClient();
-    await mongoClient.connect();
-    const db = mongoClient.db("adrenalinjunkypiercinks");
-    
-    const products = await db.collection("products")
-      .find({})
-      .sort({ name: 1 })
-      .toArray();
-
-    return NextResponse.json(products);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
+    try {
+        const q = query(collection(db, "products"), orderBy("name", "asc"));
+        const snapshot = await getDocs(q);
+        const products = snapshot.docs.map(doc => ({
+            id: doc.id, // Ibalik natin sa 'id' para standard sa DELETE/PUT
+            ...doc.data()
+        }));
+        return NextResponse.json(products);
+    } catch (error: any) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+    }
 }
 
-// 2. POST: Mag-add ng bagong product
+// --- POST: ADD PRODUCT ---
 export async function POST(req: Request) {
-  try {
-    // FIX: Idinagdag ang description sa destructuring
-    const { name, category, cost_price, image, description } = await req.json();
-    
-    const mongoClient = await getClient();
-    await mongoClient.connect();
-    const db = mongoClient.db("adrenalinjunkypiercinks");
+    try {
+        const { name, category, cost_price, image, description } = await req.json();
+        const cleanName = name.trim();
 
-    const result = await db.collection("products").insertOne({
-      name,
-      category,
-      cost_price: parseFloat(cost_price),
-      image: image || null,
-      description: description || "", // FIX: Gamitin ang variable mula sa body
-      createdAt: new Date(),
-    });
+        // Check if name exists
+        const q = query(collection(db, "products"), where("name", "==", cleanName), limit(1));
+        const existing = await getDocs(q);
 
-    return NextResponse.json(result, { status: 201 });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-}// route.ts
-export async function PUT(req: Request) {
-  try {
-    const body = await req.json();
-    const { id, ...fieldsToUpdate } = body; 
-    
-    if (!id) return NextResponse.json({ error: "ID is required" }, { status: 400 });
+        if (!existing.empty) {
+            return NextResponse.json({ error: "Product Name already exists." }, { status: 400 });
+        }
 
-    const mongoClient = await getClient();
-    await mongoClient.connect();
-    const db = mongoClient.db("adrenalinjunkypiercinks");
+        const docRef = await addDoc(collection(db, "products"), {
+            name: cleanName,
+            category: category || "Uncategorized",
+            cost_price: Number(cost_price) || 0,
+            selling_price: 0,
+            quantity: 0,
+            isVisible: true,
+            image: image || "", 
+            description: description || "",
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp()
+        });
 
-    // Dito natin ilalagay lang ang mga fields na may "valid" na data
-    const updateData: any = {
-      updatedAt: new Date()
-    };
-
-    // Tsetsek natin isa-isa: Kung may laman, isama sa update. Kung wala, pabayaan.
-    if (fieldsToUpdate.name) updateData.name = fieldsToUpdate.name;
-    if (fieldsToUpdate.category) updateData.category = fieldsToUpdate.category;
-    if (fieldsToUpdate.image) updateData.image = fieldsToUpdate.image;
-    if (fieldsToUpdate.description !== undefined) updateData.description = fieldsToUpdate.description;
-    if (fieldsToUpdate.isVisible !== undefined) updateData.isVisible = fieldsToUpdate.isVisible;
-    
-    // Numbers: Siguraduhing valid number bago i-save
-    if (fieldsToUpdate.quantity !== undefined && fieldsToUpdate.quantity !== "") {
-        updateData.quantity = parseInt(fieldsToUpdate.quantity);
+        return NextResponse.json({ id: docRef.id }, { status: 201 });
+    } catch (error: any) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
     }
-    if (fieldsToUpdate.sellingPrice !== undefined && fieldsToUpdate.sellingPrice !== "") {
-        updateData.selling_price = parseFloat(fieldsToUpdate.sellingPrice);
-    }
-    if (fieldsToUpdate.cost_price !== undefined && fieldsToUpdate.cost_price !== "") {
-        updateData.cost_price = parseFloat(fieldsToUpdate.cost_price);
-    }
-
-    await db.collection("products").updateOne(
-      { _id: new ObjectId(id) },
-      { $set: updateData } // $set ang susi para hindi mabura ang ibang fields
-    );
-
-    return NextResponse.json({ message: "Product updated successfully" });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
 }
 
-// 4. DELETE: Magbura ng product
+// --- PUT: UPDATE PRODUCT ---
+export async function PUT(req: Request) {
+    try {
+        const body = await req.json();
+        const id = body.id || body._id;
+        
+        if (!id) return NextResponse.json({ error: "Product ID is required." }, { status: 400 });
+
+        // --- UNIQUE NAME CHECK ON UPDATE ---
+        if (body.name) {
+            const cleanName = body.name.trim();
+            const q = query(collection(db, "products"), where("name", "==", cleanName), limit(1));
+            const existing = await getDocs(q);
+            
+            // Kung may nahanap na kaparehong pangalan pero hindi ito yung kasalukuyang ine-edit
+            if (!existing.empty && existing.docs[0].id !== id) {
+                return NextResponse.json({ error: "Another product is already using this name." }, { status: 400 });
+            }
+        }
+
+        const updateData: any = { updatedAt: serverTimestamp() };
+
+        if (body.name !== undefined) updateData.name = body.name.trim();
+        if (body.description !== undefined) updateData.description = body.description;
+        if (body.category !== undefined) updateData.category = body.category;
+        if (body.image !== undefined) updateData.image = body.image;
+        if (body.isVisible !== undefined) updateData.isVisible = Boolean(body.isVisible);
+        if (body.quantity !== undefined) updateData.quantity = Number(body.quantity);
+        if (body.cost_price !== undefined) updateData.cost_price = Number(body.cost_price);
+        
+        const sPrice = body.sellingPrice !== undefined ? body.sellingPrice : body.selling_price;
+        if (sPrice !== undefined) updateData.selling_price = Number(sPrice);
+
+        const productRef = doc(db, "products", id);
+        await updateDoc(productRef, updateData);
+
+        return NextResponse.json({ message: "Updated successfully." });
+    } catch (error: any) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+}
+
+// --- DELETE: REMOVE PRODUCT ---
 export async function DELETE(req: Request) {
-  try {
-    const { id } = await req.json();
-    if (!id) return NextResponse.json({ error: "ID is required" }, { status: 400 });
+    try {
+        const body = await req.json();
+        // Siguraduhin natin na kahit 'id' o '_id' ang ipasa ng frontend, gagana.
+        const id = body.id || body._id;
 
-    const mongoClient = await getClient();
-    await mongoClient.connect();
-    const db = mongoClient.db("adrenalinjunkypiercinks");
+        if (!id) return NextResponse.json({ error: "ID is required." }, { status: 400 });
 
-    const result = await db.collection("products").deleteOne({
-      _id: new ObjectId(id)
-    });
-
-    return NextResponse.json({ message: "Product deleted" });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
+        await deleteDoc(doc(db, "products", id));
+        return NextResponse.json({ message: "Product purged." });
+    } catch (error: any) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+    }
 }

@@ -1,80 +1,95 @@
-import { connectToDatabase } from "@/lib/mongodb";
+import { db } from "@/lib/firebase";
+import { 
+    collection, 
+    addDoc, 
+    getDocs, 
+    query, 
+    where, 
+    writeBatch, 
+    Timestamp 
+} from "firebase/firestore";
 import { NextResponse } from "next/server";
 
 const WEBSITE_IDENTIFIER = "disruptivesolutionsinc";
+const CHATS_COLLECTION = "chats";
 
 // --- FETCH CHATS ---
 export async function GET() {
-  try {
-    await connectToDatabase();
-    const mongoose = (global as any).mongoose.conn;
-    
-    const chats = await mongoose.connection.db
-      .collection("chats")
-      .find({ website: WEBSITE_IDENTIFIER })
-      .sort({ timestamp: 1 })
-      .toArray();
+    try {
+        const chatsRef = collection(db, CHATS_COLLECTION);
+        // Nanatiling walang orderBy para iwas sa Index Error (Sorting is done in Frontend)
+        const q = query(
+            chatsRef, 
+            where("website", "==", WEBSITE_IDENTIFIER)
+        );
 
-    return NextResponse.json(chats);
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to fetch chats" }, { status: 500 });
-  }
+        const querySnapshot = await getDocs(q);
+        const chats = querySnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data(),
+            // Safe timestamp conversion
+            timestamp: doc.data().timestamp?.toDate()?.toISOString() || new Date().toISOString()
+        }));
+
+        return NextResponse.json(chats);
+    } catch (error: any) {
+        console.error("Firebase Fetch Error:", error);
+        return NextResponse.json({ error: error.message }, { status: 500 });
+    }
 }
 
-// --- SEND MESSAGE (WITH IMAGE TYPE SUPPORT) ---
+// --- SAVE MESSAGE (Accepts Text or Cloudinary URL) ---
 export async function POST(req: Request) {
-  try {
-    await connectToDatabase();
-    const mongoose = (global as any).mongoose.conn;
-    const body = await req.json();
+    try {
+        const body = await req.json();
+        const { senderEmail, senderName, message, isAdmin, type } = body;
 
-    const { senderEmail, senderName, message, isAdmin, type } = body;
+        // Message validation: Ngayon ang 'message' ay pwedeng text o Cloudinary URL string
+        if (!message || !senderEmail) {
+            return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+        }
 
-    // Validation: Siguraduhin na hindi empty ang message
-    if (!message || !senderEmail) {
-        return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+        const docRef = await addDoc(collection(db, CHATS_COLLECTION), {
+            senderEmail,
+            senderName,
+            message, // Ito ay magiging text content o ang Cloudinary Secure URL
+            isAdmin: isAdmin || false,
+            type: type || "text", // "text" or "image"
+            website: WEBSITE_IDENTIFIER,
+            timestamp: Timestamp.now()
+        });
+
+        return NextResponse.json({ success: true, id: docRef.id });
+    } catch (error: any) {
+        console.error("Firebase POST Error:", error);
+        return NextResponse.json({ error: error.message }, { status: 500 });
     }
-
-    const result = await mongoose.connection.db
-      .collection("chats")
-      .insertOne({
-        senderEmail,
-        senderName,
-        message, // Dito mapupunta ang text string o Base64 image string
-        isAdmin: isAdmin || false,
-        type: type || "text", // Default sa 'text' kung walang pinasa
-        website: WEBSITE_IDENTIFIER,
-        timestamp: new Date()
-      });
-
-    return NextResponse.json({ success: true, id: result.insertedId });
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to send message" }, { status: 500 });
-  }
 }
 
 // --- DELETE THREAD ---
 export async function DELETE(req: Request) {
-  try {
-    await connectToDatabase();
-    const mongoose = (global as any).mongoose.conn;
-    
-    const { searchParams } = new URL(req.url);
-    const email = searchParams.get("email");
+    try {
+        const { searchParams } = new URL(req.url);
+        const email = searchParams.get("email");
+        if (!email) return NextResponse.json({ error: "Email required" }, { status: 400 });
 
-    if (!email) {
-      return NextResponse.json({ error: "Email is required" }, { status: 400 });
+        const q = query(
+            collection(db, CHATS_COLLECTION), 
+            where("senderEmail", "==", email),
+            where("website", "==", WEBSITE_IDENTIFIER)
+        );
+
+        const querySnapshot = await getDocs(q);
+        const batch = writeBatch(db);
+        
+        querySnapshot.docs.forEach((doc) => {
+            batch.delete(doc.ref);
+        });
+
+        await batch.commit();
+        return NextResponse.json({ success: true });
+    } catch (error: any) {
+        console.error("Firebase DELETE Error:", error);
+        return NextResponse.json({ error: error.message }, { status: 500 });
     }
-
-    const result = await mongoose.connection.db
-      .collection("chats")
-      .deleteMany({ 
-        senderEmail: email,
-        website: WEBSITE_IDENTIFIER 
-      });
-
-    return NextResponse.json({ success: true, deletedCount: result.deletedCount });
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to delete thread" }, { status: 500 });
-  }
 }

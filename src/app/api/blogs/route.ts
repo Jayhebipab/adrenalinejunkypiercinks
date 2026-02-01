@@ -1,110 +1,117 @@
-import { MongoClient, ObjectId } from "mongodb";
+import { db } from "@/lib/firebase";
+import { 
+  collection, 
+  getDocs, 
+  getDoc, 
+  addDoc, 
+  deleteDoc, 
+  updateDoc, 
+  doc, 
+  query, 
+  orderBy,
+  serverTimestamp 
+} from "firebase/firestore";
 import { NextResponse } from "next/server";
 
-const uri = process.env.MONGODB_URI;
-let client: MongoClient | null = null;
-
-async function getClient() {
-  if (!uri) throw new Error("MONGODB_URI is not defined");
-  if (!client) {
-    client = new MongoClient(uri);
-    await client.connect();
-  }
-  return client;
-}
-
-// ---------- GET: FETCH ALL O FETCH ISA ----------
+// 1. GET ALL OR SINGLE BLOG
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
-    const id = searchParams.get("id"); // Kukuha ng id mula sa ?id=xxx
+    const id = searchParams.get("id");
 
-    const mongoClient = await getClient();
-    const db = mongoClient.db("adrenalinjunkypiercinks");
-
+    // FETCH SINGLE POST (Para sa blog/[id]/page.tsx)
     if (id) {
-      // Fetch Single Post
-      const blog = await db.collection("blogs").findOne({ _id: new ObjectId(id) });
-      if (!blog) return NextResponse.json({ error: "Post not found" }, { status: 404 });
-      return NextResponse.json(blog);
+      const docRef = doc(db, "blogs", id);
+      const docSnap = await getDoc(docRef);
+
+      if (docSnap.exists()) {
+        return NextResponse.json({ 
+          id: docSnap.id, 
+          ...docSnap.data() 
+        });
+      } else {
+        return NextResponse.json({ error: "Article not found" }, { status: 404 });
+      }
     }
 
-    // Fetch All Posts
-    const blogs = await db.collection("blogs")
-      .find({})
-      .sort({ createdAt: -1 })
-      .toArray();
-
+    // FETCH ALL POSTS (Para sa Admin at Blog List)
+    const q = query(collection(db, "blogs"), orderBy("createdAt", "desc"));
+    const querySnapshot = await getDocs(q);
+    
+    const blogs = querySnapshot.docs.map(docSnapshot => ({
+      id: docSnapshot.id,
+      ...docSnapshot.data()
+    }));
+    
     return NextResponse.json(blogs);
   } catch (error: any) {
+    console.error("Firebase GET Error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
-// ---------- POST: CREATE NEW ----------
+// 2. POST NEW BLOG
 export async function POST(req: Request) {
   try {
-    const { title, image, category, content, link } = await req.json();
-    const mongoClient = await getClient();
-    const db = mongoClient.db("adrenalinjunkypiercinks");
+    const body = await req.json();
+    
+    // validation check para iwas empty src error sa frontend
+    if (!body.image || !body.title) {
+      return NextResponse.json({ error: "Kulang ng Image o Title, par!" }, { status: 400 });
+    }
 
-    const result = await db.collection("blogs").insertOne({
-      title,
-      image,
-      category,
-      content,
-      link, 
-      createdAt: new Date()
+    const docRef = await addDoc(collection(db, "blogs"), {
+      title: body.title,
+      image: body.image, 
+      category: body.category || "Tattoo Culture",
+      content: body.content || "",
+      slug: body.slug || "",
+      createdAt: serverTimestamp(),
     });
 
-    return NextResponse.json(result, { status: 201 });
+    return NextResponse.json({ id: docRef.id, message: "New story published!" }, { status: 201 });
   } catch (error: any) {
+    console.error("Firebase POST Error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
-// ---------- PUT: UPDATE EXISTING ----------
+// 3. UPDATE EXISTING BLOG
 export async function PUT(req: Request) {
   try {
-    const { _id, title, image, category, content, link } = await req.json();
-    if (!_id) return NextResponse.json({ error: "Missing ID" }, { status: 400 });
+    const body = await req.json();
+    const { id, ...updateData } = body;
 
-    const mongoClient = await getClient();
-    const db = mongoClient.db("adrenalinjunkypiercinks");
+    if (!id) return NextResponse.json({ error: "No ID provided" }, { status: 400 });
 
-    const result = await db.collection("blogs").updateOne(
-      { _id: new ObjectId(_id) },
-      {
-        $set: {
-          title,
-          image,
-          category,
-          content,
-          link,
-          updatedAt: new Date()
-        }
-      }
-    );
+    const docRef = doc(db, "blogs", id);
+    
+    // Clean update data (alisin ang id field para hindi ma-save sa loob ng fields)
+    const { id: _, ...cleanData } = updateData;
 
-    return NextResponse.json(result);
+    await updateDoc(docRef, {
+      ...cleanData,
+      updatedAt: serverTimestamp(),
+    });
+
+    return NextResponse.json({ message: "Updated successfully!" });
   } catch (error: any) {
+    console.error("Firebase PUT Error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
-// ---------- DELETE: REMOVE POST ----------
+// 4. DELETE BLOG
 export async function DELETE(req: Request) {
   try {
     const { id } = await req.json();
-    if (!id) return NextResponse.json({ error: "Missing ID" }, { status: 400 });
-
-    const mongoClient = await getClient();
-    const db = mongoClient.db("adrenalinjunkypiercinks");
-
-    const result = await db.collection("blogs").deleteOne({ _id: new ObjectId(id) });
-
-    return NextResponse.json(result);
+    
+    if (!id) return NextResponse.json({ error: "No ID provided" }, { status: 400 });
+    
+    await deleteDoc(doc(db, "blogs", id));
+    return NextResponse.json({ message: "Deleted successfully!" });
   } catch (error: any) {
+    console.error("Firebase DELETE Error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

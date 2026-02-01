@@ -1,119 +1,108 @@
-import { MongoClient, ObjectId } from "mongodb";
+import { db } from "@/lib/firebase";
+import { 
+  collection, 
+  getDocs, 
+  updateDoc, 
+  deleteDoc, 
+  doc, 
+  query, 
+  orderBy, 
+  serverTimestamp,
+  writeBatch 
+} from "firebase/firestore";
 import { NextResponse } from "next/server";
 
-const uri = process.env.MONGODB_URI;
-let client: MongoClient | null = null;
-
-async function getClient() {
-  if (!uri) throw new Error("MONGODB_URI is not defined");
-  if (!client) {
-    client = new MongoClient(uri);
-  }
-  await client.connect();
-  return client;
-}
-
-// 1. GET: Fetch all tattoos with artist profile image + name
+// 1. GET: Fetch lahat ng Tattoo Entries
 export async function GET() {
   try {
-    const mongoClient = await getClient();
-    const db = mongoClient.db("adrenalinjunkypiercinks");
-
-    const tattoos = await db.collection("tattoos").aggregate([
-      {
-        $lookup: {
-          from: "artists",           // Join with artists collection
-          localField: "artistId",     // tattoo.artistId is ObjectId
-          foreignField: "_id",        // match against artists._id
-          as: "artistDetails"
-        }
-      },
-      {
-        $unwind: {
-          path: "$artistDetails",
-          preserveNullAndEmptyArrays: true // show tattoo even if no artist match
-        }
-      },
-      {
-        $project: {
-          image: 1,
-          placement: 1,
-          category: 1,
-          createdAt: 1,
-          updatedAt: 1,
-          artistId: "$artistDetails._id",
-          artistName: "$artistDetails.fullName",
-          artistImage: "$artistDetails.profileImage"
-        }
-      },
-      { $sort: { createdAt: -1 } }
-    ]).toArray();
-
+    // Pinalitan ang collection sa 'tattoo_gallery'
+    const q = query(collection(db, "tattoo_gallery"), orderBy("createdAt", "desc"));
+    const querySnapshot = await getDocs(q);
+    
+    const tattoos = querySnapshot.docs.map(doc => ({
+      _id: doc.id,
+      ...doc.data()
+    }));
+      
     return NextResponse.json(tattoos);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
-// 2. POST: Save new tattoo with artistId
+// 2. POST: Bulk Upload para sa Tattoos
 export async function POST(req: Request) {
   try {
-    const { image, placement, category, artistId } = await req.json();
-    const mongoClient = await getClient();
-    const db = mongoClient.db("adrenalinjunkypiercinks");
+    const body = await req.json();
+    const items = Array.isArray(body) ? body : [body];
+    const batch = writeBatch(db);
+    const results: string[] = [];
 
-    const newTattoo = {
-      image,
-      placement,
-      category,
-      artistId: artistId ? new ObjectId(artistId) : null, 
-      createdAt: new Date()
-    };
+    items.forEach((item) => {
+      const { image, category, placement, artistId, artistName, artistImage } = item;
+      
+      const docRef = doc(collection(db, "tattoo_gallery"));
+      
+      batch.set(docRef, {
+        image, 
+        category: category || "Tattoo", // Default is Tattoo
+        placement,
+        artistId: artistId || null,
+        artistName: artistName || "Unknown Artist",
+        artistImage: artistImage || "",
+        createdAt: serverTimestamp()
+      });
+      
+      results.push(docRef.id);
+    });
 
-    const result = await db.collection("tattoos").insertOne(newTattoo);
+    await batch.commit();
 
-    return NextResponse.json(result, { status: 201 });
+    return NextResponse.json({ 
+      message: `${results.length} tattoos saved successfully!`,
+      ids: results 
+    }, { status: 201 });
+
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
-// 3. PUT: Update tattoo placement or reassign artist
-export async function PUT(req: Request) {
-  try {
-    const { id, placement, artistId } = await req.json();
-    const mongoClient = await getClient();
-    const db = mongoClient.db("adrenalinjunkypiercinks");
-
-    const updateData: any = { placement, updatedAt: new Date() };
-
-    if (artistId) {
-      updateData.artistId = new ObjectId(artistId);
-    } else {
-      updateData.artistId = null;
-    }
-
-    const result = await db.collection("tattoos").updateOne(
-      { _id: new ObjectId(id) },
-      { $set: updateData }
-    );
-
-    return NextResponse.json(result);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-}
-
-// 4. DELETE: Remove tattoo by ID
+// 3. DELETE: Specific Tattoo Entry
 export async function DELETE(req: Request) {
   try {
-    const { id } = await req.json();
-    const mongoClient = await getClient();
-    const db = mongoClient.db("adrenalinjunkypiercinks");
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get("id");
 
-    await db.collection("tattoos").deleteOne({ _id: new ObjectId(id) });
+    if (!id) return NextResponse.json({ error: "Missing ID" }, { status: 400 });
 
-    return NextResponse.json({ message: "Deleted successfully" });
+    await deleteDoc(doc(db, "tattoo_gallery", id));
+    return NextResponse.json({ message: "Tattoo deleted successfully!" });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+// 4. PUT: Update Tattoo Details
+export async function PUT(req: Request) {
+  try {
+    const body = await req.json();
+    const { _id, category, placement, artistId, artistName, artistImage } = body;
+
+    if (!_id) return NextResponse.json({ error: "Missing ID" }, { status: 400 });
+
+    const docRef = doc(db, "tattoo_gallery", _id);
+    
+    await updateDoc(docRef, { 
+      category: category || "Tattoo",
+      placement, 
+      artistId, 
+      artistName, 
+      artistImage,
+      updatedAt: serverTimestamp() 
+    });
+
+    return NextResponse.json({ message: "Tattoo updated successfully!" });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

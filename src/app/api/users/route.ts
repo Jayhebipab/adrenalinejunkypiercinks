@@ -1,127 +1,160 @@
-import { MongoClient, ObjectId } from "mongodb";
+import { db } from "@/lib/firebase";
+import { 
+  collection, 
+  getDocs, 
+  getDoc, 
+  addDoc, 
+  deleteDoc, 
+  updateDoc, 
+  doc, 
+  query, 
+  where, 
+  orderBy,
+  serverTimestamp 
+} from "firebase/firestore";
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 
-const uri = process.env.MONGODB_URI;
-let client: MongoClient | null = null;
-
-async function getDb() {
-    if (!uri) throw new Error("MONGODB_URI is not defined");
-    if (!client) {
-        client = new MongoClient(uri);
-        await client.connect();
-    }
-    return client.db("adrenalinjunkypiercinks");
-}
-
-// 1. GET: Fetch all users (Excluding sensitive data)
+// --- 1. GET: Fetch all users (Security: No passwords/PINs) ---
 export async function GET() {
-    try {
-        const db = await getDb();
-        const users = await db.collection("users")
-            .find({})
-            .project({ password: 0, systemPIN: 0 })
-            .toArray();
-        return NextResponse.json(users);
-    } catch (error) {
-        return NextResponse.json({ error: "Failed to fetch users" }, { status: 500 });
-    }
+  try {
+    const q = query(collection(db, "users"), orderBy("createdAt", "desc"));
+    const querySnapshot = await getDocs(q);
+    
+    const users = querySnapshot.docs.map(docSnap => {
+      const data = docSnap.data();
+      // Manual exclusion ng sensitive data
+      const { password, systemPIN, ...safeData } = data;
+      return { id: docSnap.id, ...safeData };
+    });
+
+    return NextResponse.json(users);
+  } catch (error: any) {
+    return NextResponse.json({ error: "Failed to fetch users" }, { status: 500 });
+  }
 }
 
-// 2. POST: Register new personnel
+// --- 2. POST: Register with Duplicate Validation ---
 export async function POST(req: Request) {
-    try {
-        const body = await req.json();
-        const { username, email, password, role, contact, systemPIN } = body;
-        const db = await getDb();
+  try {
+    const body = await req.json();
+    const { username, email, password, role, contact, systemPIN } = body;
 
-        const existing = await db.collection("users").findOne({ email });
-        if (existing) return NextResponse.json({ error: "Email exists" }, { status: 400 });
+    // VALIDATION: Check kung may duplicate Email, Username, o Contact
+    const usersRef = collection(db, "users");
+    
+    const emailCheck = await getDocs(query(usersRef, where("email", "==", email)));
+    if (!emailCheck.empty) return NextResponse.json({ error: "Email already exists" }, { status: 400 });
 
-        const hashedPassword = await bcrypt.hash(password, 10);
-        let hashedPin = "";
-        if (role === "Super Admin" && systemPIN) {
-            hashedPin = await bcrypt.hash(systemPIN, 10);
-        }
+    const usernameCheck = await getDocs(query(usersRef, where("username", "==", username)));
+    if (!usernameCheck.empty) return NextResponse.json({ error: "Username already taken" }, { status: 400 });
 
-        const newUser = {
-            username, email, role, contact,
-            password: hashedPassword,
-            systemPIN: hashedPin,
-            avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`,
-            createdAt: new Date()
-        };
+    const contactCheck = await getDocs(query(usersRef, where("contact", "==", contact)));
+    if (!contactCheck.empty) return NextResponse.json({ error: "Contact number already registered" }, { status: 400 });
 
-        await db.collection("users").insertOne(newUser);
-        return NextResponse.json({ message: "Created" });
-    } catch (error) {
-        return NextResponse.json({ error: "Post failed" }, { status: 500 });
+    // Hashing
+    const hashedPassword = await bcrypt.hash(password, 10);
+    let hashedPin = "";
+    if (role === "Super Admin" && systemPIN) {
+      hashedPin = await bcrypt.hash(systemPIN, 10);
     }
+
+    const newUser = {
+      username,
+      email,
+      role,
+      contact,
+      password: hashedPassword,
+      systemPIN: hashedPin,
+      avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    };
+
+    const docRef = await addDoc(collection(db, "users"), newUser);
+    return NextResponse.json({ id: docRef.id, message: "Personnel registered successfully!" }, { status: 201 });
+
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 }
-// --- 3. PUT: PARA SA UPDATE AT SECURITY VERIFICATION ---
+
+// --- 3. PUT: Security Verification & Update with Duplicate Check ---
 export async function PUT(req: Request) {
-    try {
-        const body = await req.json();
-        const { id, isVerifying, currentPassword, systemPIN, username, contact, newPassword, newSystemPIN } = body;
-        
-        const db = await getDb();
-        const user = await db.collection("users").findOne({ _id: new ObjectId(id) });
+  try {
+    const body = await req.json();
+    const { id, isVerifying, currentPassword, systemPIN, username, contact, newPassword, newSystemPIN } = body;
 
-        if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
+    if (!id) return NextResponse.json({ error: "ID required" }, { status: 400 });
 
-        // --- SECURITY BYPASS (ROOT AUTH) ---
-        if (isVerifying) {
-            // I-check ang password
-            const passMatch = currentPassword ? await bcrypt.compare(currentPassword, user.password) : false;
-            
-            // I-check ang PIN
-            const pinMatch = systemPIN ? await bcrypt.compare(systemPIN, user.systemPIN || "") : false;
+    const docRef = doc(db, "users", id);
+    const docSnap = await getDoc(docRef);
 
-            // "OR" LOGIC: Basta isa sa kanila ang tumama, papasok na.
-            if (passMatch || pinMatch) {
-                return NextResponse.json({ message: "Root Access Granted" });
-            }
-            
-            return NextResponse.json({ error: "Security Bypass Failed: Invalid Credentials" }, { status: 401 });
-        }
+    if (!docSnap.exists()) return NextResponse.json({ error: "User not found" }, { status: 404 });
+    const userData = docSnap.data();
 
-        // --- ACTUAL UPDATE LOGIC ---
-        const updateFields: any = {};
-        if (username) updateFields.username = username;
-        if (contact) updateFields.contact = contact;
-        if (newPassword) updateFields.password = await bcrypt.hash(newPassword, 10);
-        if (newSystemPIN) updateFields.systemPIN = await bcrypt.hash(newSystemPIN, 10);
+    // --- SECURITY VERIFICATION MODE ---
+    if (isVerifying) {
+      const passMatch = currentPassword ? await bcrypt.compare(currentPassword, userData.password) : false;
+      const pinMatch = systemPIN ? await bcrypt.compare(systemPIN, userData.systemPIN || "") : false;
 
-        await db.collection("users").updateOne(
-            { _id: new ObjectId(id) },
-            { $set: updateFields }
-        );
-
-        return NextResponse.json({ message: "Updated successfully" });
-
-    } catch (error) {
-        return NextResponse.json({ error: "Update failed" }, { status: 500 });
+      if (passMatch || pinMatch) {
+        return NextResponse.json({ message: "Root Access Granted" });
+      }
+      return NextResponse.json({ error: "Invalid Credentials" }, { status: 401 });
     }
+
+    // --- ACTUAL UPDATE LOGIC WITH VALIDATION ---
+    const usersRef = collection(db, "users");
+
+    // 1. Check if Username is taken by OTHER users
+    if (username && username !== userData.username) {
+      const q = query(usersRef, where("username", "==", username));
+      const snap = await getDocs(q);
+      if (!snap.empty) return NextResponse.json({ error: "Username already taken" }, { status: 400 });
+    }
+
+    // 2. Check if Contact is taken by OTHER users
+    if (contact && contact !== userData.contact) {
+      const q = query(usersRef, where("contact", "==", contact));
+      const snap = await getDocs(q);
+      if (!snap.empty) return NextResponse.json({ error: "Contact number already in use by another staff" }, { status: 400 });
+    }
+
+    const updateData: any = { updatedAt: serverTimestamp() };
+    if (username) updateData.username = username;
+    if (contact) updateData.contact = contact;
+    if (newPassword) updateData.password = await bcrypt.hash(newPassword, 10);
+    if (newSystemPIN) updateData.systemPIN = await bcrypt.hash(newSystemPIN, 10);
+
+    await updateDoc(docRef, updateData);
+    return NextResponse.json({ message: "Updated successfully" });
+
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 }
 
-// 4. DELETE: Remove personnel (Protection for Super Admin included)
+// --- 4. DELETE: Anti-Root Protection ---
 export async function DELETE(req: Request) {
-    try {
-        const { searchParams } = new URL(req.url);
-        const id = searchParams.get("id");
-        if (!id) return NextResponse.json({ error: "ID required" }, { status: 400 });
+  try {
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get("id");
 
-        const db = await getDb();
-        
-        // Anti-delete protection para sa Super Admin
-        const user = await db.collection("users").findOne({ _id: new ObjectId(id) });
-        if (user?.role === "Super Admin") {
-            return NextResponse.json({ error: "Root user cannot be deleted" }, { status: 403 });
-        }
+    if (!id) return NextResponse.json({ error: "ID required" }, { status: 400 });
 
-        await db.collection("users").deleteOne({ _id: new ObjectId(id) });
-        return NextResponse.json({ message: "Deleted" });
-    } catch (error) {
-        return NextResponse.json({ error: "Delete failed" }, { status: 500 });
+    const docRef = doc(db, "users", id);
+    const docSnap = await getDoc(docRef);
+
+    if (!docSnap.exists()) return NextResponse.json({ error: "User not found" }, { status: 404 });
+
+    if (docSnap.data().role === "Super Admin") {
+      return NextResponse.json({ error: "Root user cannot be deleted" }, { status: 403 });
     }
+
+    await deleteDoc(docRef);
+    return NextResponse.json({ message: "Personnel removed" });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 }
