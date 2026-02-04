@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { ArrowLeft, CreditCard, Truck, ShieldCheck, Package } from 'lucide-react';
+import { ArrowLeft, CreditCard, Truck, ShieldCheck, Package, Loader2 } from 'lucide-react';
 import { Navbar } from '@/app/components/navigation/navbar';
 import { Footer } from '@/app/components/navigation/footer';
 
@@ -12,46 +12,76 @@ export default function CheckoutPage() {
   const [items, setItems] = useState<any[]>([]);
   const [isDirectBuy, setIsDirectBuy] = useState(false);
   const [total, setTotal] = useState(0);
+  const [paymentMethod, setPaymentMethod] = useState<'COD' | 'GCASH'>('COD'); // Default is COD
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // 1. Check kung may "Direct Buy" item
     const directItem = localStorage.getItem('adrenaline_checkout_item');
     const cartItems = localStorage.getItem('adrenaline_cart');
 
     if (directItem) {
-      // Kung merong direct buy, yun lang ang ipakita natin
       const item = JSON.parse(directItem);
       setItems([item]);
       setIsDirectBuy(true);
       setTotal(item.cost_price * item.quantity);
     } else if (cartItems) {
-      // Kung wala, kunin yung buong cart
       const cart = JSON.parse(cartItems);
       setItems(cart);
       const cartTotal = cart.reduce((acc: number, item: any) => acc + (item.cost_price * item.quantity), 0);
       setTotal(cartTotal);
     } else {
-      // Kung parehong wala, balik sa shop
       router.push('/shop');
     }
 
-    // Importante: Linisin ang Direct Buy pagka-close o pagka-load para hindi mag-stuck
     return () => {
       localStorage.removeItem('adrenaline_checkout_item');
     };
-  }, []);
+  }, [router]);
 
-  const handlePlaceOrder = () => {
-    // Dito mo ilalagay yung API call para i-save yung order sa Database
-    console.log("Placing order for:", items);
-    alert("ORDER PLACED! (Simulation Only)");
-    
-    // Clear cart kung successful ang order
-    if (!isDirectBuy) {
-      localStorage.removeItem('adrenaline_cart');
-      window.dispatchEvent(new Event('cart-updated'));
+  const handlePlaceOrder = async () => {
+    setLoading(true);
+
+    try {
+      if (paymentMethod === 'GCASH') {
+        // --- PAYMONGO FLOW ---
+        const res = await fetch('/api/create-checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            items: items.map(item => ({
+              name: item.name,
+              amount: item.cost_price * 100, // PayMongo expects cents
+              quantity: item.quantity,
+              currency: 'PHP'
+            })),
+            totalAmount: total,
+          }),
+        });
+
+        const data = await res.json();
+
+        if (data.url) {
+          // I-clear ang cart bago i-redirect
+          if (!isDirectBuy) localStorage.removeItem('adrenaline_cart');
+          window.location.href = data.url; // Redirect to PayMongo
+          return;
+        } else {
+          throw new Error("Failed to create GCash session");
+        }
+      } else {
+        // --- COD FLOW (Simulation) ---
+        console.log("Placing COD order for:", items);
+        alert("ORDER PLACED VIA COD!");
+        if (!isDirectBuy) localStorage.removeItem('adrenaline_cart');
+        window.dispatchEvent(new Event('cart-updated'));
+        router.push('/profile');
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
     }
-    router.push('/profile'); // Redirect sa orders history
   };
 
   return (
@@ -91,8 +121,18 @@ export default function CheckoutPage() {
                 <CreditCard size={16} className="text-orange-500" /> Payment Method
               </h2>
               <div className="flex gap-4">
-                <button className="flex-1 border-2 border-orange-500 bg-orange-500/10 p-4 rounded-xl text-[10px] font-black tracking-widest">CASH ON DELIVERY</button>
-                <button disabled className="flex-1 border border-white/5 bg-zinc-800/50 p-4 rounded-xl text-[10px] font-black tracking-widest opacity-50 cursor-not-allowed">GCASH (SOON)</button>
+                <button 
+                  onClick={() => setPaymentMethod('COD')}
+                  className={`flex-1 p-4 rounded-xl text-[10px] font-black tracking-widest transition-all ${paymentMethod === 'COD' ? 'border-2 border-orange-500 bg-orange-500/10' : 'border border-white/5 bg-zinc-800/50'}`}
+                >
+                  CASH ON DELIVERY
+                </button>
+                <button 
+                  onClick={() => setPaymentMethod('GCASH')}
+                  className={`flex-1 p-4 rounded-xl text-[10px] font-black tracking-widest transition-all ${paymentMethod === 'GCASH' ? 'border-2 border-orange-500 bg-orange-500/10' : 'border border-white/5 bg-zinc-800/50'}`}
+                >
+                  GCASH / PAYMONGO
+                </button>
               </div>
             </section>
           </div>
@@ -126,10 +166,6 @@ export default function CheckoutPage() {
                   <span>SUBTOTAL</span>
                   <span>₱{total.toLocaleString()}</span>
                 </div>
-                <div className="flex justify-between text-[10px] font-bold tracking-widest text-zinc-500">
-                  <span>SHIPPING</span>
-                  <span>₱0</span>
-                </div>
                 <div className="flex justify-between text-lg font-black tracking-tighter text-orange-500 pt-2">
                   <span>TOTAL</span>
                   <span>₱{total.toLocaleString()}</span>
@@ -138,9 +174,10 @@ export default function CheckoutPage() {
 
               <button 
                 onClick={handlePlaceOrder}
-                className="w-full bg-orange-600 hover:bg-orange-700 text-white py-5 rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] mt-8 transition-all active:scale-95 shadow-lg shadow-orange-600/20"
+                disabled={loading}
+                className="w-full bg-orange-600 hover:bg-orange-700 text-white py-5 rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] mt-8 transition-all active:scale-95 shadow-lg shadow-orange-600/20 disabled:opacity-50 flex justify-center items-center gap-2"
               >
-                Place Order Now
+                {loading ? <Loader2 className="animate-spin" size={16} /> : "Place Order Now"}
               </button>
 
               <div className="mt-6 flex items-center justify-center gap-2 text-[8px] font-bold text-zinc-600 tracking-widest uppercase">

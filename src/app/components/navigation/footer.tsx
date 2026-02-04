@@ -62,7 +62,7 @@ export function Footer() {
   };
 
   return (
-    <footer className="relative w-full border-t border-gray-200 bg-white pt-20 pb-10">
+    <footer className="relative w-full bg-black pt-20 pb-10">
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/2 to-transparent pointer-events-none" />
       <div className="mx-auto max-w-6xl px-6 lg:px-8 relative z-10">
         
@@ -76,7 +76,7 @@ export function Footer() {
           className="flex flex-col items-center text-center space-y-8 mb-24"
         >
           <div className="space-y-2">
-            <h2 className="text-3xl md:text-4xl font-black italic tracking-[0.1em] text-black uppercase">
+            <h2 className="text-3xl md:text-4xl font-black italic tracking-[0.1em] text- from-orange-600 to-red-600 uppercase">
               {session ? "Exclusive Access" : "Be the first in line"}
             </h2>
             <p className="text-[10px] tracking-[0.3em] text-gray-600 uppercase font-black">
@@ -157,7 +157,7 @@ export function Footer() {
                   className="relative w-full h-full"
                 >
                   <Image
-                    src="/images/logo/logo.png"
+                    src="/images/logo/pic4.png"
                     alt="INK Logo"
                     fill
                     className=""
