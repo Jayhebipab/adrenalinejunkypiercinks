@@ -38,47 +38,51 @@ export default function CheckoutPage() {
     };
   }, [router]);
 
-  const handlePlaceOrder = async () => {
+ const handlePlaceOrder = async () => {
     setLoading(true);
 
     try {
       if (paymentMethod === 'GCASH') {
-        // --- PAYMONGO FLOW ---
-        const res = await fetch('/api/create-checkout', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            items: items.map(item => ({
-              name: item.name,
-              amount: item.cost_price * 100, // PayMongo expects cents
-              quantity: item.quantity,
-              currency: 'PHP'
-            })),
-            totalAmount: total,
-          }),
-        });
+        // Ito na ang tamang fetch call:
+// Sa loob ng handlePlaceOrder sa CheckoutPage.tsx
+const res = await fetch('/api/create-checkout', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    items: items.map(item => ({
+      name: item.name,
+      // Siguraduhin na 'amount' ang pangalan ng key dito
+      amount: Math.round(Number(item.cost_price) * 100), 
+      quantity: item.quantity,
+      currency: 'PHP'
+    })),
+    totalAmount: total
+  })
+});
 
         const data = await res.json();
-
+        
         if (data.url) {
-          // I-clear ang cart bago i-redirect
           if (!isDirectBuy) localStorage.removeItem('adrenaline_cart');
-          window.location.href = data.url; // Redirect to PayMongo
+          window.location.href = data.url; 
           return;
         } else {
-          throw new Error("Failed to create GCash session");
+          // Kung may error message mula sa server (e.g. PayMongo error), ipakita dito
+          throw new Error(data.error || "Failed to create GCash session");
         }
       } else {
-        // --- COD FLOW (Simulation) ---
+        // --- COD FLOW ---
         console.log("Placing COD order for:", items);
         alert("ORDER PLACED VIA COD!");
         if (!isDirectBuy) localStorage.removeItem('adrenaline_cart');
         window.dispatchEvent(new Event('cart-updated'));
         router.push('/profile');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      alert("Something went wrong. Please try again.");
+      alert(error.message || "Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }
