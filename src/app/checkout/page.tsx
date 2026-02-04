@@ -38,55 +38,65 @@ export default function CheckoutPage() {
     };
   }, [router]);
 
- const handlePlaceOrder = async () => {
-    setLoading(true);
+const handlePlaceOrder = async () => {
+  setLoading(true);
 
-    try {
-      if (paymentMethod === 'GCASH') {
-        // Ito na ang tamang fetch call:
-// Sa loob ng handlePlaceOrder sa CheckoutPage.tsx
-const res = await fetch('/api/create-checkout', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  body: JSON.stringify({
-    items: items.map(item => ({
-      name: item.name,
-      // Siguraduhin na 'amount' ang pangalan ng key dito
-      amount: Math.round(Number(item.cost_price) * 100), 
-      quantity: item.quantity,
-      currency: 'PHP'
-    })),
-    totalAmount: total
-  })
-});
+  try {
+    if (paymentMethod === 'GCASH') {
+      // 1. Send request sa ating API route
+      const res = await fetch('/api/create-checkout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          items: items.map(item => ({
+            name: item.name,
+            // Ginagawa nating 'amount' ang key at cents ang value
+            amount: Math.round(Number(item.cost_price) * 100), 
+            quantity: item.quantity,
+            currency: 'PHP'
+          })),
+          totalAmount: total
+        })
+      });
 
-        const data = await res.json();
-        
-        if (data.url) {
-          if (!isDirectBuy) localStorage.removeItem('adrenaline_cart');
-          window.location.href = data.url; 
-          return;
-        } else {
-          // Kung may error message mula sa server (e.g. PayMongo error), ipakita dito
-          throw new Error(data.error || "Failed to create GCash session");
-        }
-      } else {
-        // --- COD FLOW ---
-        console.log("Placing COD order for:", items);
-        alert("ORDER PLACED VIA COD!");
-        if (!isDirectBuy) localStorage.removeItem('adrenaline_cart');
-        window.dispatchEvent(new Event('cart-updated'));
-        router.push('/profile');
+      // 2. Kunin ang response
+      const data = await res.json();
+      
+      // 3. Check kung hindi successful ang request (400, 500, etc.)
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to create GCash session");
       }
-    } catch (error: any) {
-      console.error(error);
-      alert(error.message || "Something went wrong. Please try again.");
-    } finally {
-      setLoading(false);
+
+      // 4. Redirect sa PayMongo Checkout Page
+      if (data.url) {
+        if (!isDirectBuy) {
+          localStorage.removeItem('adrenaline_cart');
+          window.dispatchEvent(new Event('cart-updated'));
+        }
+        window.location.href = data.url; 
+        return;
+      }
+      
+    } else {
+      // --- COD FLOW ---
+      console.log("Placing COD order for:", items);
+      alert("ORDER PLACED VIA COD!");
+      
+      if (!isDirectBuy) {
+        localStorage.removeItem('adrenaline_cart');
+        window.dispatchEvent(new Event('cart-updated'));
+      }
+      router.push('/profile');
     }
-  };
+  } catch (error: any) {
+    console.error("Checkout Error:", error);
+    alert(error.message || "Something went wrong. Please try again.");
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-200">
