@@ -1,154 +1,140 @@
 "use client";
 
-import React from "react";
-import { motion } from "framer-motion";
-import { ShieldCheck, Sparkles, Heart, Star, MoveRight, Scissors, Award, Zap, ChevronRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Footer } from "@/app/components/navigation/footer";
-import { Navbar } from "@/app/components/navigation/navbar";
-
-// --- DATA ---
-const stats = [
-  { label: "Years in Chaos", value: "10Y+", icon: Award },
-  { label: "Skins Inked", value: "5K+", icon: Star },
-  { label: "Safety Rank", value: "A+", icon: ShieldCheck },
-  { label: "Original Styles", value: "20+", icon: Zap },
-];
-
-const values = [
-  { icon: ShieldCheck, title: "Sterile Lab", desc: "Hospital-grade sterilization. Your safety is our religion, zero excuses." },
-  { icon: Sparkles, title: "No Copy-Paste", desc: "Custom art only. We don't follow trends; we kill them with originality." },
-  { icon: Heart, title: "Blood & Care", desc: "We stay with you from the first poke until the art is fully healed and vivid." },
-  { icon: Scissors, title: "Pro Piercing", desc: "Precision piercing using only surgical-grade titanium for the clean look." },
-];
+import React from 'react';
+import { motion } from 'framer-motion';
+import { Navbar } from '@/app/components/navigation/navbar';
+import { Footer } from '@/app/components/navigation/footer';
+import { ArrowRight, Info, ShieldCheck, Heart } from 'lucide-react';
+import Image from 'next/image';
 
 export default function AboutPage() {
   return (
-    <>
+    <div className="min-h-screen bg-black text-zinc-200 font-sans selection:bg-orange-500/30">
       <Navbar />
-      <main className="bg-[#0a0a0a] min-h-screen text-white selection:bg-orange-600 selection:text-black">
+
+      <main className="container mx-auto max-w-6xl px-6 py-24 md:py-32">
         
-        {/* --- 1. RAW HERO SECTION --- */}
-        <section className="relative pt-40 pb-20 border-b border-white/10 overflow-hidden">
-          <div className="container mx-auto px-6 relative z-10">
-            <motion.div
-              initial={{ opacity: 0, y: 50 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="flex flex-col items-start"
-            >
-              <div className="inline-block bg-orange-600 text-black font-black uppercase italic px-4 py-1 text-xs mb-8 -rotate-2">
-                The Adrenalin Legacy
-              </div>
-              <h1 className="text-[14vw] md:text-[11vw] font-black uppercase italic leading-[0.75] tracking-tighter">
-                SKIN<span className="text-orange-600">.</span><br />
-                SOUL<span className="text-orange-600">.</span><br />
-                <span className="text-transparent stroke-text-heavy">SINS.</span>
-              </h1>
-              
-              <div className="mt-12 flex flex-col md:flex-row md:items-end justify-between w-full gap-10">
-                <p className="max-w-md text-zinc-500 font-bold uppercase tracking-widest text-sm leading-tight">
-                  Adrenalin Junky Piercinks is not a shop. It's an underground movement of self-expression. Established 2014.
-                </p>
-                <div className="flex gap-10">
-                    <div className="flex flex-col">
-                        <span className="text-white font-black text-5xl italic leading-none tracking-tighter">10Y</span>
-                        <span className="text-zinc-600 font-black text-[10px] uppercase tracking-widest">Experience</span>
-                    </div>
-                    <div className="flex flex-col">
-                        <span className="text-white font-black text-5xl italic leading-none tracking-tighter">A+</span>
-                        <span className="text-zinc-600 font-black text-[10px] uppercase tracking-widest">Hygiene</span>
-                    </div>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-          {/* Background Decor */}
-          <span className="absolute -bottom-10 -right-20 text-[25vw] font-black text-white/[0.02] select-none tracking-tighter uppercase italic -rotate-12">
-            JUNKY
-          </span>
+        {/* HERO SECTION */}
+        <section className="mb-24 md:mb-32">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+            className="text-center space-y-4 md:space-y-6"
+          >
+            <span className="text-orange-500 font-black text-[9px] md:text-[10px] tracking-[0.4em] uppercase block">
+              Established Precision
+            </span>
+            <h1 className="text-4xl sm:text-6xl md:text-8xl font-black tracking-tighter text-white italic uppercase leading-[0.9]">
+              adrenaline junky piercing,
+              <span className="block mt-2 text-zinc-800">est 2019.</span>
+            </h1>
+          </motion.div>
         </section>
 
-        {/* --- 2. THE MANIFESTO (STORY) --- */}
-        <section className="py-24 border-b border-white/10 bg-white text-black">
-          <div className="container mx-auto px-6 grid grid-cols-1 lg:grid-cols-12 gap-16 items-center">
+        {/* ABOUT SECTION */}
+        <section className="grid grid-cols-1 lg:grid-cols-2 gap-12 md:gap-20 items-center mb-32 md:mb-40">
+          
+          <motion.div 
+            initial={{ opacity: 0, x: -20 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            className="space-y-6 md:space-y-8 order-2 lg:order-1"
+          >
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-8 md:w-10 h-[2px] bg-orange-500" />
+                <h2 className="text-2xl md:text-3xl font-black uppercase tracking-tighter text-white">
+                  About Us
+                </h2>
+              </div>
+              <p className="text-zinc-300 text-base md:text-lg leading-relaxed font-normal">
+                Every customer deserves exceptional service. We provide the best accommodation, precision in Piercings & Tattoos, accurate information, and comprehensive guidance throughout the healing process.
+              </p>
+            </div>
             
-            <div className="lg:col-span-7 space-y-10">
-              <h2 className="text-6xl md:text-8xl font-black uppercase italic tracking-tighter leading-[0.85]">
-                WE DON'T DO <br />
-                <span className="bg-black text-white px-4">NORMAL.</span>
-              </h2>
-              <div className="space-y-6 text-2xl font-bold leading-tight max-w-2xl">
-                <p>Nagsimula ang <span className="underline decoration-orange-600 decoration-4 underline-offset-4">Junky Piercinks</span> sa simpleng pangarap: Gawing canvas ang balat para sa sining na walang takot.</p>
-                <p className="text-zinc-500">Hindi kami basta shop; kami ay santuwaryo ng indibidwalismo. Bawat needle poke ay simbolo ng aming dedikasyon sa mastery.</p>
-              </div>
-              <motion.button 
-                whileHover={{ gap: "2rem" }}
-                className="flex items-center gap-6 font-black uppercase tracking-[0.3em] text-xs transition-all border-b-2 border-black pb-2"
+            <p className="text-zinc-500 text-sm md:text-base leading-relaxed">
+              Choosing us as your Piercer & Tattoo Artist guarantees the most satisfactory solution for your body art journey. We don't just create art—we ensure it heals perfectly and stays beautiful forever.
+            </p>
+          </motion.div>
+
+          {/* MINIMALIST IMAGE */}
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+            className="relative order-1 lg:order-2"
+          >
+            <div className="relative aspect-4/5 rounded-2xl md:rounded-[2rem] overflow-hidden border border-white/10 bg-zinc-900">
+              <Image 
+                src="/images/about3.png" 
+                alt="Adrenaline Junky Studio"
+                fill
+                className="object-cover"
+                priority
+              />
+            </div>
+          </motion.div>
+
+        </section>
+
+        {/* SERVICES SECTION */}
+        <section className="mb-32 md:mb-40">
+          <motion.h2 
+            initial={{ opacity: 0, y: 10 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-xl md:text-2xl font-black uppercase tracking-tight text-white mb-8 md:mb-12"
+          >
+            Our <span className="text-orange-500">Extra</span> Services
+          </motion.h2>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 md:gap-12">
+            {[
+              { 
+                title: "Consultations", 
+                desc: "Professional advice on placement and design, absolutely free.", 
+                icon: <Info size={20}/> 
+              },
+              { 
+                title: "Cleaning", 
+                desc: "Expert cleaning services to ensure your piercings stay healthy.", 
+                icon: <ShieldCheck size={20}/> 
+              },
+              { 
+                title: "Replacement", 
+                desc: "High-quality jewelry replacement for healed piercings.", 
+                icon: <Heart size={20}/> 
+              }
+            ].map((service, i) => (
+              <motion.div 
+                key={i}
+                initial={{ opacity: 0, y: 15 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+                className="space-y-3 p-6 rounded-2xl border border-white/5 bg-zinc-950/50 hover:border-orange-500/20 transition-colors"
               >
-                Our Whole Journey <MoveRight size={20} />
-              </motion.button>
-            </div>
-
-            <div className="lg:col-span-5 relative">
-              <div className="border-[15px] border-black rotate-3 hover:rotate-0 transition-transform duration-500 group">
-                <img 
-                  src="https://images.unsplash.com/photo-1590201845110-386f5c888e93?q=80&w=2000" 
-                  alt="Studio vibe" 
-                  className="w-full grayscale group-hover:grayscale-0 transition-all duration-700"
-                />
-              </div>
-              <div className="absolute -bottom-6 -left-6 bg-orange-600 text-black p-4 font-black uppercase italic -rotate-6 text-sm">
-                Authentic Craft
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* --- 3. THE SPECS (VALUES) --- */}
-        <section className="py-24 bg-black">
-          <div className="container mx-auto px-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {values.map((v, i) => (
-                <div key={i} className="group p-10 border border-white/5 hover:border-orange-600/50 hover:bg-zinc-900/30 transition-all">
-                  <v.icon className="size-10 mb-8 text-orange-600 group-hover:scale-110 transition-transform" />
-                  <h3 className="text-xl font-black uppercase italic mb-4">0{i+1}. {v.title}</h3>
-                  <p className="text-zinc-500 font-bold uppercase text-[10px] tracking-widest leading-relaxed">
-                    {v.desc}
-                  </p>
+                <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-500">
+                  {service.icon}
                 </div>
-              ))}
-            </div>
+                <h3 className="font-black uppercase text-sm tracking-wide text-white">
+                  {service.title}
+                </h3>
+                <p className="text-zinc-400 text-sm leading-relaxed">
+                  {service.desc}
+                </p>
+              </motion.div>
+            ))}
           </div>
         </section>
 
-        {/* --- 4. THE CALL (CTA) --- */}
-        <section className="py-40 bg-orange-600 text-black overflow-hidden relative">
-          <div className="container mx-auto px-6 text-center relative z-10">
-            <h2 className="text-[12vw] font-black uppercase italic leading-[0.7] tracking-tighter mb-12">
-              MARK YOUR<br/>LIFETIME.
-            </h2>
-            <Button className="bg-black text-white hover:bg-white hover:text-black px-16 h-20 rounded-none font-black uppercase tracking-[0.5em] text-xs transition-all border-4 border-black">
-              Book Your Appointment <ChevronRight className="ml-2" />
-            </Button>
-          </div>
-          <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[40vw] font-black text-black/5 select-none tracking-tighter uppercase italic">
-            INKED
-          </span>
-        </section>
+
 
       </main>
-      <Footer />
 
-      <style jsx>{`
-        .stroke-text-heavy {
-          -webkit-text-stroke: 2px white;
-        }
-        @media (max-width: 768px) {
-          .stroke-text-heavy {
-            -webkit-text-stroke: 1px white;
-          }
-        }
-      `}</style>
-    </>
+      <Footer />
+    </div>
   );
 }

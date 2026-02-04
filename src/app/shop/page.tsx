@@ -89,12 +89,12 @@ export default function ShopPage() {
       <Navbar />
 
       {/* --- HERO SECTION --- */}
-      <section className="relative h-[50vh] w-full flex items-center justify-center overflow-hidden border-b border-white/5">
+      <section className="relative h-[45vh] w-full flex items-center justify-center overflow-hidden border-b border-black/5">
         <div 
           className="absolute inset-0 bg-cover bg-center bg-no-repeat bg-fixed grayscale opacity-30"
-          style={{ backgroundImage: `url('https://images.unsplash.com/photo-1598136490941-30d885318abd?q=80&w=2000')` }} 
+          style={{ backgroundImage: `url('https://res.cloudinary.com/diwrwmjgw/image/upload/v1770215345/Screenshot_2025-04-17_112705_wgdjo6.png')` }} 
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/40 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/0 to-transparent" />
         
         <div className="relative z-10 text-center space-y-4 px-6">
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-orange-500/20 bg-orange-500/5 mb-2">
@@ -149,86 +149,91 @@ export default function ShopPage() {
           </aside>
 
           {/* --- PRODUCT GRID --- */}
-          <div className="flex-1">
-            <AnimatePresence mode='wait'>
-              {filteredProducts.length === 0 ? (
-                <motion.div 
-                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                  className="flex flex-col items-center py-40 border border-white/5 rounded-[3rem] bg-zinc-900/10"
+<div className="flex-1">
+  <AnimatePresence mode='wait'>
+    {filteredProducts.length === 0 ? (
+      <motion.div 
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        className="flex flex-col items-center py-40 border border-white/5 rounded-[3rem] bg-zinc-900/10"
+      >
+        <PackageOpen className="w-12 h-12 text-zinc-800 mb-4" />
+        <p className="text-zinc-600 text-[10px] font-black uppercase tracking-[0.3em]">No items match your hunt</p>
+      </motion.div>
+    ) : (
+      /* Inupdate ko itong grid-cols-1 para maging grid-cols-2 at binawasan ang gap sa mobile */
+      <motion.div layout className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-8">
+        {filteredProducts.map((product) => (
+          <motion.div
+            key={product.id}
+            layout
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            whileHover={{ y: -10 }}
+            /* Binawasan ang rounded corners at shadow para sa mobile performance */
+            className="relative group flex flex-col rounded-[1.5rem] md:rounded-[2.5rem] bg-zinc-900/30 border border-white/5 overflow-hidden transition-all duration-500 hover:border-orange-500/30 shadow-xl"
+          >
+            {/* Image Area */}
+            <div 
+              className="relative aspect-[4/5] overflow-hidden cursor-pointer"
+              onClick={() => router.push(`/shop/${product.id}`)}
+            >
+              <img
+                src={product.image || "/placeholder-gear.jpg"}
+                alt={product.name}
+                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+              />
+              {/* Pinaliit ang price tag sa mobile */}
+              <div className="absolute top-3 right-3 md:top-6 md:right-6 bg-black/80 backdrop-blur-md px-2 py-1 md:px-4 md:py-2 rounded-full border border-white/10">
+                <span className="text-orange-500 font-black text-[10px] md:text-sm tracking-tighter">
+                  ₱{(Number(product.selling_price) || 0).toLocaleString()}
+                </span>
+              </div>
+            </div>
+
+            {/* Info Area - Binawasan ang padding sa mobile (p-4 instead of p-8) */}
+            <div className="p-4 md:p-8 space-y-2 md:space-y-4 text-left">
+              <div className="space-y-1">
+                <span className="text-[8px] md:text-[10px] font-black uppercase tracking-[0.2em] text-orange-500/80">
+                  {product.category}
+                </span>
+                {/* Responsive text size para sa product name */}
+                <h3 className="text-xs md:text-xl font-black uppercase tracking-tight text-white leading-tight truncate">
+                  {product.name}
+                </h3>
+              </div>
+
+              <div className="flex flex-col gap-2 pt-1 md:pt-2">
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    router.push(`/shop/${product.id}`);
+                  }}
+                  /* Flexible button heights */
+                  className="w-full bg-orange-600 text-white py-3 md:py-4 rounded-xl md:rounded-2xl font-black uppercase text-[8px] md:text-[10px] tracking-[0.1em] md:tracking-[0.2em] hover:bg-orange-700 transition-all shadow-lg shadow-orange-600/20 active:scale-95"
                 >
-                  <PackageOpen className="w-12 h-12 text-zinc-800 mb-4" />
-                  <p className="text-zinc-600 text-[10px] font-black uppercase tracking-[0.3em]">No items match your hunt</p>
-                </motion.div>
-              ) : (
-                <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-                  {filteredProducts.map((product) => (
-                    <motion.div
-                      key={product.id}
-                      layout
-                      initial={{ opacity: 0, scale: 0.9 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      whileHover={{ y: -10 }}
-                      className="relative group flex flex-col rounded-[2.5rem] bg-zinc-900/30 border border-white/5 overflow-hidden transition-all duration-500 hover:border-orange-500/30 shadow-2xl"
-                    >
-                      {/* Image Area */}
-                      <div 
-                        className="relative aspect-[4/5] overflow-hidden cursor-pointer"
-                        onClick={() => router.push(`/shop/${product.id}`)}
-                      >
-                        <img
-                          src={product.image || "/placeholder-gear.jpg"}
-                          alt={product.name}
-                          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                        />
-                        <div className="absolute top-6 right-6 bg-black/80 backdrop-blur-md px-4 py-2 rounded-full border border-white/10">
-                          <span className="text-orange-500 font-black text-sm tracking-tighter">
-                            ₱{(Number(product.selling_price) || 0).toLocaleString()}
-                          </span>
-                        </div>
-                      </div>
+                  Buy Now
+                </button>
 
-                      {/* Info Area */}
-                      <div className="p-8 space-y-4 text-left">
-                        <div className="space-y-1">
-                          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-orange-500/80">
-                            {product.category}
-                          </span>
-                          <h3 className="text-xl font-black uppercase tracking-tight text-white leading-tight truncate">
-                            {product.name}
-                          </h3>
-                        </div>
-
-                        <div className="flex flex-col gap-2 pt-2">
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              router.push(`/shop/${product.id}`);
-                            }}
-                            className="w-full bg-orange-600 text-white py-4 rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] hover:bg-orange-700 transition-all shadow-lg shadow-orange-600/20 active:scale-95"
-                          >
-                            Buy Now
-                          </button>
-
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleAddToCart(product);
-                            }}
-                            className="w-full bg-zinc-800/50 border border-white/5 text-zinc-300 py-4 rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] flex items-center justify-center gap-2 hover:bg-zinc-800 hover:text-white transition-all active:scale-95"
-                          >
-                            <ShoppingCart size={12} /> Add to Cart
-                          </button>
-                        </div>
-                      </div>
-                    </motion.div>
-                  ))}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleAddToCart(product);
+                  }}
+                  className="w-full bg-zinc-800/50 border border-white/5 text-zinc-300 py-3 md:py-4 rounded-xl md:rounded-2xl font-black uppercase text-[8px] md:text-[10px] tracking-[0.1em] md:tracking-[0.2em] flex items-center justify-center gap-1 md:gap-2 hover:bg-zinc-800 hover:text-white transition-all active:scale-95"
+                >
+                  <ShoppingCart size={10} className="md:w-3 md:h-3" /> <span className="hidden xs:inline">Add to Cart</span>
+                  <span className="xs:hidden">Add</span>
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        ))}
+      </motion.div>
+    )}
+  </AnimatePresence>
+</div>
         </div>
       </main>
-
       <Footer />
     </div>
   ); 

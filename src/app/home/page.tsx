@@ -208,21 +208,22 @@ export const BlogSection = () => {
 
   return (
     <section id="blogs" className="relative py-20 md:py-32 bg-black border-y border-white/5 overflow-hidden">
-      {/* Background Fire Glow - Updated to v4 canonical class */}
+      {/* Background Fire Glow */}
       <div className="absolute top-0 right-0 w-125 h-125 bg-orange-600/5 blur-[120px] rounded-full pointer-events-none" />
 
       <div className="container mx-auto px-6 max-w-7xl relative z-10">
-        {/* HEADER */}
+        {/* UPGRADED HEADER */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-16">
           <div className="space-y-4">
-            <div className="inline-flex items-center gap-2 bg-white/5 border border-white/10 px-4 py-1.5 rounded-full">
+            <div className="inline-flex items-center gap-2 bg-orange-500/10 border border-orange-500/30 px-4 py-1.5 rounded-full">
               <span className="w-2 h-2 bg-orange-500 rounded-full animate-pulse" />
               <span className="text-white uppercase text-[10px] tracking-[0.3em] font-black">
                 Latest from the Studio
               </span>
             </div>
-            <h2 className="text-4xl md:text-6xl font-black uppercase text-white tracking-tighter leading-none">
-              Our <span className="text-transparent bg-clip-text bg-linear-to-r from-red-600 via-orange-500 to-yellow-400">Journal</span>
+            <h2 className="text-4xl md:text-6xl font-black uppercase tracking-tighter leading-none">
+              <span className="text-white">Our </span>
+              <span className="text-orange-500">Journal</span>
             </h2>
           </div>
         </div>
@@ -252,20 +253,19 @@ export const BlogSection = () => {
                 transition={{ delay: idx * 0.1 }}
                 className="group relative flex flex-col"
               >
-                {/* Image Container */}
+                {/* Image Container - NO TRANSITION/TRANSFORM */}
                 <div className="relative aspect-8/10 overflow-hidden rounded-3xl border border-white/5 bg-zinc-900">
                   <Image 
                     src={post.image} 
                     alt={post.title}
                     fill
-                    className="object-cover transition-transform duration-700 group-hover:scale-110"
+                    className="object-cover"
                   />
-                  {/* Updated Gradient Class */}
-                  <div className="absolute inset-0 bg-linear-to-t from-black via-transparent to-transparent opacity-60" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-60" />
                   
                   {/* Category Badge */}
                   <div className="absolute top-4 left-4">
-                    <span className="bg-black/60 backdrop-blur-md border border-white/10 text-orange-500 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full">
+                    <span className="bg-black/60 backdrop-blur-md border border-orange-500/30 text-orange-500 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full">
                       {post.category}
                     </span>
                   </div>
@@ -315,18 +315,16 @@ export const BlogSection = () => {
     </section>
   );
 };
-// ---------- PIERCING GALLERY (DYNAMIC VERSION) ----------
+// ---------- PIERCING GALLERY (UPDATED VERSION) ----------
 const GallerySection = ({ openModal }: { openModal: (imgs: string[], i: number) => void }) => {
   const [galleryItems, setGalleryItems] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Siguraduhin na /api/gallery ang endpoint mo for piercings
     fetch("/api/gallery")
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) {
-          // Filter kung piercing lang dapat, at kunin lang ang unang 6
           setGalleryItems(data.filter(item => item.category === "Piercing").slice(0, 6))
         }
       })
@@ -337,9 +335,11 @@ const GallerySection = ({ openModal }: { openModal: (imgs: string[], i: number) 
   return (
     <section id="gallery-section" className="py-20 bg-black px-6 overflow-hidden">
       <div className="container mx-auto max-w-6xl">
+        {/* UPGRADED TITLE */}
         <div className="text-center mb-16 space-y-4">
-          <h2 className="text-4xl md:text-5xl font-black uppercase tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-red-600 via-orange-500 to-yellow-400 italic">
-            The art of body Piercings
+          <h2 className="text-4xl md:text-5xl font-black uppercase tracking-tighter leading-none italic">
+            <span className="text-white">The art of body </span>
+            <span className="text-orange-500">Piercings</span>
           </h2>
         </div>
 
@@ -360,23 +360,22 @@ const GallerySection = ({ openModal }: { openModal: (imgs: string[], i: number) 
                   className="group relative overflow-hidden rounded-[2.5rem] border border-white/10 aspect-[3/4] cursor-pointer bg-zinc-900 shadow-[0_20px_50px_rgba(0,0,0,0.8)]"
                   onClick={() => openModal(galleryItems.map(g => g.image), idx)}
                 >
-                  {/* MAIN PIERCING IMAGE */}
+                  {/* MAIN PIERCING IMAGE - NO TRANSITION */}
                   <img
                     src={item.image}
                     alt={item.placement}
-                    className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110 group-hover:rotate-2"
+                    className="w-full h-full object-cover"
                   />
                   
-                  {/* --- PROMINENT ARTIST OVERLAY --- */}
+                  {/* --- ARTIST OVERLAY (WHITE/ORANGE ONLY) --- */}
                   <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500 flex flex-col justify-end p-8">
                     
-                    {/* Artist Details */}
                     <motion.div 
                       initial={{ opacity: 0, y: 20 }}
                       whileInView={{ opacity: 1, y: 0 }}
                       className="flex flex-col items-center space-y-4"
                     >
-                      {/* Artist Avatar (Dynamic) */}
+                      {/* Artist Avatar */}
                       <div className="relative">
                         <div className="w-20 h-20 md:w-24 md:h-24 rounded-2xl overflow-hidden border-2 border-orange-500 rotate-3 shadow-2xl transition-transform group-hover:rotate-0 duration-500">
                           <img 
@@ -398,7 +397,7 @@ const GallerySection = ({ openModal }: { openModal: (imgs: string[], i: number) 
                       </div>
 
                       {/* Placement Tag */}
-                      <div className="bg-white/10 backdrop-blur-md border border-white/20 px-6 py-2 rounded-full shadow-xl">
+                      <div className="bg-white/10 backdrop-blur-md border border-orange-500/30 px-6 py-2 rounded-full shadow-xl">
                         <p className="text-white text-[10px] md:text-xs font-black uppercase tracking-[0.2em]">
                           {item.placement}
                         </p>
@@ -406,7 +405,7 @@ const GallerySection = ({ openModal }: { openModal: (imgs: string[], i: number) 
                     </motion.div>
                   </div>
 
-                  {/* Top Subtle Label (Visible when not hovered) */}
+                  {/* Top Subtle Label */}
                   <div className="absolute top-6 left-6 group-hover:opacity-0 transition-opacity">
                     <span className="text-[12px] font-black text-white/50 uppercase tracking-[0.3em] [writing-mode:vertical-lr]">
                       {item.placement}
@@ -433,18 +432,16 @@ const GallerySection = ({ openModal }: { openModal: (imgs: string[], i: number) 
     </section>
   )
 }
-// ---------- TATTOO GALLERY (DYNAMIC VERSION) ----------
+// ---------- TATTOO GALLERY (UPDATED VERSION) ----------
 const TattooSection = ({ openModal }: { openModal: (imgs: string[], i: number) => void }) => {
   const [galleryItems, setGalleryItems] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Kinukuha ang data sa /api/tattoo
     fetch("/api/tattoo")
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) {
-          // Kunin lang ang top 6 para sa landing page gallery
           setGalleryItems(data.slice(0, 6))
         }
       })
@@ -455,9 +452,11 @@ const TattooSection = ({ openModal }: { openModal: (imgs: string[], i: number) =
   return (
     <section id="tattoo-gallery" className="py-20 bg-black px-6 overflow-hidden">
       <div className="container mx-auto max-w-6xl">
+        {/* UPGRADED TITLE */}
         <div className="text-center mb-16 space-y-4">
-          <h2 className="text-4xl md:text-5xl font-black uppercase tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-red-600 via-orange-500 to-yellow-400 italic">
-            The art of body Tattoo
+          <h2 className="text-4xl md:text-5xl font-black uppercase tracking-tighter leading-none italic">
+            <span className="text-white">The art of body </span>
+            <span className="text-orange-500">Tattoo</span>
           </h2>
         </div>
 
@@ -478,14 +477,14 @@ const TattooSection = ({ openModal }: { openModal: (imgs: string[], i: number) =
                   className="group relative overflow-hidden rounded-[2.5rem] border border-white/10 aspect-[3/4] cursor-pointer bg-zinc-900 shadow-[0_20px_50px_rgba(0,0,0,0.8)]"
                   onClick={() => openModal(galleryItems.map(g => g.image), idx)}
                 >
-                  {/* MAIN TATTOO IMAGE */}
+                  {/* MAIN TATTOO IMAGE - NO TRANSITION */}
                   <img
                     src={item.image}
                     alt={item.placement}
-                    className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110 group-hover:rotate-2"
+                    className="w-full h-full object-cover"
                   />
                   
-                  {/* --- ARTIST OVERLAY --- */}
+                  {/* --- ARTIST OVERLAY (WHITE/ORANGE ONLY) --- */}
                   <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500 flex flex-col justify-end p-8">
                     
                     <motion.div 
@@ -516,7 +515,7 @@ const TattooSection = ({ openModal }: { openModal: (imgs: string[], i: number) =
                       </div>
 
                       {/* Style/Placement Tag */}
-                      <div className="bg-white/10 backdrop-blur-md border border-white/20 px-6 py-2 rounded-full shadow-xl">
+                      <div className="bg-white/10 backdrop-blur-md border border-orange-500/30 px-6 py-2 rounded-full shadow-xl">
                         <p className="text-white text-[10px] md:text-xs font-black uppercase tracking-[0.2em]">
                           {item.placement || "Custom Design"}
                         </p>
@@ -574,7 +573,6 @@ const cardItem = {
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data)) {
-          // Filter lang ang Visible
           setReviews(data.filter((r) => r.isVisible));
         }
       })
@@ -586,7 +584,7 @@ const cardItem = {
     <section id="reviews-section" className="py-20 bg-zinc-950 px-4 border-t border-white/5 overflow-hidden">
       <div className="container mx-auto max-w-5xl">
         
-        {/* HEADER */}
+        {/* UPGRADED HEADER */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -594,11 +592,12 @@ const cardItem = {
           transition={{ duration: 0.6 }}
           className="text-center mb-12 md:mb-16 space-y-4"
         >
-          <Badge className="bg-white text-black text-[10px] uppercase font-black tracking-[0.2em] px-4 py-1 italic">
+          <Badge className="bg-orange-500 text-white text-[10px] uppercase font-black tracking-[0.2em] px-4 py-1 italic border-none">
             Testimonials
           </Badge>
-          <h2 className="text-3xl md:text-5xl font-black uppercase text-white tracking-tighter italic">
-            Client <span className="text-orange-600">Stories</span>
+          <h2 className="text-3xl md:text-5xl font-black uppercase tracking-tighter italic leading-none">
+            <span className="text-white">Client </span>
+            <span className="text-orange-600">Stories</span>
           </h2>
           <p className="mx-auto max-w-xl text-zinc-500 text-xs md:text-sm uppercase tracking-wide font-medium">
             Trusted by junkies for exceptional ink and precision piercing results.
@@ -627,19 +626,19 @@ const cardItem = {
 
                     <div className="relative z-10 flex flex-col h-full justify-between">
                       <div>
-                        {/* Rating Stars */}
+                        {/* Rating Stars - WHITE/ORANGE */}
                         <div className="mb-6 flex gap-1">
                           {[...Array(5)].map((_, i) => (
                             <Star
                               key={i}
                               size={12}
-                              className={i < item.stars ? "fill-orange-600 text-orange-600" : "text-zinc-800"}
+                              className={i < item.stars ? "fill-orange-600 text-orange-600" : "text-white/20"}
                             />
                           ))}
                         </div>
 
                         {/* Testimonial Content */}
-                        <p className="text-sm md:text-base leading-relaxed text-zinc-400 italic font-medium mb-8">
+                        <p className="text-sm md:text-base leading-relaxed text-white italic font-medium mb-8">
                           &quot;{item.description}&quot;
                         </p>
                       </div>
@@ -677,7 +676,7 @@ const cardItem = {
               whileInView={{ opacity: 1 }}
               className="mt-12 flex justify-center"
             >
-               <Link href="/shop" passHref> {/* Palitan ang /piercings kung ano ang actual link mo */}
+               <Link href="/shop" passHref>
               <Button 
                 variant="ghost" 
                 className="group text-zinc-500 hover:text-orange-600 text-[10px] uppercase font-black tracking-[0.3em] transition-all"
@@ -693,7 +692,7 @@ const cardItem = {
     </section>
   );
 };
-// ---------- PRODUCTS SECTION ----------
+// ---------- PRODUCTS SECTION (UPDATED) ----------
 const ProductSection = () => {
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -712,14 +711,15 @@ const ProductSection = () => {
     <section id="shop" className="py-20 bg-black px-6">
       <div className="container mx-auto max-w-5xl">
         
-        {/* --- HEADER SECTION (SAMA NA DITO PAR) --- */}
+        {/* --- UPGRADED HEADER --- */}
         <div className="flex flex-col items-center text-center mb-12 space-y-3">
-          <Badge className="bg-yellow-500 text-black px-3 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest border-none">
+          <Badge className="bg-orange-500 text-white px-3 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest border-none">
             Premium Supplies
           </Badge>
           <div className="space-y-1">
-            <h2 className="text-3xl md:text-5xl font-black uppercase text-white tracking-tighter italic">
-              Aftercare & <span className="text-yellow-500">Jewelry</span>
+            <h2 className="text-3xl md:text-5xl font-black uppercase tracking-tighter italic leading-none">
+              <span className="text-white">Aftercare & </span>
+              <span className="text-orange-500">Jewelry</span>
             </h2>
             <p className="text-zinc-500 text-[10px] md:text-xs uppercase tracking-[0.3em] font-bold">
               High-Quality Piercings • Balms • Studio Merch
@@ -742,23 +742,24 @@ const ProductSection = () => {
                   initial={{ opacity: 0, y: 10 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
-                  className="group relative bg-zinc-900/30 border border-white/5 rounded-[2rem] p-3 md:p-4 hover:border-yellow-500/30 transition-all duration-500"
+                  className="group relative bg-zinc-900/30 border border-white/5 rounded-[2rem] p-3 md:p-4 hover:border-orange-500/30 transition-all duration-500"
                 >
-                  {/* Product Category Tag */}
+                  {/* Product Category Tag - ORANGE */}
                   <div className="absolute top-6 left-6 z-10">
-                    <span className="bg-black/60 backdrop-blur-md text-white text-[8px] font-black px-2 py-1 rounded-lg border border-white/10 uppercase tracking-tighter">
+                    <span className="bg-black/60 backdrop-blur-md text-orange-500 border border-orange-500/30 text-[8px] font-black px-2 py-1 rounded-lg uppercase tracking-tighter">
                       {product.category || "Item"}
                     </span>
                   </div>
 
+                  {/* PRODUCT IMAGE - NO TRANSITION */}
                   <div className="relative aspect-square overflow-hidden rounded-[1.2rem] mb-4 bg-zinc-800">
                     <img
                       src={product.image || "/images/placeholder.jpg"}
                       alt={product.name}
-                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                      className="w-full h-full object-cover"
                     />
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <Button className="bg-white text-black hover:bg-yellow-500 font-bold rounded-full text-xs h-9 px-4">
+                      <Button className="bg-white text-black hover:bg-orange-500 hover:text-white font-bold rounded-full text-xs h-9 px-4 transition-all">
                         <ShoppingBag className="mr-1.5 h-3 w-3" /> Buy Now
                       </Button>
                     </div>
@@ -772,7 +773,7 @@ const ProductSection = () => {
                       <p className="text-zinc-500 text-[9px] md:text-[10px] uppercase font-bold tracking-widest">
                         In-Store Only
                       </p>
-                      <span className="text-yellow-500 font-black text-sm md:text-base">
+                      <span className="text-orange-500 font-black text-sm md:text-base">
                         ₱{(Number(product.selling_price) || 0).toLocaleString()}
                       </span>
                     </div>
@@ -786,7 +787,7 @@ const ProductSection = () => {
               <Link href="/shop" passHref>
                 <Button 
                   variant="ghost" 
-                  className="group text-zinc-500 hover:text-yellow-500 text-[10px] uppercase font-black tracking-[0.3em] transition-all"
+                  className="group text-zinc-500 hover:text-orange-500 text-[10px] uppercase font-black tracking-[0.3em] transition-all"
                 >
                   Browse all items
                   <ChevronRight size={14} className="ml-2 transition-transform group-hover:translate-x-1" />
@@ -814,7 +815,7 @@ export default function Dashboard() {
   
 
   return (
-    <div className="bg-black text-white selection:bg-yellow-400/30 font-sans">
+    <div className="bg-black text-white selection:bg-orange-400/30 font-sans">
       <Navbar />
 
       {modalOpen && (

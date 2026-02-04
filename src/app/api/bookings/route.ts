@@ -1,12 +1,11 @@
-import { db } from "@/lib/firebase"; // Galing sa client config mo
+import { db } from "@/lib/firebase";
 import { 
   collection, getDocs, addDoc, deleteDoc, 
-  updateDoc, doc, query, orderBy, serverTimestamp, getDoc
+  updateDoc, doc, query, orderBy, serverTimestamp, getDoc 
 } from "firebase/firestore";
 import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 
-// --- CONFIG TRANSPORTER ---
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
   port: 465,
@@ -15,68 +14,80 @@ const transporter = nodemailer.createTransport({
   tls: { rejectUnauthorized: false }
 });
 
+// --- HELPER: BRANDED EMAIL TEMPLATE ---
+const getEmailTemplate = (name: string, content: string) => `
+  <div style="background-color: #f4f4f4; padding: 40px 10px; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #1a1a1a;">
+    <div style="max-width: 600px; margin: auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
+      <div style="background-color: #000000; padding: 30px; text-align: center;">
+        <img src="https://res.cloudinary.com/diwrwmjgw/image/upload/v1770200378/pic4_oxfpnf.png" alt="Adrenaline Junky" style="width: 120px; height: auto;">
+        <p style="color: #ea580c; font-size: 10px; letter-spacing: 4px; font-weight: bold; margin-top: 10px; text-transform: uppercase;">Piercinks & Tattoo Studio</p>
+      </div>
+      
+      <div style="padding: 40px 30px;">
+        <h2 style="font-size: 20px; font-weight: 900; text-transform: uppercase; letter-spacing: -0.5px; border-left: 4px solid #ea580c; padding-left: 15px; margin-bottom: 30px;">
+          Hi ${name},
+        </h2>
+        <div style="line-height: 1.6; font-size: 14px; color: #444;">
+          ${content}
+        </div>
+      </div>
+
+      <div style="background: #fafafa; padding: 30px; text-align: center; border-top: 1px solid #eee;">
+        <p style="font-size: 10px; color: #999; text-transform: uppercase; letter-spacing: 2px;">Adrenaline Junky Piercinks</p>
+        <p style="font-size: 10px; color: #999;">Trece Martires, Cavite | @adrenalinejunkypiercinks</p>
+      </div>
+    </div>
+  </div>
+`;
+
 // --- 1. GET ALL BOOKINGS ---
 export async function GET() {
   try {
     const q = query(collection(db, "bookings"), orderBy("timestamp", "desc"));
     const snapshot = await getDocs(q);
-    const bookings = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
+    const bookings = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     return NextResponse.json({ bookings });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
-// --- 2. NEW BOOKING REQUEST (POST) ---
+// --- 2. NEW BOOKING REQUEST ---
 export async function POST(req: Request) {
   try {
     const body = await req.json();
     const { name, email, phone, artist, date, time, service, message, images } = body;
 
     const bookingData = {
-      name,
-      email,
-      phone,
-      artist,
-      preferredDate: date,
-      preferredTime: time,
-      service,
-      message,
-      images: Array.isArray(images) ? images : [], // Cloudinary URLs array
+      name, email, phone, artist,
+      preferredDate: date, preferredTime: time,
+      service, message, 
+      images: Array.isArray(images) ? images : [],
       status: "pending",
       website: "adrenalinejunky",
-      timestamp: serverTimestamp(), // Gamit ang Firebase serverTimestamp
+      timestamp: serverTimestamp(),
     };
 
     const docRef = await addDoc(collection(db, "bookings"), bookingData);
 
-    // Email Confirmation
-    const customerMailOptions = {
-      from: `"Adrenaline Junky Piercinks" <${process.env.EMAIL_USER}>`,
-      to: email,
-      subject: `Your Booking at Adrenaline Junky is being reviewed!`,
-      html: `
-        <div style="font-family: sans-serif; max-width: 600px; margin: auto; border: 1px solid #eee;">
-          <div style="background: #000; padding: 20px; text-align: center;">
-            <h1 style="color: #ea580c; text-transform: uppercase;">Adrenaline Junky</h1>
-          </div>
-          <div style="padding: 30px;">
-            <h2>Hi ${name},</h2>
-            <p>We've received your request for a <b>${service}</b>.</p>
-            <p>Date: ${new Date(date).toDateString()}<br>Time: ${time}</p>
-          </div>
-        </div>
-      `,
-    };
+    const emailContent = `
+      <p>We have successfully received your booking request for <strong>${service.toUpperCase()}</strong>.</p>
+      <div style="background: #f9f9f9; padding: 20px; border-radius: 4px; margin: 20px 0;">
+        <p style="margin: 0; font-size: 12px; color: #888;">SCHEDULE</p>
+        <p style="margin: 5px 0 0 0; font-weight: bold; font-size: 16px;">${new Date(date).toDateString()} | ${time}</p>
+      </div>
+      <p>Our team is currently reviewing your request. Please wait for a confirmation email before heading to the studio.</p>
+    `;
 
-    await transporter.sendMail(customerMailOptions);
+    await transporter.sendMail({
+      from: `"ADRENALINE JUNKY" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: `REQUEST RECEIVED: ${service.toUpperCase()}`,
+      html: getEmailTemplate(name, emailContent),
+    });
 
     return NextResponse.json({ success: true, id: docRef.id }, { status: 201 });
   } catch (error: any) {
-    console.error("POST ERROR:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
@@ -85,11 +96,8 @@ export async function POST(req: Request) {
 export async function DELETE(req: Request) {
   try {
     const { id } = await req.json();
-    if (!id) return NextResponse.json({ error: "Missing ID" }, { status: 400 });
-    
     await deleteDoc(doc(db, "bookings", id));
-    
-    return NextResponse.json({ message: "Deleted!" }, { status: 200 });
+    return NextResponse.json({ message: "Deleted successfully" });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
@@ -99,33 +107,37 @@ export async function DELETE(req: Request) {
 export async function PATCH(req: Request) {
   try {
     const { id, status, preferredDate, preferredTime } = await req.json();
-    
     const docRef = doc(db, "bookings", id);
     const snap = await getDoc(docRef);
-    
-    if (!snap.exists()) {
-      return NextResponse.json({ error: "Booking not found" }, { status: 404 });
-    }
+    if (!snap.exists()) return NextResponse.json({ error: "Booking not found" }, { status: 404 });
 
     const booking = snap.data();
-
-    const updateFields: any = { status: status };
+    const updateFields: any = { status };
     if (preferredDate) updateFields.preferredDate = preferredDate;
     if (preferredTime) updateFields.preferredTime = preferredTime;
 
     await updateDoc(docRef, updateFields);
 
     if (status === "approved") {
-      const approvalMailOptions = {
-        from: `"Adrenaline Junky Piercinks" <${process.env.EMAIL_USER}>`,
+      const approvalContent = `
+        <p style="font-size: 18px; color: #ea580c; font-weight: bold;">YOUR SESSION IS CONFIRMED!</p>
+        <p>Your appointment for <strong>${booking.service.toUpperCase()}</strong> has been approved. We've blocked this slot for you.</p>
+        <div style="background: #000; color: #fff; padding: 20px; border-radius: 4px; margin: 20px 0;">
+          <p style="margin: 0; font-size: 10px; color: #ea580c; letter-spacing: 2px;">FINAL SCHEDULE</p>
+          <p style="margin: 5px 0 0 0; font-weight: bold; font-size: 16px;">${new Date(booking.preferredDate).toDateString()} @ ${booking.preferredTime}</p>
+        </div>
+        <p>See you at the studio! Please arrive 10 minutes early.</p>
+      `;
+
+      await transporter.sendMail({
+        from: `"ADRENALINE JUNKY" <${process.env.EMAIL_USER}>`,
         to: booking.email,
-        subject: `🔥 CONFIRMED: Your session at Adrenaline Junky is set!`,
-        html: `<h2>Hi ${booking.name}, Your session is APPROVED!</h2>`,
-      };
-      await transporter.sendMail(approvalMailOptions);
+        subject: `🔥 CONFIRMED: ${booking.service.toUpperCase()}`,
+        html: getEmailTemplate(booking.name, approvalContent),
+      });
     }
 
-    return NextResponse.json({ message: "Status updated!" });
+    return NextResponse.json({ message: "Status updated and email sent!" });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
