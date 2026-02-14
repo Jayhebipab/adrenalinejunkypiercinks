@@ -11,25 +11,23 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { 
-  Loader2, Eye, User, Calendar, RotateCcw, 
-  CheckCircle2, PhilippinePeso, Hammer, Mail, Phone, Image as ImageIcon
+  Loader2, User, PhilippinePeso, Hammer, MinusCircle, PlusCircle
 } from "lucide-react";
 import { toast } from "sonner";
 
 interface Booking {
-  id: string; // Firebase uses 'id'
+  id: string;
   name: string;
   artist: string;
   service: string;
   preferredDate: string;
   preferredTime?: string;
   status: string;
-  images?: string[]; // In-update sa array para sa multi-upload natin
+  images?: string[];
   email: string;
   phone: string;
-  message?: string;
+  finalPrice?: number;
 }
 
 export default function TattooGallery() {
@@ -37,31 +35,58 @@ export default function TattooGallery() {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   
+  const [availableArtists, setAvailableArtists] = useState<any[]>([]);
+  const [inventoryProducts, setInventoryProducts] = useState<any[]>([]);
+  
   const [price, setPrice] = useState("");
-  const [equipments, setEquipments] = useState("");
+  const [selectedArtist, setSelectedArtist] = useState("");
+  const [productsUsed, setProductsUsed] = useState([{ name: "", quantity: 1 }]);
   const [openFinishDialog, setOpenFinishDialog] = useState<string | null>(null);
 
-  const fetchConfirmed = async () => {
+  const fetchData = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/bookings');
-      const data = await res.json();
-      // Filter approved bookings only
-      const approved = (data.bookings || []).filter((b: Booking) => b.status === 'approved');
-      setItems(approved);
+      const [resBookings, resArtists, resInv] = await Promise.all([
+        fetch('/api/bookings'),
+        fetch('/api/artists'), 
+        fetch('/api/products')
+      ]);
+
+      const dataBookings = await resBookings.json();
+      const dataArtists = await resArtists.json();
+      const dataInv = await resInv.json();
+
+      setItems((dataBookings.bookings || dataBookings || []).filter((b: Booking) => b.status === 'approved' || b.status === 'finished'));
+      setAvailableArtists(Array.isArray(dataArtists) ? dataArtists : dataArtists.artists || []);
+      setInventoryProducts(Array.isArray(dataInv) ? dataInv : dataInv.products || []);
+      
     } catch (error) {
-      toast.error("Failed to load records");
+      toast.error("Failed to load resources");
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { fetchConfirmed(); }, []);
+  useEffect(() => { fetchData(); }, []);
 
-  const updateStatus = async (id: string, newStatus: string, extraData = {}) => {
-    if (newStatus === "finished" && (!price || !equipments)) {
-      toast.error("Please fill up Price and Equipments used.");
-      return;
+  const addProductRow = () => setProductsUsed([...productsUsed, { name: "", quantity: 1 }]);
+  const removeProductRow = (index: number) => setProductsUsed(productsUsed.filter((_, i) => i !== index));
+  const updateProductRow = (index: number, field: string, value: any) => {
+    const updated = [...productsUsed];
+    updated[index] = { ...updated[index], [field]: value };
+    if (field === "name" && value !== "" && index === updated.length - 1) {
+        updated.push({ name: "", quantity: 1 });
+    }
+    setProductsUsed(updated);
+  };
+
+  const updateStatus = async (id: string, newStatus: string) => {
+    const cleanedProducts = productsUsed.filter(p => p.name !== "");
+    if (newStatus === "finished") {
+      if (!price || !selectedArtist || cleanedProducts.length === 0) {
+        toast.error("Please provide price, artist, and at least one material.");
+        return;
+      }
     }
 
     setUpdating(true);
@@ -69,15 +94,23 @@ export default function TattooGallery() {
       const res = await fetch('/api/bookings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, status: newStatus, ...extraData }),
+        body: JSON.stringify({ 
+          id, 
+          status: newStatus, 
+          artist: selectedArtist,
+          finalPrice: price,
+          inventoryUsed: cleanedProducts, 
+          finishedAt: new Date().toISOString()
+        }),
       });
 
       if (res.ok) {
-        toast.success(`Project moved to ${newStatus}`);
-        setPrice("");
-        setEquipments("");
+        toast.success(`Project closed successfully!`);
         setOpenFinishDialog(null);
-        fetchConfirmed();
+        setPrice("");
+        setSelectedArtist("");
+        setProductsUsed([{ name: "", quantity: 1 }]);
+        fetchData();
       }
     } catch (error) {
       toast.error("Update failed");
@@ -86,170 +119,153 @@ export default function TattooGallery() {
     }
   };
 
-  const formatDate = (dateStr: string) => {
-    try {
-      return new Date(dateStr).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' });
-    } catch {
-      return dateStr;
-    }
-  };
-
-  if (loading) return <div className="flex h-60 items-center justify-center"><Loader2 className="animate-spin text-zinc-300" /></div>;
+  if (loading) return <div className="flex h-60 items-center justify-center"><Loader2 className="animate-spin text-muted-foreground" /></div>;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-4">
+      {/* HEADER SECTION */}
       <div>
-        <h2 className="text-3xl font-black italic uppercase tracking-tighter text-zinc-900">Active Projects</h2>
-        <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Ongoing Sessions & Masterpieces</p>
+        <h2 className="text-3xl font-black italic uppercase tracking-tighter text-foreground">Active Projects</h2>
+        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Ongoing Sessions</p>
       </div>
 
-      <div className="border border-zinc-100 rounded-[2rem] overflow-hidden bg-white shadow-sm">
+      {/* TABLE CONTAINER */}
+      <div className="border border-border rounded-[2rem] overflow-hidden bg-card shadow-sm">
         <Table>
-          <TableHeader className="bg-zinc-50/50">
-            <TableRow className="hover:bg-transparent border-zinc-100">
-              <TableHead className="font-black uppercase text-[10px] tracking-widest text-zinc-400">Client / Service</TableHead>
-              <TableHead className="font-black uppercase text-[10px] tracking-widest text-zinc-400">Artist</TableHead>
-              <TableHead className="font-black uppercase text-[10px] tracking-widest text-zinc-400 text-right">Actions</TableHead>
+          <TableHeader className="bg-muted/50">
+            <TableRow className="border-border hover:bg-transparent">
+              <TableHead className="font-black uppercase text-[10px] tracking-widest text-muted-foreground">Client / Service</TableHead>
+              <TableHead className="font-black uppercase text-[10px] tracking-widest text-center text-muted-foreground">Artist & Fee</TableHead>
+              <TableHead className="font-black uppercase text-[10px] tracking-widest text-right text-muted-foreground">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {items.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={3} className="text-center py-10 text-zinc-400 font-bold uppercase text-[10px]">No active projects found</TableCell>
-              </TableRow>
-            ) : (
-              items.map((item) => (
-                <TableRow key={item.id} className="group border-zinc-50 hover:bg-zinc-50/30 transition-colors">
-                  <TableCell>
-                    <div className="flex flex-col">
-                      <span className="font-black uppercase text-sm text-zinc-900">{item.name}</span>
-                      <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-tight">{item.service || "Unspecified Service"}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="rounded-none font-black uppercase text-[9px] px-2 border-zinc-200">{item.artist || "No Artist Assigned"}</Badge>
-                  </TableCell>
-                  <TableCell className="text-right space-x-2">
-                    
-                    {/* VIEW INFO DIALOG */}
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-full hover:bg-zinc-100 text-zinc-600">
-                          <Eye className="size-4" />
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="max-w-md rounded-[2.5rem] p-0 overflow-hidden border-none shadow-2xl bg-white">
-                          <DialogHeader className="bg-zinc-900 p-6 text-left">
-                              <DialogTitle className="font-black uppercase italic text-xl tracking-tighter text-white">Project Details</DialogTitle>
-                              <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">ID: {item.id.slice(-8)}</p>
-                          </DialogHeader>
-                          <div className="p-8 space-y-6 max-h-[70vh] overflow-y-auto">
-                              {/* MULTI-IMAGE GALLERY VIEW */}
-                              {item.images && item.images.length > 0 ? (
-                                  <div className="grid grid-cols-2 gap-2">
-                                      {item.images.map((img, idx) => (
-                                        <div key={idx} className="aspect-square rounded-xl overflow-hidden bg-zinc-100 border border-zinc-100 shadow-inner">
-                                          <img src={img} alt={`Ref ${idx}`} className="w-full h-full object-cover" />
-                                        </div>
-                                      ))}
-                                  </div>
-                              ) : (
-                                <div className="h-32 flex flex-col items-center justify-center bg-zinc-50 rounded-2xl border border-dashed border-zinc-200">
-                                  <ImageIcon className="size-6 text-zinc-300 mb-2" />
-                                  <span className="text-[10px] font-bold text-zinc-400 uppercase">No Reference Images</span>
-                                </div>
-                              )}
-
-                              <div className="grid grid-cols-1 gap-4 text-sm">
-                                  <div className="flex items-center gap-3 font-black uppercase tracking-tighter text-zinc-800">
-                                      <User className="size-4 text-orange-600" /> {item.name}
-                                  </div>
-                                  <div className="flex items-center gap-3 text-zinc-500 font-bold uppercase text-[11px]">
-                                      <Mail className="size-4" /> {item.email}
-                                  </div>
-                                  <div className="flex items-center gap-3 text-zinc-500 font-bold uppercase text-[11px]">
-                                      <Phone className="size-4" /> {item.phone}
-                                  </div>
-                                  <div className="flex items-center gap-3 text-zinc-500 font-bold uppercase text-[11px]">
-                                      <Calendar className="size-4 text-orange-600" /> {formatDate(item.preferredDate)} @ {item.preferredTime}
-                                  </div>
-                                  {item.message && (
-                                      <div className="p-4 bg-zinc-50 rounded-2xl text-[11px] text-zinc-500 italic border border-zinc-100">
-                                          "{item.message}"
-                                      </div>
-                                  )}
-                              </div>
-                          </div>
-                      </DialogContent>
-                    </Dialog>
-
-                    {/* REVERT BUTTON */}
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={() => updateStatus(item.id, "pending")}
-                      className="h-8 w-8 p-0 rounded-full hover:bg-orange-50 text-orange-600"
-                    >
-                      <RotateCcw className="size-4" />
-                    </Button>
-
-                    {/* FINISH DIALOG */}
+            {items.map((item) => (
+              <TableRow key={item.id} className={`border-border ${item.status === 'finished' ? 'bg-emerald-500/5' : ''}`}>
+                <TableCell>
+                  <div className="flex flex-col">
+                    <span className="font-black uppercase text-sm text-foreground">{item.name}</span>
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase">{item.service}</span>
+                  </div>
+                </TableCell>
+                <TableCell className="text-center">
+                   <div className="flex flex-col items-center gap-1">
+                      <Badge variant="outline" className="rounded-none font-black uppercase text-[9px] border-border text-foreground">
+                        {item.artist || "No Artist Assigned"}
+                      </Badge>
+                      {item.finalPrice && (
+                        <span className="text-[11px] font-black text-emerald-500 flex items-center gap-0.5">
+                          ₱{item.finalPrice.toLocaleString()}
+                        </span>
+                      )}
+                   </div>
+                </TableCell>
+                <TableCell className="text-right">
+                  {item.status !== 'finished' && (
                     <Dialog open={openFinishDialog === item.id} onOpenChange={(open) => setOpenFinishDialog(open ? item.id : null)}>
                       <DialogTrigger asChild>
-                        <Button size="sm" className="h-8 bg-zinc-900 hover:bg-emerald-600 text-white font-black uppercase text-[10px] px-4 rounded-full">
-                          <CheckCircle2 className="size-3 mr-1.5" /> Finish
+                        <Button size="sm" className="h-8 bg-foreground text-background hover:bg-emerald-600 hover:text-white font-black uppercase text-[10px] rounded-full transition-all">
+                          Finish
                         </Button>
                       </DialogTrigger>
-                      <DialogContent className="max-w-md rounded-[2.5rem] p-8 bg-white border-none shadow-2xl">
+                      <DialogContent className="max-w-md rounded-[2.5rem] p-8 bg-popover border-border shadow-2xl overflow-y-auto max-h-[90vh]">
                         <DialogHeader>
-                          <div className="size-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-4">
-                              <CheckCircle2 className="size-6" />
-                          </div>
-                          <DialogTitle className="text-2xl font-black uppercase italic tracking-tighter">Session Complete</DialogTitle>
-                          <p className="text-[10px] font-bold text-zinc-400 uppercase">Closing project for {item.name}</p>
+                          <DialogTitle className="text-2xl font-black uppercase italic tracking-tighter text-foreground">Session Complete</DialogTitle>
                         </DialogHeader>
                         
-                        <div className="space-y-4 py-6">
+                        <div className="space-y-6 py-4">
+                          {/* ARTIST SELECT */}
                           <div className="space-y-2">
-                            <Label className="text-[10px] font-black uppercase flex items-center gap-2">
-                              <PhilippinePeso className="size-3 text-emerald-500"/> Final Price <span className="text-red-500">*</span>
+                            <Label className="text-[10px] font-black uppercase flex items-center gap-2 text-muted-foreground">
+                              <User className="size-3 text-emerald-500"/> Artist <span className="text-destructive">*</span>
+                            </Label>
+                            <select 
+                              className="w-full bg-muted p-3 rounded-xl text-[12px] font-bold border border-border outline-none focus:border-emerald-500 transition-all text-foreground"
+                              value={selectedArtist}
+                              onChange={(e) => setSelectedArtist(e.target.value)}
+                            >
+                              <option value="" className="bg-popover">Select Artist...</option>
+                              {availableArtists.map(a => (
+                                <option key={a.fullName} value={a.fullName} className="bg-popover">{a.fullName}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* PRICE INPUT */}
+                          <div className="space-y-2">
+                            <Label className="text-[10px] font-black uppercase flex items-center gap-2 text-muted-foreground">
+                              <PhilippinePeso className="size-3 text-emerald-500"/> Final Price <span className="text-destructive">*</span>
                             </Label>
                             <Input 
-                              placeholder="e.g. 2500" 
-                              type="number"
-                              className="rounded-xl border-zinc-100 h-12 font-bold"
-                              value={price}
-                              onChange={(e) => setPrice(e.target.value)}
+                              type="number" 
+                              placeholder="0.00"
+                              className="rounded-xl h-12 font-bold focus-visible:ring-emerald-500 bg-muted border-border text-foreground" 
+                              value={price} 
+                              onChange={(e) => setPrice(e.target.value)} 
                             />
                           </div>
-                          <div className="space-y-2">
-                            <Label className="text-[10px] font-black uppercase flex items-center gap-2">
-                              <Hammer className="size-3 text-emerald-500"/> Materials Used <span className="text-red-500">*</span>
-                            </Label>
-                            <Textarea 
-                              placeholder="Needles, Inks, Aftercare..." 
-                              className="rounded-2xl border-zinc-100 min-h-[100px] text-xs"
-                              value={equipments}
-                              onChange={(e) => setEquipments(e.target.value)}
-                            />
+
+                          {/* DYNAMIC INVENTORY DEDUCTION */}
+                          <div className="space-y-3">
+                            <div className="flex justify-between items-center">
+                              <Label className="text-[10px] font-black uppercase flex items-center gap-2 text-muted-foreground">
+                                <Hammer className="size-3 text-emerald-500"/> Materials Used
+                              </Label>
+                              <button onClick={addProductRow} className="text-emerald-500 hover:text-emerald-400 transition-colors">
+                                <PlusCircle size={18} />
+                              </button>
+                            </div>
+                            
+                            <div className="space-y-2 max-h-[200px] overflow-y-auto pr-2 custom-scrollbar">
+                              {productsUsed.map((row, index) => (
+                                <div key={index} className="flex gap-2 items-center">
+                                  <select 
+                                    className="flex-1 bg-muted p-2.5 rounded-lg text-[11px] font-bold border border-border outline-none text-foreground"
+                                    value={row.name}
+                                    onChange={(e) => updateProductRow(index, "name", e.target.value)}
+                                  >
+                                    <option value="" className="bg-popover">Select Item...</option>
+                                    {inventoryProducts.map(p => (
+                                      <option key={p.id || p._id} value={p.name} className="bg-popover">
+                                        {p.name} ({p.stock || p.quantity})
+                                      </option>
+                                    ))}
+                                  </select>
+                                  {row.name && (
+                                    <input 
+                                      type="number" 
+                                      min="1"
+                                      className="w-14 bg-muted border border-border p-2.5 rounded-lg text-center text-[11px] font-black outline-none text-foreground"
+                                      value={row.quantity}
+                                      onChange={(e) => updateProductRow(index, "quantity", Number(e.target.value))}
+                                    />
+                                  )}
+                                  {productsUsed.length > 1 && (
+                                    <button onClick={() => removeProductRow(index)} className="text-muted-foreground hover:text-destructive transition-colors">
+                                      <MinusCircle size={16} />
+                                    </button>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
                           </div>
                         </div>
 
                         <DialogFooter>
                           <Button 
-                            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-full font-black uppercase tracking-widest text-xs h-12"
-                            disabled={updating || !price || !equipments}
-                            onClick={() => updateStatus(item.id, "finished", { finalPrice: price, inventoryUsed: equipments })}
+                            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-full font-black uppercase h-12 shadow-lg active:scale-95 transition-all"
+                            disabled={updating}
+                            onClick={() => updateStatus(item.id, "finished")}
                           >
                             {updating ? <Loader2 className="animate-spin" /> : "Verify & Close Project"}
                           </Button>
                         </DialogFooter>
                       </DialogContent>
                     </Dialog>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
+                  )}
+                </TableCell>
+              </TableRow>
+            ))}
           </TableBody>
         </Table>
       </div>

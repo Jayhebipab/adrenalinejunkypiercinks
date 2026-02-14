@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import * as React from "react"
 import { useEffect, useState } from "react"
@@ -38,7 +38,6 @@ const data = {
         {
             title: "Reservation",
             icon: CalendarCheck,
-            isActive: true,
             items: [
                 { title: "List", id: "List" },
                 { title: "Booking Request", id: "Booking Request" },
@@ -51,6 +50,14 @@ const data = {
             items: [
                 { title: "Product", id: "Product" },
                 { title: "Checkout", id: "Checkout" },
+                { title: "Qr Settings", id: "Qr Settings" },
+            ],
+        },
+        {
+            title: "Promo",
+            icon: CalendarCheck,
+            items: [
+                { title: "Promo List", id: "Promo List" },
             ],
         },
         {
@@ -69,9 +76,8 @@ const data = {
             icon: Wrench,
             items: [
                 { title: "Inventory", id: "Inventory" },
-                { title: "Product Management", id: "Product Management" },
+                { title: "Product & Materials", id: "Product Management" },
                 { title: "Category", id: "Category" },
-                { title: "Equipment", id: "Equipment" },
                 { title: "Supplier", id: "Supplier" },
                 { title: "Vat Management", id: "Vat" },
                 { title: "User Management", id: "User Management" },
@@ -102,12 +108,14 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 
 export function AppSidebar({ onNavigate, ...props }: AppSidebarProps) {
     const { theme, setTheme } = useTheme()
+    const [mounted, setMounted] = useState(false)
     const [userData, setUserData] = useState({
         username: "PABLO",
         role: "Super Admin"
     })
 
     useEffect(() => {
+        setMounted(true)
         const savedUser = localStorage.getItem("user")
         if (savedUser) {
             try {
@@ -138,9 +146,11 @@ export function AppSidebar({ onNavigate, ...props }: AppSidebarProps) {
         return <UserCircle2 className="size-5 text-zinc-400" />
     }
 
+    if (!mounted) return null
+
+    // Ginamit natin ang 'font-mono' class para sa JetBrains Mono look
     return (
-        <Sidebar collapsible="icon" {...props} className="border-r border-border/50">
-            {/* --- HEADER: USERNAME & ROLE --- */}
+        <Sidebar collapsible="icon" {...props} className="border-r border-border/50 font-mono">
             <SidebarHeader>
                 <SidebarMenu>
                     <SidebarMenuItem>
@@ -149,19 +159,18 @@ export function AppSidebar({ onNavigate, ...props }: AppSidebarProps) {
                             onClick={() => onNavigate("Dashboard")}
                             className="hover:bg-transparent cursor-pointer group py-6"
                         >
-                            <div className="flex aspect-square size-9 items-center justify-center rounded-xl bg-zinc-900 text-white transition-all duration-300 group-hover:bg-primary shadow-lg">
+                            <div className="flex aspect-square size-9 items-center justify-center rounded-xl bg-zinc-900 text-white transition-all duration-300 group-hover:bg-primary shadow-lg dark:bg-zinc-800">
                                 {getRoleIcon()}
                             </div>
 
                             <div className="grid flex-1 text-left ml-2 leading-[0.8]">
-                                {/* STORE NAME: Mas malaki at dikit-dikit ang letters */}
-                                <span className="truncate font-black text-xl italic tracking-tighter uppercase text-black dark:text-black">
+                                <span className="truncate font-black text-xl italic tracking-tighter uppercase text-foreground">
                                     Junky Piercinks
                                 </span>
 
-                                {/* ROLE PANEL: Sobrang nipis pero malawak ang spacing */}
-                                <span className={`truncate text-[9px] font-extrabold tracking-[0.25em] uppercase mt-1 ${userData.role === 'Super Admin' ? 'text-red-600' : 'text-zinc-500'
-                                    }`}>
+                                <span className={`truncate text-[10px] font-bold tracking-[0.2em] uppercase mt-1 ${
+                                    userData.role === 'Super Admin' ? 'text-red-600' : 'text-muted-foreground'
+                                }`}>
                                     {userData.role} • PANEL
                                 </span>
                             </div>
@@ -186,26 +195,24 @@ export function AppSidebar({ onNavigate, ...props }: AppSidebarProps) {
                     </SidebarMenu>
                 </div>
 
+                {/* Siguraduhin na ang NavMain at NavProjects ay tumatanggap din ng font style */}
                 <NavMain items={data.navMain} onViewChange={onNavigate} />
                 <NavProjects projects={data.projects} onViewChange={onNavigate} />
             </SidebarContent>
 
-            {/* --- FOOTER: LEFT-ALIGNED ICONS WITH HOVER --- */}
             <SidebarFooter className="border-t border-border/40 p-3">
                 <div className="flex items-center justify-start gap-1">
-                    {/* Dark Mode Toggle with Hover */}
                     <button
                         onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-                        className="p-2 rounded-lg text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white transition-all active:scale-90"
+                        className="p-2 rounded-lg text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-all active:scale-90"
                         title="Toggle Theme"
                     >
                         {theme === "dark" ? <Sun className="size-5" /> : <Moon className="size-5" />}
                     </button>
 
-                    {/* Logout with Hover */}
                     <button
                         onClick={handleLogout}
-                        className="p-2 rounded-lg text-zinc-500 hover:bg-red-50 dark:hover:bg-red-950/30 hover:text-red-600 transition-all active:scale-90"
+                        className="p-2 rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-all active:scale-90"
                         title="Logout"
                     >
                         <LogOut className="size-5" />

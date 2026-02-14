@@ -73,7 +73,7 @@ export default function VatManagement() {
     };
 
     return (
-        <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-8 bg-white min-h-screen text-black italic font-sans">
+        <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-8 min-h-screen text-black italic font-sans">
             <Toaster position="top-center" richColors />
 
             {/* HEADER - SAME AS USER MANAGEMENT */}

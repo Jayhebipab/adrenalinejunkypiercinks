@@ -94,7 +94,7 @@ export default function SupplierMaintenance() {
     );
 
     return (
-        <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-6 bg-white min-h-screen font-sans italic antialiased text-zinc-900">
+        <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-6min-h-screen font-sans italic antialiased text-zinc-900">
             <Toaster position="bottom-right" richColors />
 
             {/* SUPPLIERS HEADER - THE CREW STYLE WITH REFRESH */}
@@ -153,7 +153,7 @@ export default function SupplierMaintenance() {
             </div>
 
             {/* DATA TABLE AREA */}
-            <div className="border border-zinc-100 rounded-[3rem] bg-white shadow-sm overflow-hidden">
+            <div className="border border-zinc-100 mt-5 rounded-[3rem] bg-white shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse min-w-[700px]">
                         <thead className="bg-zinc-50/50 border-b border-zinc-100 text-zinc-400 uppercase text-[10px] font-black tracking-[0.3em]">

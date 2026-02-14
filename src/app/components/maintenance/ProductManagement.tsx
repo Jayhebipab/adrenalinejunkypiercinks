@@ -168,7 +168,7 @@ const handleDelete = async (id: string, name: string) => {
     });
 
     return (
-        <div className="h-screen bg-white flex flex-col overflow-hidden font-sans italic antialiased text-zinc-900">
+        <div className="h-screenflex flex-col overflow-hidden font-sans italic antialiased text-zinc-900">
             <Toaster position="bottom-right" richColors />
 
             <div className="max-w-6xl mx-auto w-full flex flex-col h-full p-4 md:p-8 space-y-6">
@@ -184,7 +184,7 @@ const handleDelete = async (id: string, name: string) => {
         <div>
             <div className="flex items-center gap-3">
                 <h1 className="text-4xl font-black italic uppercase tracking-tighter leading-none">
-                    The Products
+                    The Products & Materials
                 </h1>
                 {/* REFRESH BUTTON INTEGRATION */}
                 <button 
@@ -218,7 +218,7 @@ const handleDelete = async (id: string, name: string) => {
                         <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-zinc-400 group-focus-within:text-zinc-900 transition-colors" size={20} />
                         <input 
                             type="text" 
-                            placeholder="SCAN PRODUCT DATABASE..." 
+                            placeholder="SCAN PRODUCT.." 
                             className="w-full bg-zinc-50 border border-zinc-200 rounded-3xl py-5 pl-14 pr-8 text-sm outline-none focus:ring-4 ring-zinc-900/5 focus:bg-white transition-all font-bold uppercase tracking-widest shadow-sm"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}

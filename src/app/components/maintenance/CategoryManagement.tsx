@@ -82,7 +82,7 @@ export default function CategoryMaintenance() {
     const filtered = categories.filter(c => c.category_name.toLowerCase().includes(search.toLowerCase()));
 
     return (
-        <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-6 bg-white min-h-screen font-sans italic antialiased text-zinc-900">
+        <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-6 min-h-screen font-sans italic antialiased text-zinc-900">
             <Toaster position="bottom-right" richColors />
 {/* CATEGORY HEADER - THE CREW STYLE WITH REFRESH */}
 <header className="flex flex-col md:flex-row justify-between items-center bg-zinc-900 p-10 rounded-[2.5rem] text-white shadow-2xl gap-6 mb-8">

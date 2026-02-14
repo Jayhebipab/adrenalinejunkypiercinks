@@ -1,7 +1,7 @@
 import { db } from "@/lib/firebase";
 import { 
   collection, getDocs, addDoc, deleteDoc, 
-  updateDoc, doc, query, orderBy, serverTimestamp, getDoc 
+  updateDoc, doc, query, orderBy, serverTimestamp, getDoc, increment 
 } from "firebase/firestore";
 import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
@@ -22,7 +22,6 @@ const getEmailTemplate = (name: string, content: string) => `
         <img src="https://res.cloudinary.com/diwrwmjgw/image/upload/v1770200378/pic4_oxfpnf.png" alt="Adrenaline Junky" style="width: 120px; height: auto;">
         <p style="color: #ea580c; font-size: 10px; letter-spacing: 4px; font-weight: bold; margin-top: 10px; text-transform: uppercase;">Piercinks & Tattoo Studio</p>
       </div>
-      
       <div style="padding: 40px 30px;">
         <h2 style="font-size: 20px; font-weight: 900; text-transform: uppercase; letter-spacing: -0.5px; border-left: 4px solid #ea580c; padding-left: 15px; margin-bottom: 30px;">
           Hi ${name},
@@ -30,11 +29,6 @@ const getEmailTemplate = (name: string, content: string) => `
         <div style="line-height: 1.6; font-size: 14px; color: #444;">
           ${content}
         </div>
-      </div>
-
-      <div style="background: #fafafa; padding: 30px; text-align: center; border-top: 1px solid #eee;">
-        <p style="font-size: 10px; color: #999; text-transform: uppercase; letter-spacing: 2px;">Adrenaline Junky Piercinks</p>
-        <p style="font-size: 10px; color: #999;">Trece Martires, Cavite | @adrenalinejunkypiercinks</p>
       </div>
     </div>
   </div>
@@ -69,23 +63,6 @@ export async function POST(req: Request) {
     };
 
     const docRef = await addDoc(collection(db, "bookings"), bookingData);
-
-    const emailContent = `
-      <p>We have successfully received your booking request for <strong>${service.toUpperCase()}</strong>.</p>
-      <div style="background: #f9f9f9; padding: 20px; border-radius: 4px; margin: 20px 0;">
-        <p style="margin: 0; font-size: 12px; color: #888;">SCHEDULE</p>
-        <p style="margin: 5px 0 0 0; font-weight: bold; font-size: 16px;">${new Date(date).toDateString()} | ${time}</p>
-      </div>
-      <p>Our team is currently reviewing your request. Please wait for a confirmation email before heading to the studio.</p>
-    `;
-
-    await transporter.sendMail({
-      from: `"ADRENALINE JUNKY" <${process.env.EMAIL_USER}>`,
-      to: email,
-      subject: `REQUEST RECEIVED: ${service.toUpperCase()}`,
-      html: getEmailTemplate(name, emailContent),
-    });
-
     return NextResponse.json({ success: true, id: docRef.id }, { status: 201 });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -103,30 +80,72 @@ export async function DELETE(req: Request) {
   }
 }
 
-// --- 4. UPDATE STATUS (PATCH) ---
+// --- 4. UPDATE STATUS (Strictly Bookings Only) ---
 export async function PATCH(req: Request) {
   try {
-    const { id, status, preferredDate, preferredTime } = await req.json();
+    const { 
+      id, 
+      status, 
+      preferredDate, 
+      preferredTime, 
+      finalPrice, 
+      inventoryUsed, 
+      artist 
+    } = await req.json();
+    
     const docRef = doc(db, "bookings", id);
     const snap = await getDoc(docRef);
+    
     if (!snap.exists()) return NextResponse.json({ error: "Booking not found" }, { status: 404 });
 
     const booking = snap.data();
     const updateFields: any = { status };
+
     if (preferredDate) updateFields.preferredDate = preferredDate;
     if (preferredTime) updateFields.preferredTime = preferredTime;
 
+    // --- CASE: FINISHED ---
+    if (status === "finished") {
+      updateFields.artist = artist;
+      updateFields.finalPrice = Number(finalPrice);
+      updateFields.inventoryUsed = inventoryUsed; // Array ng materials
+      updateFields.finishedAt = serverTimestamp();
+
+      // AUTOMATIC INVENTORY DEDUCTION
+      // Hahanapin natin yung bawat product sa inventory at babawasan ang stock
+      if (Array.isArray(inventoryUsed)) {
+        for (const item of inventoryUsed) {
+          // Note: Ang 'item.name' ay dapat match sa name sa 'products' collection
+          const productsRef = collection(db, "products");
+          const q = query(productsRef);
+          const querySnapshot = await getDocs(q);
+          
+          querySnapshot.forEach(async (productDoc) => {
+            if (productDoc.data().name === item.name) {
+              const productRef = doc(db, "products", productDoc.id);
+              await updateDoc(productRef, {
+                // Babawasan ang quantity. Kung 'stock' ang field name mo, palitan ito.
+                quantity: increment(-item.quantity) 
+              });
+            }
+          });
+        }
+      }
+      // PINALITAN: Inalis ang logic na nag-a-addDoc sa "promos" collection.
+    }
+
+    // UPDATE MAIN DOCUMENT
     await updateDoc(docRef, updateFields);
 
+    // --- CASE: APPROVED (Email Notification) ---
     if (status === "approved") {
       const approvalContent = `
-        <p style="font-size: 18px; color: #ea580c; font-weight: bold;">YOUR SESSION IS CONFIRMED!</p>
-        <p>Your appointment for <strong>${booking.service.toUpperCase()}</strong> has been approved. We've blocked this slot for you.</p>
+        <p style="font-size: 18px; color: #ea580c; font-weight: bold;">SESSION CONFIRMED!</p>
+        <p>Your appointment for <strong>${booking.service.toUpperCase()}</strong> has been approved.</p>
         <div style="background: #000; color: #fff; padding: 20px; border-radius: 4px; margin: 20px 0;">
-          <p style="margin: 0; font-size: 10px; color: #ea580c; letter-spacing: 2px;">FINAL SCHEDULE</p>
+          <p style="margin: 0; font-size: 10px; color: #ea580c; letter-spacing: 2px;">SCHEDULE</p>
           <p style="margin: 5px 0 0 0; font-weight: bold; font-size: 16px;">${new Date(booking.preferredDate).toDateString()} @ ${booking.preferredTime}</p>
         </div>
-        <p>See you at the studio! Please arrive 10 minutes early.</p>
       `;
 
       await transporter.sendMail({
@@ -137,8 +156,9 @@ export async function PATCH(req: Request) {
       });
     }
 
-    return NextResponse.json({ message: "Status updated and email sent!" });
+    return NextResponse.json({ message: "Booking updated and inventory adjusted!" });
   } catch (error: any) {
+    console.error("PATCH Error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

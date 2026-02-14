@@ -177,12 +177,12 @@ export default function InventoryPage() {
     const filteredTable = products.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
     return (
-        <div className="min-h-screen bg-slate-50 p-6 md:p-10 font-sans text-slate-900">
+        <div className="min-h-screen p-6 md:p-10 font-sans text-slate-900">
             <Toaster position="top-right" richColors />
 
             <div className="max-w-7xl mx-auto space-y-6">
                {/* HEADER SECTION */}
-<div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-4 md:p-8 rounded-3xl md:rounded-4xl shadow-sm border border-slate-100 gap-4">
+<div className="flex flex-col md:flex-row justify-between items-start md:items-center p-4 md:p-8 rounded-3xl md:rounded-4xl shadow-sm border border-slate-100 gap-4">
     <div className="flex items-center gap-3 md:gap-4">
         <div className="p-3 md:p-4 bg-slate-900 rounded-xl md:rounded-2xl text-white shadow-xl">
             <Package className="w-6 h-6 md:w-8 md:h-8" />

@@ -45,7 +45,7 @@ export default function ReviewsPanel() {
   };
 
   return (
-    <div className="p-6 bg-white rounded-3xl border border-zinc-100 shadow-sm">
+    <div className="p-6 rounded-3xl bordershadow-sm">
       <h2 className="text-sm font-black uppercase tracking-[0.3em] mb-6">Customer Reviews Management</h2>
       
       <div className="space-y-4">

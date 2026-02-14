@@ -121,7 +121,7 @@ export default function ArtistModal({ isOpen, onClose, artistData, onSave, loadi
                 <button onClick={onClose} className="absolute top-6 right-6 z-50 p-2 bg-zinc-100 rounded-full hover:bg-zinc-200 transition-all">
                     <X size={20}/>
                 </button>
-
+WWW
                 {/* LEFT SIDE: PROFILE INFO */}
                 <div className="w-full lg:w-[400px] bg-zinc-50 p-8 border-r border-zinc-100 overflow-y-auto shrink-0">
                     <div className="text-center space-y-4 mb-8">

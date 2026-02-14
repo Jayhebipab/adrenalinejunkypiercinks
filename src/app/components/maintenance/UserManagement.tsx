@@ -123,7 +123,7 @@ export default function UserManagement() {
     };
 
     return (
-        <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6 bg-white min-h-screen text-black italic antialiased">
+        <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6 min-h-screen text-black italic antialiased">
             <Toaster position="top-center" richColors />
             
             {/* --- HEADER (Supplier Style) --- */}
