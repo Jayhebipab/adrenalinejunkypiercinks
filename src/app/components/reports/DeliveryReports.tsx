@@ -46,7 +46,7 @@ export default function DeliveryReports() {
   );
 
   return (
-    <div className="p-4 md:p-10 bg-zinc-50 min-h-screen text-zinc-900 font-sans">
+    <div className="p-4 md:p-10 min-h-screen text-zinc-900 font-sans">
       <div className="max-w-7xl mx-auto space-y-6">
         
         {/* HEADER */}

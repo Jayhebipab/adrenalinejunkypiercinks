@@ -145,7 +145,7 @@ export default function BlogAdminPage() {
   };
 
   return (
-    <section className="min-h-screen text-zinc-900 py-10 md:py-16 px-6 font-sans bg-white">
+    <section className="min-h-screen text-zinc-900 py-10 md:py-16 px-6 font-sans">
       <Toaster position="bottom-right" richColors />
       
       <div className="container mx-auto max-w-6xl">

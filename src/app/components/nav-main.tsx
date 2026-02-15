@@ -17,19 +17,23 @@ import {
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar"
 
+// 1. In-update ang Interface para tanggapin ang optional badge
+interface NavItem {
+  title: string
+  icon?: LucideIcon
+  isActive?: boolean
+  items?: {
+    title: string
+    id: string
+    badge?: number // Idinagdag para sa notification count
+  }[]
+}
+
 export function NavMain({
   items,
-  onViewChange, // Idinagdag natin ito
+  onViewChange,
 }: {
-  items: {
-    title: string
-    icon?: LucideIcon
-    isActive?: boolean
-    items?: {
-      title: string
-      id: string // Pinalitan ang url ng id
-    }[]
-  }[]
+  items: NavItem[]
   onViewChange: (id: string) => void
 }) {
   return (
@@ -51,9 +55,18 @@ export function NavMain({
                   {item.items?.map((subItem) => (
                     <SidebarMenuSubItem key={subItem.title}>
                       <SidebarMenuSubButton asChild>
-                        {/* DITO ANG MAGIC: onClick imbes na href */}
-                        <button onClick={() => onViewChange(subItem.id)} className="cursor-pointer">
-                          <span>{subItem.title}</span>
+                        <button 
+                          onClick={() => onViewChange(subItem.id)} 
+                          className="cursor-pointer flex items-center justify-between w-full group/item"
+                        >
+                          <span className="truncate">{subItem.title}</span>
+                          
+                          {/* 2. NOTIFICATION BADGE UI */}
+                          {subItem.badge !== undefined && subItem.badge > 0 && (
+                            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-black text-white shadow-sm animate-pulse">
+                              {subItem.badge > 99 ? "99+" : subItem.badge}
+                            </span>
+                          )}
                         </button>
                       </SidebarMenuSubButton>
                     </SidebarMenuSubItem>

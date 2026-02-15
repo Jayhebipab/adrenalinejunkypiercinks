@@ -828,6 +828,7 @@ export default function Dashboard() {
 
       <main>
         <Hero />
+        <FloatingChatWidget/>
         <BlogSection />
         
         <GallerySection openModal={openModal} />

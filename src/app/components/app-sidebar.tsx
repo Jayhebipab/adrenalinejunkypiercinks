@@ -3,6 +3,9 @@
 import * as React from "react"
 import { useEffect, useState } from "react"
 import { useTheme } from "next-themes"
+// 1. IMPORT FIREBASE TOOLS
+import { db } from "@/lib/firebase" 
+import { collection, query, where, onSnapshot } from "firebase/firestore"
 import {
     LayoutDashboard,
     CalendarCheck,
@@ -69,6 +72,7 @@ const data = {
                 { title: "Piercing Gallery", id: "Piercing Gallery" },
                 { title: "Reviews", id: "Reviews" },
                 { title: "Blogs", id: "Blogs" },
+                { title: "FAQ", id: "FAQ" },
             ],
         },
         {
@@ -109,6 +113,13 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 export function AppSidebar({ onNavigate, ...props }: AppSidebarProps) {
     const { theme, setTheme } = useTheme()
     const [mounted, setMounted] = useState(false)
+    
+    // 2. STATE PARA SA NOTIFICATIONS
+    const [notifications, setNotifications] = useState({
+        bookings: 0,
+        messages: 0
+    })
+
     const [userData, setUserData] = useState({
         username: "PABLO",
         role: "Super Admin"
@@ -128,7 +139,47 @@ export function AppSidebar({ onNavigate, ...props }: AppSidebarProps) {
                 console.error("Error parsing user data:", error)
             }
         }
+
+        // 3. REAL-TIME FIREBASE LISTENERS
+        // Para sa Booking Request (Pending)
+        const qBookings = query(
+            collection(db, "bookings"), 
+            where("status", "==", "pending") 
+        );
+        const unsubBookings = onSnapshot(qBookings, (snapshot) => {
+            setNotifications(prev => ({ ...prev, bookings: snapshot.size }));
+        });
+
+        // Para sa Messenger (Unread)
+        const qMessages = query(
+            collection(db, "chats"), 
+            where("isRead", "==", false)
+        );
+        const unsubMessages = onSnapshot(qMessages, (snapshot) => {
+            setNotifications(prev => ({ ...prev, messages: snapshot.size }));
+        });
+
+        // CLEANUP Listeners
+        return () => {
+            unsubBookings();
+            unsubMessages();
+        }
     }, [])
+
+    // 4. LOGIC: Inject badges into the data mapping
+    const navMainWithBadges = data.navMain.map((group) => {
+        if (group.title === "Reservation") {
+            return {
+                ...group,
+                items: group.items.map((item) => {
+                    if (item.title === "Booking Request") return { ...item, badge: notifications.bookings }
+                    if (item.title === "Messenger") return { ...item, badge: notifications.messages }
+                    return item
+                }),
+            }
+        }
+        return group
+    })
 
     const handleLogout = async () => {
         try {
@@ -148,7 +199,6 @@ export function AppSidebar({ onNavigate, ...props }: AppSidebarProps) {
 
     if (!mounted) return null
 
-    // Ginamit natin ang 'font-mono' class para sa JetBrains Mono look
     return (
         <Sidebar collapsible="icon" {...props} className="border-r border-border/50 font-mono">
             <SidebarHeader>
@@ -195,8 +245,8 @@ export function AppSidebar({ onNavigate, ...props }: AppSidebarProps) {
                     </SidebarMenu>
                 </div>
 
-                {/* Siguraduhin na ang NavMain at NavProjects ay tumatanggap din ng font style */}
-                <NavMain items={data.navMain} onViewChange={onNavigate} />
+                {/* Ginamit natin ang 'navMainWithBadges' na may realtime data */}
+                <NavMain items={navMainWithBadges} onViewChange={onNavigate} />
                 <NavProjects projects={data.projects} onViewChange={onNavigate} />
             </SidebarContent>
 

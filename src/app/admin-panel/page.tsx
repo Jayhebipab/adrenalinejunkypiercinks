@@ -39,6 +39,7 @@ import BlogAdminPage from "../components/pages/Blogs"
 import QrImagesManager from "../components/shop/Qrimages"
 import PromoPage from "../components/promo"
 import DeliveryReports from "../components/reports/DeliveryReports"
+import FAQEditor from "../components/pages/Faqsettings"
 
 import {
   Breadcrumb,
@@ -113,6 +114,7 @@ export default function AdminPanelPage() {
       case "Vat": return <VatManagement />
       case "Qr Settings": return <QrImagesManager/>
       case "Inventory": return <Inventory/>
+      case "FAQ": return <FAQEditor/>
       case "Sales Reports": return <SalesReports />
       case "Delivery Reports": return <DeliveryReports />
       case "Change Password": return <ChangePassword />

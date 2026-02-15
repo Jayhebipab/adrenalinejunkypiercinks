@@ -117,7 +117,7 @@ export default function SalesReports() {
   };
 
   return (
-    <div className="p-4 md:p-10 bg-[#F8FAFC] min-h-screen text-slate-900 font-sans">
+    <div className="p-4 md:p-10 min-h-screen text-slate-900 font-sans">
       <div className="max-w-7xl mx-auto space-y-6">
         
         {/* HEADER */}
