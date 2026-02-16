@@ -1,14 +1,18 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, ShoppingCart, ChevronDown, User, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
+import { usePathname } from "next/navigation"; // ADDED: Para sa tracking
+import { db } from "@/lib/firebase"; // ADDED: Firebase config
+import { collection, addDoc, serverTimestamp } from "firebase/firestore"; // ADDED: Firestore methods
 import { CartButton } from "./CartButton";
 
 export function Navbar() {
+  const pathname = usePathname(); // ADDED: Kukunin ang current URL path
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setIsScrolled] = useState(false);
   const [isArtistHovered, setIsArtistHovered] = useState(false);
@@ -16,39 +20,79 @@ export function Navbar() {
   const [mobileArtistsOpen, setMobileArtistsOpen] = useState(false);
   const [hoveredLink, setHoveredLink] = useState<string | null>(null);
 
-// 1. Para sa Initial Setup (Artists Fetching at Scroll Listener)
+const hasTrackedRef = useRef(false);
+
 useEffect(() => {
-  fetch("/api/artists")
-    .then((res) => res.json())
-    .then((data) => {
-      if (Array.isArray(data)) {
-        const names = data.map((a: any) => a.fullName);
-        setDynamicArtists(names);
+  const trackActivity = async () => {
+    if (hasTrackedRef.current) return; // guard
+    hasTrackedRef.current = true;
+
+    try {
+      if (pathname.startsWith('/admin') || pathname.startsWith('/dashboard')) return;
+
+      const lastTracked = sessionStorage.getItem("last_tracked_page");
+      if (lastTracked === pathname) return;
+
+      let pageLabel = "";
+      if (pathname === "/" || pathname === "/home") {
+        pageLabel = "Home";
+      } else {
+        const firstSegment = pathname.split('/')[1];
+        pageLabel = firstSegment.charAt(0).toUpperCase() + firstSegment.slice(1);
       }
-    })
-    .catch((err) => console.error("Error fetching nav artists:", err));
 
-  const handleScroll = () => {
-    setIsScrolled(window.scrollY > 20);
+      await addDoc(collection(db, "activity_logs"), {
+        page: pageLabel,
+        path: pathname,
+        user: "Guest User",
+        timestamp: serverTimestamp(),
+        type: "visit"
+      });
+
+      sessionStorage.setItem("last_tracked_page", pathname);
+
+    } catch (err) {
+      console.error("Tracking Error:", err);
+    }
   };
 
-  window.addEventListener("scroll", handleScroll);
-  return () => window.removeEventListener("scroll", handleScroll);
-}, []); // Laging empty array ito. Hindi magbabago ang size.
+  trackActivity();
+}, [pathname]);
 
-// 2. Para sa Scroll Lock (Mobile Menu)
-useEffect(() => {
-  if (isOpen) {
-    document.body.style.overflow = "hidden";
-  } else {
-    document.body.style.overflow = "unset";
-  }
-  
-  // Clean up para sigurado
-  return () => {
-    document.body.style.overflow = "unset";
-  };
-}, [isOpen]); // Laging [isOpen] ang laman nito. Hindi magbabago ang size.
+  // --------------------------------------------------------------
+
+  // 1. Para sa Initial Setup (Artists Fetching at Scroll Listener)
+  useEffect(() => {
+    fetch("/api/artists")
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          const names = data.map((a: any) => a.fullName);
+          setDynamicArtists(names);
+        }
+      })
+      .catch((err) => console.error("Error fetching nav artists:", err));
+
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 20);
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  // 2. Para sa Scroll Lock (Mobile Menu)
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+    
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [isOpen]);
 
   const navLinks = [
     { name: "Home", href: "/home" },
@@ -77,6 +121,7 @@ useEffect(() => {
               transition={{ type: "spring", stiffness: 300, damping: 20 }}
               className="relative"
             >
+
               <motion.div
                 className="absolute -bottom-1 left-0 h-0.5 bg-gradient-to-r from-orange-500 to-transparent"
                 initial={{ scaleX: 0 }}
@@ -194,10 +239,9 @@ useEffect(() => {
 
           {/* ACTION BUTTONS */}
           <div className="flex items-center gap-4 md:gap-8 relative z-[110]">
-{/* Ganito nalang sa Navbar mo par, wag mo na i-wrap ng another motion.div */}
-<div className="flex items-center">
-  <CartButton />
-</div>
+            <div className="flex items-center">
+              <CartButton />
+            </div>
 
             <Link href="/book" className="hidden md:block">
               <motion.div

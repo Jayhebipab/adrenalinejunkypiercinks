@@ -3,17 +3,14 @@
 import * as React from "react"
 import { useState, useEffect } from "react"
 import { AppSidebar } from "../components/app-sidebar"
-
-// 1. I-IMPORT ANG FONT
 import { JetBrains_Mono } from "next/font/google"
 
-// 2. CONFIGURE ANG FONT (subsets at variable)
 const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
   display: "swap",
 })
 
-// I-IMPORT ANG MGA VIEWS (Retained your imports)
+// VIEWS IMPORTS
 import { DashboardHome } from "../components/dashboard/home-view"
 import BookingList from "../components/reservation/BookingList"
 import BookingRequest from "../components/reservation/BookingRequest"
@@ -26,7 +23,7 @@ import Inventory from "../components/maintenance/Inventory"
 import UserManagement from "../components/maintenance/UserManagement"
 import SalesReports from "../components/reports/SaleReports"
 import ChangePassword from "../components/settings/change-password-view"
-import SystemLogs from "../components/settings/SystemLogs"
+import ActivityLogs from "../components/settings/ActivityLogs"
 import CategoryManagement from "../components/maintenance/CategoryManagement"
 import ProductManagement from "../components/maintenance/ProductManagement"
 import SupplierMaintenance from "../components/maintenance/SuppliersMaintenance"
@@ -40,6 +37,7 @@ import QrImagesManager from "../components/shop/Qrimages"
 import PromoPage from "../components/promo"
 import DeliveryReports from "../components/reports/DeliveryReports"
 import FAQEditor from "../components/pages/Faqsettings"
+import AccessControl from "../components/settings/Access-Control"
 
 import {
   Breadcrumb,
@@ -66,7 +64,7 @@ export default function AdminPanelPage() {
   const [activeView, setActiveView] = useState("Dashboard")
   const [upcomingSessions, setUpcomingSessions] = useState([])
 
-  // FETCH UPCOMING SESSIONS (Retained your logic)
+  // FETCH UPCOMING SESSIONS
   useEffect(() => {
     const fetchUpcoming = async () => {
       try {
@@ -74,6 +72,7 @@ export default function AdminPanelPage() {
         const data = await res.json();
         const today = new Date();
         today.setHours(0, 0, 0, 0);
+        
         const filtered = (data.bookings || []).filter((b: any) => {
           if (b.status !== 'approved') return false;
           const sessionDate = new Date(b.preferredDate);
@@ -96,41 +95,41 @@ export default function AdminPanelPage() {
     switch (activeView) {
       case "Dashboard": return <DashboardHome />
       case "List": return <BookingList />
-      case "Booking Request": return <BookingRequest />
+      case "BookingRequest": return <BookingRequest />
       case "Messenger": return <Messenger/>
       case "Inquiries": return <Inquiries/>
       case "Product": return <ProductList />
       case "Checkout": return <Checkout />
-      case "Tattoo Gallery": return <TattooGallery />
-      case "Piercing Gallery": return <PiercingGallery />
+      case "TattooGallery": return <TattooGallery />
+      case "PiercingGallery": return <PiercingGallery />
       case "Blogs": return <BlogAdminPage/>
       case "Artist" : return <ArtistProfile/>
       case "Reviews": return <Reviewgallery/>
-      case "User Management": return <UserManagement />
+      case "UserManagement": return <UserManagement />
       case "Category": return <CategoryManagement />
-      case "Product Management": return <ProductManagement />
+      case "ProductManagement": return <ProductManagement />
       case "Supplier": return <SupplierMaintenance />
       case "Equipment": return <EquipmentManagement />
       case "Vat": return <VatManagement />
-      case "Qr Settings": return <QrImagesManager/>
+      case "QrSettings": return <QrImagesManager/>
       case "Inventory": return <Inventory/>
       case "FAQ": return <FAQEditor/>
-      case "Sales Reports": return <SalesReports />
-      case "Delivery Reports": return <DeliveryReports />
-      case "Change Password": return <ChangePassword />
-      case "System Logs": return <SystemLogs />
-      case "Promo List": return <PromoPage/>
+      case "SalesReports": return <SalesReports />
+      case "DeliveryReports": return <DeliveryReports />
+      case "ChangePassword": return <ChangePassword />
+      case "ActivityLogs": return <ActivityLogs />
+      case "PromoList": return <PromoPage/>
+      case "AccessControl": return <AccessControl/>
       default: return <DashboardHome />
     }
   }
 
   return (
-    // 3. I-APPLY ANG jetbrainsMono.className DITO
     <SidebarProvider className={jetbrainsMono.className}>
-      <AppSidebar onNavigate={(view) => setActiveView(view)} />
+      {/* FIX ERROR 2741: Nilagyan ng empty object o fallback kung hindi mo ipapasa ang permissions */}
+      <AppSidebar onNavigate={setActiveView} userPermissions={undefined} />
       
       <SidebarInset className="bg-background">
-        {/* HEADER */}
         <header className="flex h-16 shrink-0 items-center justify-between border-b px-4 bg-background/95 backdrop-blur-sm sticky top-0 z-10 border-border/50">
           <div className="flex items-center gap-2">
             <SidebarTrigger className="-ml-1 text-foreground" />
@@ -146,7 +145,6 @@ export default function AdminPanelPage() {
             </Breadcrumb>
           </div>
 
-          {/* NOTIFICATION HUB */}
           <div className="flex items-center gap-3">
              <Popover>
                 <PopoverTrigger asChild>
@@ -170,7 +168,8 @@ export default function AdminPanelPage() {
                     <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest mt-1">Today & Tomorrow's Inks</p>
                   </div>
 
-                  <div className="max-h-[350px] overflow-y-auto p-2 bg-popover">
+                  {/* FIX TAILWIND CLASS: max-h-[350px] to max-h-87.5 */}
+                  <div className="max-h-87.5 overflow-y-auto p-2 bg-popover">
                     {upcomingSessions.length === 0 ? (
                       <div className="py-12 text-center text-muted-foreground/30">
                         <Calendar className="size-10 mx-auto mb-2 opacity-10" />
@@ -179,7 +178,7 @@ export default function AdminPanelPage() {
                     ) : (
                       upcomingSessions.map((session: any) => (
                         <div 
-                            key={session._id} 
+                            key={session.id || `session-${session.name}-${session.preferredDate}`} 
                             onClick={() => setActiveView("List")}
                             className="p-4 hover:bg-accent rounded-2xl transition-all cursor-pointer border-b border-border/50 last:border-none group"
                         >
@@ -222,7 +221,6 @@ export default function AdminPanelPage() {
           </div>
         </header>
 
-        {/* MAIN CONTENT AREA */}
         <main className="flex flex-1 flex-col gap-4 p-4 bg-background">
           <div className="min-h-screen flex-1 rounded-4xl bg-card p-8 shadow-sm border border-border/50 animate-in fade-in zoom-in-95 duration-500 text-card-foreground">
             {renderContent()}

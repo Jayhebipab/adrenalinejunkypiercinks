@@ -28,7 +28,6 @@ const footerLinks = [
       { label: "Our Story", href: "/about" },
       { label: "Reviews", href: "/reviews" },
       { label: "Blog", href: "/blog" },
-      { label: "Contact", href: "/contact" },
     ],
   },
   {

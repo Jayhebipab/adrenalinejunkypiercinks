@@ -3,7 +3,6 @@
 import * as React from "react"
 import { useEffect, useState } from "react"
 import { useTheme } from "next-themes"
-// 1. IMPORT FIREBASE TOOLS
 import { db } from "@/lib/firebase" 
 import { collection, query, where, onSnapshot } from "firebase/firestore"
 import {
@@ -41,35 +40,39 @@ const data = {
         {
             title: "Reservation",
             icon: CalendarCheck,
+            id: "reservations",
             items: [
-                { title: "List", id: "List" },
-                { title: "Booking Request", id: "Booking Request" },
+                { title: "List", id: "List" }, // Tugma sa screenshot mo
+                { title: "Booking Request", id: "BookingRequest" },
                 { title: "Messenger", id: "Messenger" },
             ],
         },
         {
             title: "Shop",
             icon: Store,
+            id: "shop",
             items: [
                 { title: "Product", id: "Product" },
                 { title: "Checkout", id: "Checkout" },
-                { title: "Qr Settings", id: "Qr Settings" },
+                { title: "Qr Settings", id: "QrSettings" },
             ],
         },
         {
             title: "Promo",
             icon: CalendarCheck,
+            id: "promo",
             items: [
-                { title: "Promo List", id: "Promo List" },
+                { title: "Promo List", id: "PromoList" },
             ],
         },
         {
             title: "Pages",
             icon: FileText,
+            id: "content",
             items: [
                 { title: "Artist", id: "Artist" },
-                { title: "Tattoo Gallery", id: "Tattoo Gallery" },
-                { title: "Piercing Gallery", id: "Piercing Gallery" },
+                { title: "Tattoo Gallery", id: "TattooGallery" },
+                { title: "Piercing Gallery", id: "PiercingGallery" },
                 { title: "Reviews", id: "Reviews" },
                 { title: "Blogs", id: "Blogs" },
                 { title: "FAQ", id: "FAQ" },
@@ -78,107 +81,108 @@ const data = {
         {
             title: "Maintenance",
             icon: Wrench,
+            id: "maintenance",
             items: [
-                { title: "Inventory", id: "Inventory" },
-                { title: "Product & Materials", id: "Product Management" },
-                { title: "Category", id: "Category" },
+                { title: "Inventory", id: "Inventory" }, // Tugma sa screenshot: "inventory": "live"
+                { title: "Product & Materials", id: "ProductManagement" },
+                { title: "Category", id: "Category" }, // Ito ang hinahanap mo
                 { title: "Supplier", id: "Supplier" },
                 { title: "Vat Management", id: "Vat" },
-                { title: "User Management", id: "User Management" },
+                { title: "User Management", id: "UserManagement" },
             ],
         },
         {
             title: "Reports",
             icon: BarChart3,
+            id: "reports",
             items: [
-                { title: "Sales Reports", id: "Sales Reports" },
-                { title: "Delivery Reports", id: "Delivery Reports" },
-                { title: "Stock Reports", id: "Stock Reports" },
-                { title: "Audit Trail", id: "Audit Trail" },
-                { title: "Activity Logs", id: "Activity Logs" },
+                { title: "Sales Reports", id: "SalesReports" },
+                { title: "Delivery Reports", id: "DeliveryReports" },
+                { title: "Stock Reports", id: "StockReports" },
+                { title: "Audit Trail", id: "AuditTrail" },
             ],
         },
     ],
     projects: [
-        { name: "Change Password", id: "Change Password", icon: KeyRound },
-        { name: "Privacy Policy", id: "Privacy Policy", icon: ShieldCheck },
-        { name: "System Logs", id: "System Logs", icon: ClipboardList },
+        { name: "Change Password", id: "ChangePassword", icon: KeyRound, accessId: "always" },
+        { name: "Access Control", id: "AccessControl", icon: ShieldCheck, accessId: "settings" },
+        { name: "Activity Logs", id: "ActivityLogs", icon: ClipboardList, accessId: "settings" },
     ],
 }
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
-    onNavigate: (view: string) => void
+    onNavigate: (view: string) => void;
+    userPermissions?: any; 
 }
 
-export function AppSidebar({ onNavigate, ...props }: AppSidebarProps) {
+export function AppSidebar({ onNavigate, userPermissions, ...props }: AppSidebarProps) {
     const { theme, setTheme } = useTheme()
     const [mounted, setMounted] = useState(false)
-    
-    // 2. STATE PARA SA NOTIFICATIONS
-    const [notifications, setNotifications] = useState({
-        bookings: 0,
-        messages: 0
-    })
-
-    const [userData, setUserData] = useState({
-        username: "PABLO",
-        role: "Super Admin"
-    })
+    const [notifications, setNotifications] = useState({ bookings: 0, messages: 0 })
+    const [userData, setUserData] = useState<any>(null)
 
     useEffect(() => {
         setMounted(true)
-        const savedUser = localStorage.getItem("user")
-        if (savedUser) {
-            try {
-                const parsedUser = JSON.parse(savedUser)
-                setUserData({
-                    username: parsedUser.username || parsedUser.name || "User",
-                    role: parsedUser.role || "Staff"
-                })
-            } catch (error) {
-                console.error("Error parsing user data:", error)
+        if (userPermissions) {
+            setUserData(userPermissions)
+        } else {
+            const savedUser = localStorage.getItem("user")
+            if (savedUser) {
+                try {
+                    setUserData(JSON.parse(savedUser))
+                } catch (e) { console.error(e) }
             }
         }
 
-        // 3. REAL-TIME FIREBASE LISTENERS
-        // Para sa Booking Request (Pending)
-        const qBookings = query(
-            collection(db, "bookings"), 
-            where("status", "==", "pending") 
-        );
+        const qBookings = query(collection(db, "bookings"), where("status", "==", "pending"));
         const unsubBookings = onSnapshot(qBookings, (snapshot) => {
             setNotifications(prev => ({ ...prev, bookings: snapshot.size }));
         });
 
-        // Para sa Messenger (Unread)
-        const qMessages = query(
-            collection(db, "chats"), 
-            where("isRead", "==", false)
-        );
+        const qMessages = query(collection(db, "chats"), where("isRead", "==", false));
         const unsubMessages = onSnapshot(qMessages, (snapshot) => {
             setNotifications(prev => ({ ...prev, messages: snapshot.size }));
         });
 
-        // CLEANUP Listeners
         return () => {
             unsubBookings();
             unsubMessages();
         }
-    }, [])
+    }, [userPermissions])
 
-    // 4. LOGIC: Inject badges into the data mapping
-    const navMainWithBadges = data.navMain.map((group) => {
-        if (group.title === "Reservation") {
-            return {
-                ...group,
-                items: group.items.map((item) => {
-                    if (item.title === "Booking Request") return { ...item, badge: notifications.bookings }
-                    if (item.title === "Messenger") return { ...item, badge: notifications.messages }
-                    return item
-                }),
+    // --- MAIN FILTERING LOGIC ---
+    const filteredNavMain = data.navMain
+        .map((group) => {
+            // 1. Kung Super Admin, lahat kita.
+            if (userData?.role === "Super Admin") return group;
+
+            // 2. I-filter ang mga sub-items (Category, Inventory, etc.)
+            const visibleItems = group.items.filter((item) => {
+                const permissionValue = userData?.[item.id];
+                // Ipakita kung "live" o boolean true (base sa screenshots mo)
+                return permissionValue === "live" || permissionValue === true;
+            });
+
+            // 3. I-return lang ang group kung may kahit isang item na visible
+            if (visibleItems.length > 0) {
+                return {
+                    ...group,
+                    items: visibleItems.map((item) => {
+                        // Idagdag ang badges para sa notification items
+                        if (item.title === "Booking Request") return { ...item, badge: notifications.bookings }
+                        if (item.title === "Messenger") return { ...item, badge: notifications.messages }
+                        return item;
+                    }),
+                }
             }
-        }
-        return group
+            return null;
+        })
+        .filter((group): group is any => group !== null);
+
+    const filteredProjects = data.projects.filter(project => {
+        if (userData?.role === "Super Admin") return true;
+        if (project.accessId === "always") return true;
+        return userData?.[project.accessId] === "live" || userData?.[project.accessId] === true;
     })
 
     const handleLogout = async () => {
@@ -192,8 +196,8 @@ export function AppSidebar({ onNavigate, ...props }: AppSidebarProps) {
     }
 
     const getRoleIcon = () => {
-        if (userData.role === "Super Admin") return <ShieldAlert className="size-5 text-red-500" />
-        if (userData.role === "Admin") return <ShieldCheck className="size-5 text-blue-500" />
+        if (userData?.role === "Super Admin") return <ShieldAlert className="size-5 text-red-500" />
+        if (userData?.role === "Admin") return <ShieldCheck className="size-5 text-blue-500" />
         return <UserCircle2 className="size-5 text-zinc-400" />
     }
 
@@ -212,16 +216,14 @@ export function AppSidebar({ onNavigate, ...props }: AppSidebarProps) {
                             <div className="flex aspect-square size-9 items-center justify-center rounded-xl bg-zinc-900 text-white transition-all duration-300 group-hover:bg-primary shadow-lg dark:bg-zinc-800">
                                 {getRoleIcon()}
                             </div>
-
                             <div className="grid flex-1 text-left ml-2 leading-[0.8]">
                                 <span className="truncate font-black text-xl italic tracking-tighter uppercase text-foreground">
                                     Junky Piercinks
                                 </span>
-
                                 <span className={`truncate text-[10px] font-bold tracking-[0.2em] uppercase mt-1 ${
-                                    userData.role === 'Super Admin' ? 'text-red-600' : 'text-muted-foreground'
+                                    userData?.role === 'Super Admin' ? 'text-red-600' : 'text-muted-foreground'
                                 }`}>
-                                    {userData.role} • PANEL
+                                    {userData?.role || 'STAFF'} • PANEL
                                 </span>
                             </div>
                         </SidebarMenuButton>
@@ -244,10 +246,8 @@ export function AppSidebar({ onNavigate, ...props }: AppSidebarProps) {
                         </SidebarMenuItem>
                     </SidebarMenu>
                 </div>
-
-                {/* Ginamit natin ang 'navMainWithBadges' na may realtime data */}
-                <NavMain items={navMainWithBadges} onViewChange={onNavigate} />
-                <NavProjects projects={data.projects} onViewChange={onNavigate} />
+                <NavMain items={filteredNavMain} onViewChange={onNavigate} />
+                <NavProjects projects={filteredProjects} onViewChange={onNavigate} />
             </SidebarContent>
 
             <SidebarFooter className="border-t border-border/40 p-3">
@@ -255,15 +255,12 @@ export function AppSidebar({ onNavigate, ...props }: AppSidebarProps) {
                     <button
                         onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
                         className="p-2 rounded-lg text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-all active:scale-90"
-                        title="Toggle Theme"
                     >
                         {theme === "dark" ? <Sun className="size-5" /> : <Moon className="size-5" />}
                     </button>
-
                     <button
                         onClick={handleLogout}
                         className="p-2 rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-all active:scale-90"
-                        title="Logout"
                     >
                         <LogOut className="size-5" />
                     </button>

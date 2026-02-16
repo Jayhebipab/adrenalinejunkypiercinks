@@ -33,7 +33,7 @@ export default function RegisterPage() {
                 if (data.exists) {
                     // Registry is locked, kick user to login
                     router.replace("/login");
-                  
+                    toast.error("ACCESS DENIED: Super Admin registry is already locked.");
                 } else {
                     // Safe to show the registration form
                     setIsChecking(false);

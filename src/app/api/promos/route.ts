@@ -35,7 +35,8 @@ export async function GET() {
 export async function POST(req: Request) {
     try {
         const body = await req.json();
-        const { name, type, price, artist, productsUsed } = body;
+        // DAGDAG: kinuha natin yung clientname sa request body
+        const { name, type, price, artist, clientname, productsUsed } = body;
 
         // 1. SAVE THE PROMO RECORD
         const promoRef = await addDoc(collection(db, "promos"), {
@@ -43,16 +44,15 @@ export async function POST(req: Request) {
             type,
             price: Number(price),
             artist,
-            productsUsed, // Array of {name, quantity}
+            clientname: clientname || "WALANG PANGALAN", // DAGDAG: Para siguradong may entry sa DB
+            productsUsed, 
             createdAt: serverTimestamp(),
         });
 
         // 2. DEDUCT INVENTORY QUANTITY
-        // Iikutan natin ang bawat product na ginamit sa promo
         if (productsUsed && Array.isArray(productsUsed)) {
             for (const item of productsUsed) {
                 if (item.name && item.quantity > 0) {
-                    // Hanapin ang product document base sa pangalan
                     const productQuery = query(
                         collection(db, "products"), 
                         where("name", "==", item.name)
@@ -63,7 +63,6 @@ export async function POST(req: Request) {
                         const productDoc = productSnapshot.docs[0];
                         const productRef = doc(db, "products", productDoc.id);
 
-                        // Bawasan ang quantity (negative increment)
                         await updateDoc(productRef, {
                             quantity: increment(-Number(item.quantity)),
                             updatedAt: serverTimestamp()

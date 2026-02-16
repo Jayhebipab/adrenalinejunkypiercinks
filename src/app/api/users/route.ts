@@ -79,11 +79,11 @@ export async function POST(req: Request) {
   }
 }
 
-// --- 3. PUT: Security Verification & Update with Duplicate Check ---
+// --- Updated PUT Logic sa /api/users/route.ts ---
 export async function PUT(req: Request) {
   try {
     const body = await req.json();
-    const { id, isVerifying, currentPassword, systemPIN, username, contact, newPassword, newSystemPIN } = body;
+    const { id, isVerifying, currentPassword, systemPIN, ...otherData } = body;
 
     if (!id) return NextResponse.json({ error: "ID required" }, { status: 400 });
 
@@ -98,43 +98,35 @@ export async function PUT(req: Request) {
       const passMatch = currentPassword ? await bcrypt.compare(currentPassword, userData.password) : false;
       const pinMatch = systemPIN ? await bcrypt.compare(systemPIN, userData.systemPIN || "") : false;
 
-      if (passMatch || pinMatch) {
-        return NextResponse.json({ message: "Root Access Granted" });
-      }
+      if (passMatch || pinMatch) return NextResponse.json({ message: "Root Access Granted" });
       return NextResponse.json({ error: "Invalid Credentials" }, { status: 401 });
     }
 
-    // --- ACTUAL UPDATE LOGIC WITH VALIDATION ---
-    const usersRef = collection(db, "users");
+    // --- DYNAMIC PERMISSIONS & PROFILE UPDATE ---
+    const updateData: any = { 
+      updatedAt: serverTimestamp() 
+    };
 
-    // 1. Check if Username is taken by OTHER users
-    if (username && username !== userData.username) {
-      const q = query(usersRef, where("username", "==", username));
-      const snap = await getDocs(q);
-      if (!snap.empty) return NextResponse.json({ error: "Username already taken" }, { status: 400 });
-    }
+    // Ito yung magic: lahat ng extra fields (like inventory, products, etc.) 
+    // na pinasa mo sa toggleAccess, isasama dito automatic.
+    const reservedKeys = ["id", "isVerifying", "currentPassword", "systemPIN", "newPassword", "newSystemPIN"];
+    
+    Object.keys(body).forEach(key => {
+      if (!reservedKeys.includes(key)) {
+        updateData[key] = body[key];
+      }
+    });
 
-    // 2. Check if Contact is taken by OTHER users
-    if (contact && contact !== userData.contact) {
-      const q = query(usersRef, where("contact", "==", contact));
-      const snap = await getDocs(q);
-      if (!snap.empty) return NextResponse.json({ error: "Contact number already in use by another staff" }, { status: 400 });
-    }
-
-    const updateData: any = { updatedAt: serverTimestamp() };
-    if (username) updateData.username = username;
-    if (contact) updateData.contact = contact;
-    if (newPassword) updateData.password = await bcrypt.hash(newPassword, 10);
-    if (newSystemPIN) updateData.systemPIN = await bcrypt.hash(newSystemPIN, 10);
+    if (body.newPassword) updateData.password = await bcrypt.hash(body.newPassword, 10);
+    if (body.newSystemPIN) updateData.systemPIN = await bcrypt.hash(body.newSystemPIN, 10);
 
     await updateDoc(docRef, updateData);
-    return NextResponse.json({ message: "Updated successfully" });
+    return NextResponse.json({ message: "Sync Successful" });
 
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
-
 // --- 4. DELETE: Anti-Root Protection ---
 export async function DELETE(req: Request) {
   try {

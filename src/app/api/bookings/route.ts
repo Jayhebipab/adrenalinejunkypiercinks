@@ -83,6 +83,7 @@ export async function DELETE(req: Request) {
 // --- 4. UPDATE STATUS (Strictly Bookings Only) ---
 export async function PATCH(req: Request) {
   try {
+    const body = await req.json();
     const { 
       id, 
       status, 
@@ -91,7 +92,7 @@ export async function PATCH(req: Request) {
       finalPrice, 
       inventoryUsed, 
       artist 
-    } = await req.json();
+    } = body;
     
     const docRef = doc(db, "bookings", id);
     const snap = await getDoc(docRef);
@@ -101,6 +102,7 @@ export async function PATCH(req: Request) {
     const booking = snap.data();
     const updateFields: any = { status };
 
+    // Siguraduhin na ang fields ay nag-ma-match sa database schema mo
     if (preferredDate) updateFields.preferredDate = preferredDate;
     if (preferredTime) updateFields.preferredTime = preferredTime;
 
@@ -108,33 +110,28 @@ export async function PATCH(req: Request) {
     if (status === "finished") {
       updateFields.artist = artist;
       updateFields.finalPrice = Number(finalPrice);
-      updateFields.inventoryUsed = inventoryUsed; // Array ng materials
+      updateFields.inventoryUsed = inventoryUsed; 
       updateFields.finishedAt = serverTimestamp();
 
-      // AUTOMATIC INVENTORY DEDUCTION
-      // Hahanapin natin yung bawat product sa inventory at babawasan ang stock
       if (Array.isArray(inventoryUsed)) {
         for (const item of inventoryUsed) {
-          // Note: Ang 'item.name' ay dapat match sa name sa 'products' collection
           const productsRef = collection(db, "products");
           const q = query(productsRef);
           const querySnapshot = await getDocs(q);
           
-          querySnapshot.forEach(async (productDoc) => {
+          for (const productDoc of querySnapshot.docs) {
             if (productDoc.data().name === item.name) {
               const productRef = doc(db, "products", productDoc.id);
               await updateDoc(productRef, {
-                // Babawasan ang quantity. Kung 'stock' ang field name mo, palitan ito.
                 quantity: increment(-item.quantity) 
               });
             }
-          });
+          }
         }
       }
-      // PINALITAN: Inalis ang logic na nag-a-addDoc sa "promos" collection.
     }
 
-    // UPDATE MAIN DOCUMENT
+    // UPDATE MAIN DOCUMENT sa Firestore
     await updateDoc(docRef, updateFields);
 
     // --- CASE: APPROVED (Email Notification) ---
@@ -144,7 +141,9 @@ export async function PATCH(req: Request) {
         <p>Your appointment for <strong>${booking.service.toUpperCase()}</strong> has been approved.</p>
         <div style="background: #000; color: #fff; padding: 20px; border-radius: 4px; margin: 20px 0;">
           <p style="margin: 0; font-size: 10px; color: #ea580c; letter-spacing: 2px;">SCHEDULE</p>
-          <p style="margin: 5px 0 0 0; font-weight: bold; font-size: 16px;">${new Date(booking.preferredDate).toDateString()} @ ${booking.preferredTime}</p>
+          <p style="margin: 5px 0 0 0; font-weight: bold; font-size: 16px;">
+            ${new Date(updateFields.preferredDate || booking.preferredDate).toDateString()} @ ${updateFields.preferredTime || booking.preferredTime}
+          </p>
         </div>
       `;
 
@@ -156,7 +155,30 @@ export async function PATCH(req: Request) {
       });
     }
 
-    return NextResponse.json({ message: "Booking updated and inventory adjusted!" });
+    // --- CASE: ADJUSTMENT / RESCHEDULE (Email Notification) ---
+    // Binago ko: preferredDate/Time na ang ginagamit dito para match sa POST mo
+    if (status === "adjusted") {
+      const adjustmentContent = `
+        <p style="font-size: 18px; color: #3b82f6; font-weight: bold;">SCHEDULE ADJUSTED!</p>
+        <p>Your appointment for <strong>${booking.service.toUpperCase()}</strong> has been updated to a new schedule.</p>
+        <div style="background: #111; color: #fff; padding: 20px; border-radius: 4px; margin: 20px 0; border-left: 4px solid #3b82f6;">
+          <p style="margin: 0; font-size: 10px; color: #3b82f6; letter-spacing: 2px;">NEW SCHEDULE</p>
+          <p style="margin: 5px 0 0 0; font-weight: bold; font-size: 16px;">
+            ${new Date(updateFields.preferredDate).toDateString()} @ ${updateFields.preferredTime}
+          </p>
+        </div>
+        <p style="font-size: 12px; color: #666;">If this schedule doesn't work for you, please contact us immediately.</p>
+      `;
+
+      await transporter.sendMail({
+        from: `"ADRENALINE JUNKY" <${process.env.EMAIL_USER}>`,
+        to: booking.email,
+        subject: `🕒 SCHEDULE UPDATED: ${booking.service.toUpperCase()}`,
+        html: getEmailTemplate(booking.name, adjustmentContent),
+      });
+    }
+
+    return NextResponse.json({ message: "Update successful!" });
   } catch (error: any) {
     console.error("PATCH Error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
