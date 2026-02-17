@@ -1,83 +1,87 @@
-import { MongoClient, ObjectId } from "mongodb";
+import { db } from "@/lib/firebase";
+import { 
+  collection, 
+  getDocs, 
+  addDoc, 
+  deleteDoc, 
+  updateDoc, 
+  doc, 
+  query, 
+  orderBy,
+  serverTimestamp 
+} from "firebase/firestore";
 import { NextResponse } from "next/server";
 
-const uri = process.env.MONGODB_URI;
-let client: MongoClient | null = null;
-
-async function getClient() {
-  if (!uri) throw new Error("MONGODB_URI is not defined");
-  if (!client) client = new MongoClient(uri);
-  return client;
-}
-
-// GET: Kunin lahat ng reviews para ipakita sa site
 export async function GET() {
   try {
-    const mongoClient = await getClient();
-    await mongoClient.connect();
-    const db = mongoClient.db("adrenalinjunkypiercinks");
-    const reviews = await db.collection("reviews").find({}).sort({ createdAt: -1 }).toArray();
+    const q = query(collection(db, "reviews"), orderBy("createdAt", "desc"));
+    const querySnapshot = await getDocs(q);
+    const reviews = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     return NextResponse.json(reviews);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
-// POST: Dito papasok yung review galing sa User Panel
 export async function POST(req: Request) {
   try {
-    const { name, stars, description, userEmail, userImage } = await req.json();
-    const mongoClient = await getClient();
-    await mongoClient.connect();
-    const db = mongoClient.db("adrenalinjunkypiercinks");
+    const body = await req.json();
+    const { name, stars, description, userEmail, userImage, reviewImage } = body;
 
-    const result = await db.collection("reviews").insertOne({
-      name,
+    if (!description || !stars) {
+      return NextResponse.json({ error: "Required fields missing!" }, { status: 400 });
+    }
+
+    const docRef = await addDoc(collection(db, "reviews"), {
+      name: name || "Anonymous User",
       stars: Number(stars),
       description,
-      userEmail,
-      userImage,
-      createdAt: new Date()
+      userEmail: userEmail || "",
+      userImage: userImage || "",
+      reviewImage: reviewImage || "", // This is the URL from your Cloudinary helper
+      isVisible: false,
+      createdAt: serverTimestamp(),
     });
 
-    return NextResponse.json(result, { status: 201 });
+    return NextResponse.json({ id: docRef.id, message: "Review Saved!" }, { status: 201 });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
-// Idagdag itong PUT at DELETE sa existing route.ts mo
-
-// UPDATE: Para sa Hide/Show (Toggle Status)
+// 3. UPDATE REVIEW (Para sa Hide/Show Toggle)
 export async function PUT(req: Request) {
   try {
-    const { id, isVisible } = await req.json();
-    const mongoClient = await getClient();
-    await mongoClient.connect();
-    const db = mongoClient.db("adrenalinjunkypiercinks");
+    const body = await req.json();
+    const { id, isVisible } = body;
 
-    await db.collection("reviews").updateOne(
-      { _id: new ObjectId(id) },
-      { $set: { isVisible: isVisible } }
-    );
+    if (!id) return NextResponse.json({ error: "No ID provided" }, { status: 400 });
 
-    return NextResponse.json({ message: "Review status updated" });
+    const docRef = doc(db, "reviews", id);
+    
+    await updateDoc(docRef, {
+      isVisible: isVisible,
+      updatedAt: serverTimestamp(),
+    });
+
+    return NextResponse.json({ message: "Review status updated!" });
   } catch (error: any) {
+    console.error("Firebase PUT Review Error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
-// DELETE: Para tuluyang burahin ang review
+// 4. DELETE REVIEW
 export async function DELETE(req: Request) {
   try {
     const { id } = await req.json();
-    const mongoClient = await getClient();
-    await mongoClient.connect();
-    const db = mongoClient.db("adrenalinjunkypiercinks");
-
-    await db.collection("reviews").deleteOne({ _id: new ObjectId(id) });
-    return NextResponse.json({ message: "Review deleted permanently" });
+    
+    if (!id) return NextResponse.json({ error: "No ID provided" }, { status: 400 });
+    
+    await deleteDoc(doc(db, "reviews", id));
+    return NextResponse.json({ message: "Review deleted permanently!" });
   } catch (error: any) {
+    console.error("Firebase DELETE Review Error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

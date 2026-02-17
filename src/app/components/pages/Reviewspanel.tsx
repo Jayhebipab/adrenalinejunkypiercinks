@@ -1,98 +1,213 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Trash2, Eye, EyeOff, Star, User } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useState, useEffect, useMemo } from "react";
+import { 
+    Trash2, Eye, EyeOff, Star, User, 
+    Search, MessageSquare, Loader2, Image as ImageIcon 
+} from "lucide-react";
+import { Toaster, toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 interface Review {
-  _id: string;
-  name: string;
-  stars: number;
-  description: string;
-  userImage?: string;
-  isVisible: boolean;
+    id: string;
+    name: string;
+    stars: number;
+    description: string;
+    userImage?: string;
+    reviewImage?: string;
+    isVisible: boolean;
+    createdAt?: any;
 }
 
 export default function ReviewsPanel() {
-  const [reviews, setReviews] = useState<Review[]>([]);
+    const [reviews, setReviews] = useState<Review[]>([]);
+    const [fetching, setFetching] = useState(true);
+    const [search, setSearch] = useState("");
+    const [activeTab, setActiveTab] = useState<"all" | "visible" | "hidden">("all");
 
-  // 1. Fetch Reviews
-  const fetchReviews = async () => {
-    const res = await fetch("/api/reviews");
-    const data = await res.json();
-    setReviews(data);
-  };
+    useEffect(() => { fetchReviews(); }, []);
 
-  useEffect(() => { fetchReviews(); }, []);
+    const fetchReviews = async () => {
+        setFetching(true);
+        try {
+            const res = await fetch("/api/reviews");
+            const data = await res.json();
+            if (Array.isArray(data)) setReviews(data);
+        } catch (err) {
+            toast.error("Failed to load reviews from database.");
+        } finally { setFetching(false); }
+    };
 
-  // 2. Toggle Hide/Show
-  const toggleVisibility = async (id: string, currentStatus: boolean) => {
-    await fetch("/api/reviews", {
-      method: "PUT",
-      body: JSON.stringify({ id, isVisible: !currentStatus }),
-    });
-    fetchReviews(); // Refresh list
-  };
+    const toggleVisibility = async (e: React.MouseEvent, id: string, currentStatus: boolean) => {
+        e.stopPropagation();
+        try {
+            const res = await fetch("/api/reviews", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id, isVisible: !currentStatus }),
+            });
+            if (res.ok) {
+                toast.info(currentStatus ? "Review Hidden" : "Review Published");
+                fetchReviews();
+            }
+        } catch (err) {
+            toast.error("Visibility sync failed.");
+        }
+    };
 
-  // 3. Delete Review
-  const deleteReview = async (id: string) => {
-    if (!confirm("Sigurado ka bang buburahin ito?")) return;
-    await fetch("/api/reviews", {
-      method: "DELETE",
-      body: JSON.stringify({ id }),
-    });
-    fetchReviews(); // Refresh list
-  };
+    const deleteReview = async (e: React.MouseEvent, id: string) => {
+        e.stopPropagation();
+        if (!confirm("Permanently delete this review?")) return;
+        try {
+            const res = await fetch("/api/reviews", {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id }),
+            });
+            if (res.ok) {
+                toast.error("Review deleted permanently");
+                fetchReviews();
+            }
+        } catch (err) {
+            toast.error("Delete operation failed.");
+        }
+    };
 
-  return (
-    <div className="p-6 rounded-3xl bordershadow-sm">
-      <h2 className="text-sm font-black uppercase tracking-[0.3em] mb-6">Customer Reviews Management</h2>
-      
-      <div className="space-y-4">
-        {reviews.map((rev) => (
-          <div key={rev._id} className={`p-4 rounded-2xl border transition-all ${rev.isVisible ? "bg-white border-zinc-100" : "bg-zinc-50 border-dashed border-zinc-200 opacity-60"}`}>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                {rev.userImage ? (
-                  <img src={rev.userImage} className="w-10 h-10 rounded-full grayscale" />
-                ) : (
-                  <div className="w-10 h-10 bg-zinc-100 rounded-full flex items-center justify-center"><User size={16}/></div>
-                )}
-                <div>
-                  <p className="text-xs font-black uppercase tracking-tight">{rev.name}</p>
-                  <div className="flex text-yellow-500">
-                    {[...Array(rev.stars)].map((_, i) => <Star key={i} size={10} fill="currentColor" />)}
-                  </div>
+    const filteredReviews = useMemo(() => {
+        return reviews.filter(rev => {
+            const matchesSearch = rev.name.toLowerCase().includes(search.toLowerCase()) || 
+                                 rev.description.toLowerCase().includes(search.toLowerCase());
+            const matchesTab = activeTab === "all" ? true : 
+                              activeTab === "visible" ? rev.isVisible : !rev.isVisible;
+            return matchesSearch && matchesTab;
+        });
+    }, [reviews, search, activeTab]);
+
+    return (
+        <div className="min-h-screen p-4 md:p-8 text-slate-900 dark:text-white">
+            <Toaster position="top-right" richColors />
+            
+            <div className="max-w-5xl mx-auto">
+                {/* HEADER */}
+                <div className="flex justify-between items-center mb-10">
+                    <div>
+                        <h1 className="text-4xl font-black uppercase italic tracking-tighter">Client Feed</h1>
+                        <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.3em]">
+                            Testimonials & Media Moderation
+                        </p>
+                    </div>
                 </div>
-              </div>
 
-              <div className="flex gap-2">
-                <Button 
-                  variant="outline" 
-                  size="icon" 
-                  onClick={() => toggleVisibility(rev._id, rev.isVisible)}
-                  className="h-8 w-8 rounded-full"
-                >
-                  {rev.isVisible ? <Eye size={14} /> : <EyeOff size={14} className="text-red-500" />}
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="icon" 
-                  onClick={() => deleteReview(rev._id)}
-                  className="h-8 w-8 rounded-full hover:bg-red-50 hover:text-red-600 border-none"
-                >
-                  <Trash2 size={14} />
-                </Button>
-              </div>
+                {/* FILTERS SECTION */}
+                <div className="space-y-4 mb-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="relative">
+                            <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                            <input 
+                                type="text"
+                                placeholder="SEARCH REVIEWS OR CUSTOMERS..."
+                                onChange={(e) => setSearch(e.target.value)}
+                                className="w-full pl-12 pr-5 py-4 bg-slate-50 dark:bg-zinc-900 border border-transparent dark:border-zinc-800 rounded-2xl text-[11px] font-bold uppercase tracking-widest outline-none focus:bg-white dark:focus:bg-zinc-800 focus:border-black dark:focus:border-white transition-all"
+                            />
+                        </div>
+                        <div className="flex bg-slate-50 dark:bg-zinc-900 p-1.5 rounded-2xl gap-1 border border-transparent dark:border-zinc-800">
+                            {(["all", "visible", "hidden"] as const).map((tab) => (
+                                <button
+                                    key={tab}
+                                    onClick={() => setActiveTab(tab)}
+                                    className={cn(
+                                        "flex-1 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all",
+                                        activeTab === tab 
+                                            ? "bg-black text-white dark:bg-white dark:text-black shadow-lg" 
+                                            : "text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300"
+                                    )}
+                                >
+                                    {tab}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+
+                {/* LIST SECTION */}
+                <div className="space-y-4">
+                    {fetching ? (
+                        <div className="text-center py-20"><Loader2 className="animate-spin mx-auto text-slate-200" size={32} /></div>
+                    ) : filteredReviews.length === 0 ? (
+                        <div className="text-center py-20 bg-slate-50 dark:bg-zinc-900 rounded-[2.5rem] border-2 border-dashed border-slate-200 dark:border-zinc-800">
+                            <p className="text-[11px] font-black uppercase text-slate-400 tracking-widest">No reviews found in logs</p>
+                        </div>
+                    ) : filteredReviews.map((rev) => (
+                        <div 
+                            key={rev.id}
+                            className={cn(
+                                "bg-white dark:bg-zinc-900 p-8 rounded-[2.5rem] border border-slate-100 dark:border-zinc-800 flex flex-col md:flex-row gap-8 hover:shadow-2xl hover:shadow-slate-200/50 dark:hover:shadow-black/60 transition-all group relative overflow-hidden",
+                                !rev.isVisible && "opacity-60 grayscale-[0.8]"
+                            )}
+                        >
+                            {/* USER INFO & CONTENT */}
+                            <div className="flex-1 space-y-4">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 rounded-2xl flex items-center justify-center border bg-slate-50 border-slate-200 dark:bg-zinc-800 dark:border-zinc-700 overflow-hidden shrink-0 shadow-inner">
+                                        {rev.userImage ? (
+                                            <img src={rev.userImage} className="w-full h-full object-cover" alt="" />
+                                        ) : (
+                                            <User size={20} className="text-slate-400" />
+                                        )}
+                                    </div>
+                                    <div>
+                                        <h3 className="text-sm font-black uppercase tracking-tight flex items-center gap-2 text-black dark:text-white">
+                                            {rev.name}
+                                            {rev.isVisible && <div className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]" />}
+                                        </h3>
+                                        <div className="flex text-yellow-500 gap-0.5">
+                                            {[...Array(5)].map((_, i) => (
+                                                <Star key={i} size={10} fill={i < rev.stars ? "currentColor" : "none"} className={i < rev.stars ? "" : "text-slate-200 dark:text-zinc-800"} />
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <p className="text-[13px] text-slate-500 dark:text-zinc-400 font-medium leading-relaxed italic pr-4">
+                                    "{rev.description}"
+                                </p>
+
+                                {/* ACTIONS (MOVED TO BOTTOM FOR CLEANER MOBILE LOOK) */}
+                                <div className="flex items-center gap-2 pt-2">
+                                    <button 
+                                        onClick={(e) => toggleVisibility(e, rev.id, rev.isVisible)}
+                                        className="bg-slate-50 dark:bg-zinc-800 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-all border border-slate-200 dark:border-zinc-700"
+                                    >
+                                        {rev.isVisible ? <><EyeOff size={12}/> Hide</> : <><Eye size={12}/> Publish</>}
+                                    </button>
+                                    <button 
+                                        onClick={(e) => deleteReview(e, rev.id)}
+                                        className="p-2.5 text-slate-300 hover:text-red-500 transition-all ml-auto group-hover:opacity-100 opacity-0"
+                                    >
+                                        <Trash2 size={18}/>
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* ATTACHED MEDIA - The Right Column for the Image */}
+                            {rev.reviewImage && (
+                                <div className="w-full md:w-64 h-48 md:h-auto rounded-3xl overflow-hidden bg-slate-100 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 relative group/media shrink-0 shadow-lg">
+                                    <img 
+                                        src={rev.reviewImage} 
+                                        alt="Tattoo Work" 
+                                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000"
+                                    />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover/media:opacity-100 transition-opacity flex items-end p-4">
+                                        <span className="text-[8px] font-black text-white uppercase tracking-[0.2em] flex items-center gap-2">
+                                            <ImageIcon size={12} className="text-[#d11a2a]" /> Artist Work
+                                        </span>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    ))}
+                </div>
             </div>
-            <p className="mt-3 text-[11px] text-zinc-500 leading-relaxed uppercase tracking-wide">
-              {rev.description}
-            </p>
-          </div>
-        ))}
-
-        {reviews.length === 0 && <p className="text-center text-[10px] text-zinc-400 py-10 font-bold uppercase tracking-widest">No reviews found in database.</p>}
-      </div>
-    </div>
-  );
+        </div>
+    );
 }

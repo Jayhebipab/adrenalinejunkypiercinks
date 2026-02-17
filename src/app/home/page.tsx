@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react"
 import Image from "next/image"
-import { motion } from "framer-motion"
+import { motion, } from "framer-motion"
 import { Card } from "@/components/ui/card";
 import Link from "next/link";
 import {
@@ -22,7 +22,7 @@ import {
   MessageSquareQuote,
   Quote,
   Loader2,
-  Calendar, ArrowUpRight, Zap
+  Calendar, ArrowUpRight, Zap, ImageIcon, ShieldCheck
 } from "lucide-react"
 import Swal from "sweetalert2"
 
@@ -44,41 +44,15 @@ interface GalleryItem {
 }
 
 interface Review {
-  _id: string;
+  id: string;
   name: string;
   stars: number;
   description: string;
   userImage?: string;
+  reviewImage?: string; // Support for tattoo/piercing photo
   isVisible: boolean;
 }
 
-// Sample Data para sa mga Blogs/Posts niyo
-const blogPosts = [
-  {
-    id: 1,
-    category: "Event",
-    title: "Wedding Tattoo Sponsoring: A New Trend",
-    date: "Jan 15, 2024",
-    image: "/images/blog1.png", // Palitan niyo ng actual images
-    link: "#"
-  },
-  {
-    id: 2,
-    category: "Studio News",
-    title: "New Artist Alert: Guest Session this Feb",
-    date: "Jan 20, 2024",
-    image: "/images/blog2.png",
-    link: "#"
-  },
-  {
-    id: 3,
-    category: "Maintenance",
-    title: "Tattoo Aftercare: The Ultimate Guide",
-    date: "Jan 22, 2024",
-    image: "/images/blog3.png",
-    link: "#"
-  }
-];
 // ---------- LIGHTBOX / IMAGE MODAL ----------
 const ImageModal = ({
   images,
@@ -551,141 +525,163 @@ const TattooSection = ({ openModal }: { openModal: (imgs: string[], i: number) =
     </section>
   )
 }
+
 export const ReviewsSection = () => {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
-
-  const container = {
-  hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: { staggerChildren: 0.15 },
-  },
-};
-
-const cardItem = {
-  hidden: { opacity: 0, y: 30 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.5 } },
-};
+  const [isPaused, setIsPaused] = useState(false);
 
   useEffect(() => {
-    fetch("/api/reviews")
-      .then((res) => res.json())
-      .then((data) => {
+    const fetchReviews = async () => {
+      try {
+        const res = await fetch("/api/reviews");
+        if (!res.ok) throw new Error("Failed to fetch");
+        const data = await res.json();
+        
         if (Array.isArray(data)) {
-          setReviews(data.filter((r) => r.isVisible));
+          // I-filter lang ang visible, kung walang property na isVisible, tanggalin mo muna .filter
+          const visible = data.filter((r) => r.isVisible !== false); 
+          setReviews(visible);
         }
-      })
-      .catch(() => console.error("Failed to fetch reviews"))
-      .finally(() => setLoading(false));
+      } catch (err) {
+        console.error("Review Fetch Error:", err);
+      } finally {
+        // Siguradong hihinto ang loading kahit anong mangyari
+        setLoading(false);
+      }
+    };
+
+    fetchReviews();
   }, []);
 
+  // Triple content para walang putol sa infinite loop
+  const sliderItems = [...reviews, ...reviews, ...reviews];
+
   return (
-    <section id="reviews-section" className="py-20 bg-zinc-950 px-4 border-t border-white/5 overflow-hidden">
-      <div className="container mx-auto max-w-5xl">
+    <section id="reviews-section" className="py-24 bg-[#050505] px-4 border-t border-white/5 overflow-hidden">
+      <div className="container mx-auto max-w-6xl">
         
-        {/* UPGRADED HEADER */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-          className="text-center mb-12 md:mb-16 space-y-4"
-        >
-          <Badge className="bg-orange-500 text-white text-[10px] uppercase font-black tracking-[0.2em] px-4 py-1 italic border-none">
-            Testimonials
-          </Badge>
-          <h2 className="text-3xl md:text-5xl font-black uppercase tracking-tighter italic leading-none">
+        {/* HEADER */}
+        <div className="text-center mb-16 md:mb-20 space-y-4">
+          <h2 className="text-4xl md:text-6xl font-black uppercase tracking-tighter italic leading-none">
             <span className="text-white">Client </span>
-            <span className="text-orange-600">Stories</span>
+            <span className="bg-clip-text text-transparent bg-gradient-to-r from-orange-500 via-orange-400 to-yellow-400">
+              Stories
+            </span>
           </h2>
-          <p className="mx-auto max-w-xl text-zinc-500 text-xs md:text-sm uppercase tracking-wide font-medium">
-            Trusted by junkies for exceptional ink and precision piercing results.
+          <p className="mx-auto max-w-xl text-zinc-500 text-[10px] md:text-xs uppercase tracking-[0.2em] font-bold">
+            Real experiences from the Junky family. Ink that lasts, stories that matter.
           </p>
-        </motion.div>
+        </div>
 
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 space-y-4">
-            <Loader2 className="h-10 w-10 animate-spin text-orange-600 opacity-50" />
-            <p className="text-[10px] uppercase font-black tracking-widest text-zinc-600">Loading Stories...</p>
+            <Loader2 className="h-8 w-8 animate-spin text-orange-500 opacity-50" />
+            <p className="text-[9px] uppercase font-black tracking-[0.3em] text-zinc-600">Accessing Database...</p>
+          </div>
+        ) : reviews.length === 0 ? (
+          /* Fallback kung walang data para hindi blanko ang screen */
+          <div className="text-center py-10">
+            <p className="text-zinc-600 text-[10px] uppercase font-black tracking-widest">No stories found in the database.</p>
           </div>
         ) : (
           <>
-            <motion.div
-              variants={container}
-              initial="hidden"
-              whileInView="show"
-              viewport={{ once: true }}
-              className="grid gap-6 grid-cols-1 md:grid-cols-2"
-            >
-              {reviews.slice(0, 4).map((item, idx) => (
-                <motion.div key={item._id} variants={cardItem}>
-                  <Card className="group relative h-full overflow-hidden border-white/5 bg-zinc-900/40 p-6 md:p-8 transition-all duration-300 hover:border-orange-600/30 hover:bg-zinc-900/60">
-                    {/* Background Quote Icon */}
-                    <Quote className="absolute top-4 right-4 h-12 w-12 text-white/[0.03] transition-colors group-hover:text-orange-600/10" />
+            {/* AUTOMATIC SLIDER CONTAINER */}
+            <div className="flex overflow-hidden relative">
+              {/* Fade Overlays para swabe sa gilid */}
+              <div className="absolute left-0 top-0 bottom-0 w-20 bg-gradient-to-r from-[#050505] to-transparent z-10" />
+              <div className="absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l from-[#050505] to-transparent z-10" />
 
-                    <div className="relative z-10 flex flex-col h-full justify-between">
-                      <div>
-                        {/* Rating Stars - WHITE/ORANGE */}
-                        <div className="mb-6 flex gap-1">
-                          {[...Array(5)].map((_, i) => (
-                            <Star
-                              key={i}
-                              size={12}
-                              className={i < item.stars ? "fill-orange-600 text-orange-600" : "text-white/20"}
-                            />
-                          ))}
-                        </div>
-
-                        {/* Testimonial Content */}
-                        <p className="text-sm md:text-base leading-relaxed text-white italic font-medium mb-8">
-                          &quot;{item.description}&quot;
-                        </p>
-                      </div>
-
-                      {/* User Info */}
-                      <div className="flex items-center gap-4 border-t border-white/5 pt-6">
-                        <div className="relative">
-                          <img
-                            src={item.userImage || "https://avatar.iran.liara.run/public"}
-                            alt={item.name}
-                            className="w-10 h-10 rounded-full border border-white/10 grayscale group-hover:grayscale-0 transition-all duration-500 object-cover"
-                          />
-                          <div className="absolute -bottom-1 -right-1 bg-orange-600 rounded-full p-1">
-                            <MessageSquareQuote size={8} className="text-white" />
-                          </div>
-                        </div>
-                        <div>
-                          <h4 className="text-white text-xs md:text-sm font-black uppercase tracking-widest">
-                            {item.name}
-                          </h4>
-                          <p className="text-zinc-600 text-[9px] uppercase font-black tracking-tighter">
-                            Verified Junkie • Customer
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </Card>
-                </motion.div>
-              ))}
-            </motion.div>
-
-            {/* FOOTER ACTION */}
-            <motion.div 
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
-              className="mt-12 flex justify-center"
-            >
-               <Link href="/shop" passHref>
-              <Button 
-                variant="ghost" 
-                className="group text-zinc-500 hover:text-orange-600 text-[10px] uppercase font-black tracking-[0.3em] transition-all"
+              <motion.div 
+                className="flex gap-6 py-4"
+                animate={isPaused ? {} : { x: ["0%", "-50%"] }} 
+                transition={{ 
+                  duration: 40, // Mas mataas na number = mas mabagal/premium
+                  repeat: Infinity, 
+                  ease: "linear",
+                }}
+                onMouseEnter={() => setIsPaused(true)}
+                onMouseLeave={() => setIsPaused(false)}
               >
-                Read All Reviews 
-                <ChevronRight size={14} className="ml-2 transition-transform group-hover:translate-x-1" />
-              </Button>
+                {sliderItems.map((item, idx) => (
+                  <div key={`${item.id || item.id}-${idx}`} className="w-[300px] md:w-[400px] shrink-0">
+                    <Card className="relative h-full overflow-hidden border-white/5 bg-[#0a0a0a] p-6 transition-all duration-500 hover:border-orange-500/30">
+                      <Quote className="absolute -top-2 -right-2 h-20 w-20 text-white/[0.02] -rotate-12" />
+
+                      <div className="relative z-10 flex flex-col h-full">
+                        <div className="flex justify-between items-start mb-6">
+                          <div className="flex gap-1">
+                            {[...Array(5)].map((_, i) => (
+                              <Star
+                                key={i}
+                                size={10}
+                                className={i < item.stars ? "fill-orange-500 text-orange-500" : "text-white/10"}
+                              />
+                            ))}
+                          </div>
+                          {item.reviewImage && (
+                             <div className="flex items-center gap-1.5 px-2 py-1 bg-white/5 rounded-md border border-white/5">
+                               <ImageIcon size={10} className="text-orange-400" />
+                               <span className="text-[8px] font-black uppercase tracking-widest text-zinc-400">Art Piece</span>
+                             </div>
+                          )}
+                        </div>
+
+                        <div className="flex flex-col gap-4">
+                          <p className="text-xs md:text-sm leading-relaxed text-zinc-300 italic font-medium mb-4 line-clamp-4">
+                            &quot;{item.description.toUpperCase()}&quot;
+                          </p>
+
+                          {item.reviewImage && (
+                            <div className="w-full h-32 rounded-xl overflow-hidden border border-white/5 shadow-2xl">
+                              <img src={item.reviewImage} alt="Work" className="w-full h-full object-cover grayscale transition-all duration-700 hover:grayscale-0" />
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="flex items-center justify-between border-t border-white/5 pt-6 mt-6">
+                          <div className="flex items-center gap-3">
+                            <div className="relative">
+                              <div className="w-10 h-10 rounded-xl border border-white/10 overflow-hidden bg-zinc-900">
+                                <img
+                                  src={item.userImage || "/placeholder-avatar.png"}
+                                  alt={item.name}
+                                  className="w-full h-full object-cover opacity-80"
+                                />
+                              </div>
+                              <div className="absolute -bottom-1 -right-1 bg-gradient-to-r from-orange-600 to-yellow-400 rounded-full p-0.5 border-2 border-[#050505]">
+                                <ShieldCheck size={8} className="text-white" />
+                              </div>
+                            </div>
+                            <div>
+                              <h4 className="text-white text-[10px] font-black uppercase tracking-widest">
+                                {item.name}
+                              </h4>
+                              <p className="text-zinc-600 text-[7px] uppercase font-black tracking-tighter">
+                                Verified Junkie
+                              </p>
+                            </div>
+                          </div>
+                          <MessageSquareQuote className="text-zinc-900" size={20} />
+                        </div>
+                      </div>
+                    </Card>
+                  </div>
+                ))}
+              </motion.div>
+            </div>
+
+            <div className="mt-16 flex justify-center">
+              <Link href="/reviews" passHref>
+                <Button 
+                  variant="ghost" 
+                  className="group bg-white/5 border border-white/5 hover:border-orange-500/20 hover:bg-orange-500/5 px-10 py-6 rounded-2xl text-zinc-400 hover:text-white text-[11px] uppercase font-black tracking-[0.4em] transition-all"
+                >
+                  Read More 
+                  <ChevronRight size={14} className="ml-2 transition-transform group-hover:translate-x-2" />
+                </Button>
               </Link>
-            </motion.div>
+            </div>
           </>
         )}
       </div>
