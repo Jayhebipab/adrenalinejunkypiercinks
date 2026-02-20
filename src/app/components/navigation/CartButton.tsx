@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, } from 'react';
 import { motion, AnimatePresence,  } from 'framer-motion';
+import { useSession } from "next-auth/react"; // <--- IDAGDAG ITONG IMPORT
 import { ShoppingCart, X, Trash2, Plus, Minus, ShoppingBag, Link } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
@@ -9,7 +10,7 @@ export const CartButton = () => {
     const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [cart, setCart] = useState<any[]>([]);
-
+const { data: session } = useSession(); // <--- IDAGDAG ITONG LINE
   const loadCart = () => {
     const saved = localStorage.getItem('adrenaline_cart');
     if (saved) {
@@ -133,7 +134,6 @@ export const CartButton = () => {
                 )}
               </div>
 
-              {/* Bottom Area */}
 {/* Bottom Area */}
 {cart.length > 0 && (
   <div className="p-6 border-t border-white/10 bg-zinc-900">
@@ -142,17 +142,47 @@ export const CartButton = () => {
       <span className="text-2xl font-black text-orange-500 italic">₱{totalPrice.toLocaleString()}</span>
     </div>
     
-    <button 
-      onClick={() => {
-        // Linisin ang temporary direct buy storage para buong cart ang ma-load
-        localStorage.removeItem('adrenaline_checkout_item');
-        // I-close ang drawer kung kailangan (e.g., setOpen(false))
-        router.push('/checkout');
-      }}
-      className="w-full bg-orange-600 hover:bg-orange-500 text-white py-4 rounded-xl font-black uppercase text-[11px] tracking-[0.2em] transition-all shadow-lg shadow-orange-600/20 active:scale-95 flex items-center justify-center gap-2"
-    >
-      Secure Checkout
-    </button>
+    {(() => {
+      // Dito natin iche-check kung may active session base sa code mo
+      // Kung gumagamit ka ng NextAuth, i-import ang `useSession`
+      // const { data: session } = useSession(); 
+      
+      const isPriorityActive = !!session; // Kung true, "Priority member active"
+
+      return (
+        <div className="space-y-3">
+          <button 
+            disabled={!isPriorityActive} 
+            onClick={() => {
+              localStorage.removeItem('adrenaline_checkout_item');
+              router.push('/checkout');
+            }}
+            className={`w-full py-4 rounded-xl font-black uppercase text-[11px] tracking-[0.2em] transition-all flex items-center justify-center gap-2
+              ${isPriorityActive 
+                ? "bg-orange-600 hover:bg-orange-500 text-white shadow-lg shadow-orange-600/20 active:scale-95" 
+                : "bg-zinc-800 text-zinc-500 cursor-not-allowed border border-white/5 opacity-50"}
+            `}
+          >
+            {isPriorityActive ? (
+              <>Secure Checkout</>
+            ) : (
+              <>Access Denied</>
+            )}
+          </button>
+
+          {!isPriorityActive && (
+            <div className="space-y-2 text-center">
+              <p className="text-[9px] font-bold text-orange-500 uppercase tracking-widest animate-pulse">
+                Priority Access Required
+              </p>
+              <p className="text-[8px] text-zinc-500 uppercase font-medium">
+                Please join the cult or sign in below to unlock gear
+              </p>
+            </div>
+          )}
+        </div>
+      );
+    })()}
   </div>
 )}
             </motion.div>

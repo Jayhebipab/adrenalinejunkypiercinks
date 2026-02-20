@@ -38,7 +38,7 @@
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);
   --radius-sm: calc(var(--radius) - 4px);
-
+  
   /* Custom Animation */
   --animate-critical-pulse: criticalPulseBg 1.2s infinite ease-in-out;
 
@@ -126,4 +126,25 @@
 /* 3. Utility classes */
 .critical-bg-pulse {
   @apply animate-critical-pulse;
+}
+
+@media print {
+  /* Itago lahat ng hindi kailangan sa resibo */
+  nav, .sidebar, button, .print-hidden, .print\:hidden {
+    display: none !important;
+  }
+
+  /* Siguraduhin na puti ang background at itim ang text para tipid sa ink */
+  body {
+    background: white !important;
+    color: black !important;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Tanggalin ang mga scrollbars at effects */
+  .motion-div {
+    transform: none !important;
+    opacity: 1 !important;
+  }
 }

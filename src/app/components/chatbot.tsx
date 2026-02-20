@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { AnimatePresence, motion } from "framer-motion";
 import { 
   MessageSquare, Send, X, ChevronRight, Sparkles,
-  Bot, Mail, ImageIcon, Loader2, ExternalLink 
+  Bot, Mail, ImageIcon, Loader2, ExternalLink, UserPlus 
 } from "lucide-react"; 
 import { useCallback, useEffect, useState, useRef } from "react";
 import { signIn, useSession } from "next-auth/react";
@@ -17,7 +17,7 @@ import { toast } from "sonner";
 import { db } from "@/lib/firebase";
 import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
 
-const WEBSITE_IDENTIFIER = "disruptivesolutionsinc";
+const WEBSITE_IDENTIFIER = "adrenaline_junky_studio";
 
 interface FAQItem {
   id: string;
@@ -101,45 +101,79 @@ export default function FloatingChatWidget() {
     }
   }, [allMessages]);
 
-  const saveMessageToDB = async (content: string, isAdmin: boolean, type: "text" | "image" = "text") => {
-    if (!session?.user?.email) return;
+// 1. Inupdate na natin ang parameters para tanggapin ang isFAQ (default ay false)
+const saveMessageToDB = async (
+  content: string, 
+  isAdmin: boolean, 
+  type: "text" | "image" = "text", 
+  isFAQ: boolean = false // <--- Dinagdag natin ito para mawala ang error sa handleFAQSelection
+) => {
+  if (!session?.user?.email) return;
+  try {
+    await fetch("/api/chats", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        senderEmail: session.user.email,
+        senderName: isAdmin ? "Support Bot" : (session.user.name || "Customer"),
+        message: content,
+        type,
+        isAdmin,
+        isFAQ, // <--- Ngayon, may value na ito sa scope ng function
+        website: WEBSITE_IDENTIFIER
+      }),
+    });
+    fetchMyMessages();
+  } catch (error) {
+    console.error("Save Error:", error);
+  }
+};
+
+// 2. Swak na ito ngayon kasi tumatanggap na ng 4th argument ang function sa itaas
+const handleFAQSelection = (faq: { question: string, answer: string }) => {
+  const timestamp = new Date().toISOString();
+  
+  if (session) {
+    // Papasok ito sa database na may tatak na isFAQ: true
+    saveMessageToDB(faq.question, false, "text", true); 
+    setTimeout(() => saveMessageToDB(faq.answer, true, "text", true), 500);
+  } else {
+    // Para sa mga hindi naka-login (Local state)
+    const guestChat = [
+      { id: `q-${Date.now()}`, message: faq.question, isAdmin: false, timestamp, type: "text", isFAQ: true },
+      { id: `a-${Date.now()}`, message: faq.answer, isAdmin: true, timestamp, type: "text", isFAQ: true }
+    ];
+    setLocalMessages(prev => [...prev, ...guestChat]);
+  }
+  setShowFAQs(false);
+};
+
+  // --- DELETE MESSAGE PROTOCOL ---
+  const deleteMessage = async (id: string) => {
+    if (!session) return;
     try {
-      await fetch("/api/chats", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          senderEmail: session.user.email,
-          senderName: isAdmin ? "Support Bot" : (session.user.name || "Customer"),
-          message: content,
-          type,
-          isAdmin,
-          website: WEBSITE_IDENTIFIER
-        }),
-      });
-      fetchMyMessages();
+      await fetch(`/api/chats?id=${id}`, { method: "DELETE" });
+      setDbMessages(prev => prev.filter(msg => msg.id !== id));
+      toast.success("Message wiped.");
     } catch (error) {
-      console.error("Save Error:", error);
+      toast.error("Failed to delete.");
     }
   };
 
-  const handleFAQSelection = (faq: { question: string, answer: string }) => {
-    const timestamp = new Date().toISOString();
-    
-    // Gawa ng fake local messages para makita agad sa UI kahit guest
-    const guestChat = [
-      { id: `q-${Date.now()}`, message: faq.question, isAdmin: false, timestamp, type: "text" },
-      { id: `a-${Date.now()}`, message: faq.answer, isAdmin: true, timestamp, type: "text" }
-    ];
-
-    setLocalMessages(prev => [...prev, ...guestChat]);
-
-    // Kung naka-login, i-save din sa history ng account niya
-    if (session) {
-      saveMessageToDB(faq.question, false, "text");
-      setTimeout(() => saveMessageToDB(faq.answer, true, "text"), 500);
+  // --- EDIT MESSAGE PROTOCOL ---
+  const editMessage = async (id: string, newContent: string) => {
+    if (!session || !newContent.trim()) return;
+    try {
+      await fetch("/api/chats", {
+        method: "PATCH", // O PUT depende sa API route mo
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, message: newContent }),
+      });
+      setDbMessages(prev => prev.map(msg => msg.id === id ? { ...msg, message: newContent } : msg));
+      toast.success("Transmission updated.");
+    } catch (error) {
+      toast.error("Update failed.");
     }
-
-    setShowFAQs(false);
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -224,7 +258,7 @@ export default function FloatingChatWidget() {
               <div className="border-b border-zinc-900">
                 <button onClick={() => setShowFAQs(!showFAQs)} className="w-full flex items-center justify-between p-3 text-zinc-400 hover:bg-zinc-900/50">
                   <span className="text-[9px] font-black uppercase tracking-widest flex items-center gap-2">
-                    <Bot size={14} className="text-[#d11a2a]"/> Quick Help
+                    <Bot size={14} className="text-[#d11a2a]"/> Quick FAQ
                   </span>
                   <ChevronRight size={14} className={cn("transition-transform", showFAQs && "rotate-90")} />
                 </button>
@@ -249,45 +283,111 @@ export default function FloatingChatWidget() {
                     <p className="text-[10px] uppercase font-bold tracking-widest">No conversation yet</p>
                   </div>
                 )}
-                {allMessages.map((msg) => (
-                  <div key={msg.id} className={cn("flex", msg.isAdmin ? "justify-start" : "justify-end")}>
-                    <div className={cn(
-                      "max-w-[85%] px-4 py-2.5 text-[11px] font-medium leading-relaxed shadow-lg border",
-                      msg.isAdmin 
-                        ? "bg-zinc-900 text-zinc-200 rounded-2xl rounded-tl-none border-zinc-800" 
-                        : "bg-white text-black rounded-2xl rounded-tr-none border-transparent"
-                    )}>
-                      {renderMessage(msg)}
-                    </div>
-                  </div>
-                ))}
+{allMessages.map((msg) => {
+  const isQuestionInFAQ = faqs.some(f => f.question === msg.message);
+  const isAnswerInFAQ = faqs.some(f => f.answer === msg.message);
+  const isImage = msg.type === "image";
+  const isLink = /(https?:\/\/[^\s]+)/g.test(msg.message || "");
+  const isProtected = msg.isAdmin || msg.isFAQ === true || isQuestionInFAQ || isAnswerInFAQ || msg.id.startsWith('q-') || msg.id.startsWith('a-');
+
+  // Formatting ng Oras at Araw
+  const msgDate = new Date(msg.timestamp);
+  const timeString = msgDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const dayString = msgDate.toLocaleDateString([], { weekday: 'short' });
+
+  return (
+    <div key={msg.id} className={cn("flex flex-col mb-4", msg.isAdmin ? "items-start" : "items-end")}>
+      <div className={cn("flex group relative max-w-[85%]", msg.isAdmin ? "justify-start" : "justify-end")}>
+        
+        {/* Mobile/Desktop Actions Panel */}
+        {!isProtected && session?.user?.email === msg.senderEmail && (
+          <div className="absolute -top-6 right-0 flex gap-2 opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity bg-black/90 rounded-md px-2 py-1 border border-zinc-800 z-20 shadow-2xl">
+            {!isImage && !isLink && (
+              <button 
+                onClick={() => {
+                  const newMsg = prompt("Edit transmission:", msg.message);
+                  if (newMsg) editMessage(msg.id, newMsg);
+                }}
+                className="text-[9px] font-black uppercase text-zinc-400 hover:text-orange-500"
+              >
+                Edit
+              </button>
+            )}
+            <button 
+              onClick={() => {
+                if(confirm("Wipe this data?")) deleteMessage(msg.id);
+              }}
+              className="text-[9px] font-black uppercase text-zinc-400 hover:text-red-500"
+            >
+              Wipe
+            </button>
+          </div>
+        )}
+
+        {/* Message Bubble - Tap/Click for Mobile Support */}
+        <div 
+          onClick={(e) => {
+            // Force show actions for mobile on tap
+            const el = e.currentTarget.previousElementSibling;
+            if (el) el.classList.toggle('opacity-100');
+          }}
+          className={cn(
+            "px-4 py-3 text-[11px] font-black leading-relaxed shadow-xl border cursor-pointer select-none",
+            msg.isAdmin 
+              ? "bg-zinc-900 text-white rounded-2xl rounded-tl-none border-zinc-800" 
+              : "bg-zinc-900 text-white rounded-2xl rounded-tl-none border-zinc-800"
+          )}
+        >
+          {renderMessage(msg)}
+        </div>
+      </div>
+
+      {/* Timestamp Section */}
+      <span className={cn(
+        "text-[7px] uppercase font-bold tracking-tighter mt-1 opacity-40 px-1",
+        msg.isAdmin ? "text-left" : "text-right"
+      )}>
+        {dayString} • {timeString} {msg.isEdited && "(Edited)"}
+      </span>
+    </div>
+  );
+})}
+{/* Invisible div para sa scroll anchor */}
+<div ref={scrollRef} />
               </div>
 
-              {/* Footer Input */}
-              <div className="p-4 border-t border-zinc-900 bg-black">
+{/* Footer Input / Login Gate */}
+              <div className="p-4 border-t border-zinc-900 bg-black/80 backdrop-blur-xl">
                 {session ? (
                   <form className="flex items-center gap-2" onSubmit={handleSendMessage}>
                     <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
-                    <button type="button" disabled={uploading} onClick={() => fileInputRef.current?.click()} className="text-zinc-500 hover:text-white">
+                    <button type="button" disabled={uploading} onClick={() => fileInputRef.current?.click()} className="p-2 text-zinc-500 hover:text-orange-500 transition-colors">
                       {uploading ? <Loader2 className="animate-spin" size={18} /> : <ImageIcon size={18} />}
                     </button>
                     <input
                       type="text"
                       value={message}
                       onChange={(e) => setMessage(e.target.value)}
-                      placeholder="Type your message..."
-                      className="flex-1 bg-transparent border-b border-zinc-800 py-1 text-[11px] text-white outline-none focus:border-[#d11a2a] transition-all"
+                      placeholder="Secure transmission..."
+                      className="flex-1 bg-zinc-900/50 rounded-full px-4 py-2 text-[11px] text-white outline-none border border-zinc-800 focus:border-orange-600 transition-all placeholder:text-zinc-700"
                     />
-                    <button type="submit" disabled={!message.trim()} className="text-[#d11a2a] disabled:text-zinc-800">
+                    <button type="submit" disabled={!message.trim()} className="p-2 text-orange-600 disabled:text-zinc-800 transition-colors">
                       <Send size={18} />
                     </button>
                   </form>
                 ) : (
-                  <div className="flex flex-col gap-2">
-                    <p className="text-[8px] text-zinc-600 text-center font-bold uppercase tracking-widest">Login to send custom messages</p>
-                    <Button onClick={() => signIn("google")} className="w-full bg-white text-black text-[9px] font-black uppercase rounded-full tracking-widest h-10 shadow-lg">
-                      <Mail size={14} className="mr-2" /> Sign in with Google
+                  <div className="space-y-3 py-2">
+                    <div className="text-center space-y-1">
+                      <p className="text-[10px] text-white font-black uppercase tracking-widest italic">Identity Required</p>
+                      <p className="text-[8px] text-zinc-600 uppercase font-bold tracking-tighter">Priority member access needed for custom chat</p>
+                    </div>
+                    <Button 
+                      onClick={() => signIn("google")} 
+                      className="w-full bg-white hover:bg-zinc-200 text-black text-[10px] font-black uppercase rounded-xl tracking-[0.2em] h-12 shadow-xl flex items-center justify-center gap-2 transition-transform active:scale-95"
+                    >
+                      <UserPlus size={14} /> Join the Cult
                     </Button>
+                    <p className="text-[7px] text-zinc-500 text-center uppercase tracking-widest opacity-50">Secure Link • Adrenaline Junky Studio</p>
                   </div>
                 )}
               </div>

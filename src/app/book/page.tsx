@@ -8,9 +8,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSearchParams } from 'next/navigation';
+import { useSession } from "next-auth/react";
 import {
   Mail, MapPin, Phone, Send, Clock, Sparkles, ImagePlus,
-  Calendar as CalendarIcon, User, Loader2, Check, X, ChevronLeft, ChevronRight
+  Calendar as CalendarIcon, User, Loader2, Check, X, ChevronLeft, ChevronRight, Download
 } from "lucide-react";
 import { Footer } from "../components/navigation/footer";
 import { Navbar } from "../components/navigation/navbar";
@@ -21,6 +22,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { toast } from "sonner";
 import FloatingChatWidget from "../components/chatbot";
 import BookingPopup from "../components/popup";
+import SafetyVaultModal from "../components/SafetyVaultModal"; // Palitan ang path kung saan mo man sinave
 
 const contactInfo = [
   { icon: Mail, label: "Email Us", value: "caranicolas.819@icloud.com", href: "mailto:caranicolas.819@icloud.com" },
@@ -29,6 +31,7 @@ const contactInfo = [
 ];
 
 export default function ContactPage() {
+  const { data: session } = useSession(); // Kunin ang session data
   const [date, setDate] = useState<Date>();
   const [time, setTime] = useState<string>("");
   const [loading, setLoading] = useState(false);
@@ -38,6 +41,16 @@ export default function ContactPage() {
   const [artistsList, setArtistsList] = useState<any[]>([]);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [showCustomCalendar, setShowCustomCalendar] = useState(false);
+
+  const [isVaultOpen, setIsVaultOpen] = useState(false);
+
+
+  const [shippingData, setShippingData] = useState({
+        name: '',
+        email: '',
+        phone: '',
+        address: ''
+    });
 
   const searchParams = useSearchParams();
   const artistFromUrl = searchParams.get("artist");
@@ -51,6 +64,15 @@ export default function ContactPage() {
     }
   }, [artistFromUrl]);
 
+  useEffect(() => {
+  if (session?.user) {
+    setShippingData({
+      ...shippingData,
+      name: session.user.name || '',
+      email: session.user.email || '',
+    });
+  }
+}, [session]);
   // FETCH ARTISTS PARA SA DROPDOWN (FILTERED)
   useEffect(() => {
     const fetchArtists = async () => {
@@ -199,25 +221,30 @@ export default function ContactPage() {
                   </div>
 
                   <form onSubmit={handleSubmit} className="space-y-10">
-                    <div className="relative group">
-                      <Input 
-                        name="name" 
-                        required 
-                        className="peer bg-zinc-900/40 border-zinc-700 focus:border-white text-white h-12 rounded-xl transition-all duration-300" 
-                      />
-                      <Label className="absolute left-0 -top-6 text-[10px] font-black uppercase text-zinc-400">Full Name</Label>
-                    </div>
+<div className="relative group">
+  <input
+    type="text"
+    name="name" // Importante para sa formData.get("name")
+    placeholder="FULL NAME"
+    value={shippingData.name}
+    readOnly
+    className="w-full bg-zinc-800/30 border border-white/5 rounded-xl p-4 text-[10px] font-bold tracking-widest uppercase text-zinc-500 cursor-not-allowed outline-none h-12"
+  />
+  <Label className="absolute left-0 -top-6 text-[10px] font-black uppercase text-zinc-400">Full Name</Label>
+</div>
 
                     <div className="grid gap-10 sm:grid-cols-2">
-                      <div className="relative group">
-                        <Input 
-                          name="email" 
-                          type="email" 
-                          required 
-                          className="peer bg-zinc-900/40 border-zinc-700 focus:border-white text-white h-12 rounded-xl transition-all duration-300" 
-                        />
-                        <Label className="absolute left-0 -top-6 text-[10px] font-black uppercase text-zinc-400">Email</Label>
-                      </div>
+<div className="relative group">
+  <input
+    type="email"
+    name="email" // Importante para sa formData.get("email")
+    placeholder="EMAIL"
+    value={shippingData.email}
+    readOnly
+    className="w-full bg-zinc-800/30 border border-white/5 rounded-xl p-4 text-[10px] font-bold tracking-widest uppercase text-zinc-500 cursor-not-allowed outline-none h-12"
+  />
+  <Label className="absolute left-0 -top-6 text-[10px] font-black uppercase text-zinc-400">Email</Label>
+</div>
                       <div className="relative group">
                         <Input 
                           name="phone" 
@@ -473,6 +500,18 @@ export default function ContactPage() {
                     className="grayscale hover:grayscale-0 transition-all duration-500"
                   />
                 </motion.div>
+                <motion.div 
+  onClick={() => setIsVaultOpen(true)}
+  className="cursor-pointer flex items-center gap-5 p-6 rounded-3xl bg-grey/10 border"
+>
+  <div className="h-12 w-12 flex items-center justify-center rounded-xl bg-[#d11a2a] text-white group-hover:scale-110 transition-all duration-300">
+    <Download className="h-5 w-5" />
+  </div>
+  <div>
+    <p className="text-[10px] font-black text-[#d11a2a] uppercase tracking-widest">Pre-appointment</p>
+    <p className="font-bold text-white text-sm">Download Safety Waiver</p>
+  </div>
+</motion.div>
               </div>
 
             </div>
@@ -515,6 +554,13 @@ export default function ContactPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <SafetyVaultModal 
+  isOpen={isVaultOpen} 
+  onClose={() => setIsVaultOpen(false)} 
+  userSession={session} // Ito yung session mo sa ContactPage
+/>
+
     </>
   );
 }

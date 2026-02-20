@@ -738,7 +738,7 @@ const ProductSection = () => {
                   initial={{ opacity: 0, y: 10 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
-                  className="group relative bg-zinc-900/30 border border-white/5 rounded-[2rem] p-3 md:p-4 hover:border-orange-500/30 transition-all duration-500"
+                  className="group relative bg-zinc-900/30 border border-white/5 rounded-[2rem] p-3 md:p-4 "
                 >
                   {/* Product Category Tag - ORANGE */}
                   <div className="absolute top-6 left-6 z-10">
@@ -754,11 +754,6 @@ const ProductSection = () => {
                       alt={product.name}
                       className="w-full h-full object-cover"
                     />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <Button className="bg-white text-black hover:bg-orange-500 hover:text-white font-bold rounded-full text-xs h-9 px-4 transition-all">
-                        <ShoppingBag className="mr-1.5 h-3 w-3" /> Buy Now
-                      </Button>
-                    </div>
                   </div>
 
                   <div className="space-y-1 px-1">
@@ -829,7 +824,6 @@ export default function Dashboard() {
         
         <GallerySection openModal={openModal} />
         <TattooSection openModal={openModal} />
-        <ProductSection/>
         <ReviewsSection/>
       </main>
       <Footer />

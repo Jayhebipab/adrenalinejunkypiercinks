@@ -16,20 +16,32 @@ import { NextResponse } from "next/server";
 
 const VATS_COLLECTION = "vats";
 
-// --- 1. GET: Kunin lahat ng VAT records (Sorted by latest) ---
 export async function GET() {
   try {
-    const q = query(collection(db, VATS_COLLECTION), orderBy("createdAt", "desc"));
-    const querySnapshot = await getDocs(q);
+    // Kunin lang muna lahat ng documents sa collection
+    const querySnapshot = await getDocs(collection(db, VATS_COLLECTION));
     
     const vats = querySnapshot.docs.map(docSnap => ({
       id: docSnap.id,
       ...docSnap.data()
     }));
 
-    return NextResponse.json(vats);
+    // Kung walang laman, fallback sa 0
+    if (vats.length === 0) {
+      return NextResponse.json([{ percentage: 0 }]);
+    }
+
+    // I-sort na lang natin manually dito sa array para iwas Index error sa Firebase
+    const sortedVats = vats.sort((a: any, b: any) => {
+      const dateA = a.createdAt?.seconds || 0;
+      const dateB = b.createdAt?.seconds || 0;
+      return dateB - dateA;
+    });
+
+    return NextResponse.json(sortedVats);
   } catch (error: any) {
-    return NextResponse.json({ error: "Failed to fetch VAT records" }, { status: 500 });
+    console.error("VAT API Error:", error);
+    return NextResponse.json({ error: "Failed to fetch VAT" }, { status: 500 });
   }
 }
 

@@ -27,6 +27,8 @@ type Message = {
   text: string;
   type: "text" | "image";
   timestamp: string;
+  isFAQ?: boolean;
+  isEdited?: boolean;
   rawTime: number;
   isAdmin: boolean;
 };
@@ -41,7 +43,35 @@ type Conversation = {
   lastMessageTime: number;
 };
 
+// ---------- UTILS ----------
+// Nilabas ko para sigurado ang TS scope at logic
+const getSafeDate = (ts: any) => {
+  if (!ts) return new Date();
+
+  // Check kung Firestore Timestamp object { seconds, nanoseconds }
+  if (ts && typeof ts === 'object' && 'seconds' in ts) {
+    return new Date(ts.seconds * 1000);
+  }
+
+  const d = new Date(ts);
+  return isNaN(d.getTime()) ? new Date() : d;
+};
+
+const formatDateSeparator = (dateStr: any) => {
+  const d = getSafeDate(dateStr);
+  const today = new Date().toLocaleDateString();
+  
+  if (d.toLocaleDateString() === today) return "Today";
+  
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  if (d.toLocaleDateString() === yesterday.toLocaleDateString()) return "Yesterday";
+  
+  return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+};
+
 export function Messenger() {
+  const scrollRef = useRef<HTMLDivElement>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversationId, setSelectedConversationId] = useState<string>("");
   const [draft, setDraft] = useState("");
@@ -49,7 +79,7 @@ export function Messenger() {
   const [adminSession, setAdminSession] = useState<any>(null);
   const [uploading, setUploading] = useState(false);
   const [maximizedImage, setMaximizedImage] = useState<string | null>(null);
-  
+
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -62,7 +92,7 @@ export function Messenger() {
     try {
       const res = await fetch("/api/chats");
       if (!res.ok) throw new Error("Failed to fetch");
-      const data = await res.json(); 
+      const data = await res.json();
       const grouped: Record<string, Conversation> = {};
 
       if (Array.isArray(data)) {
@@ -74,7 +104,9 @@ export function Messenger() {
 
         sortedMessages.forEach((msg: any) => {
           const clientEmail = msg.senderEmail;
-          const msgTime = msg.createdAt?.seconds * 1000 || new Date(msg.timestamp).getTime();
+          // IMPORTANT: Gamitin ang getSafeDate dito para sa conversion
+          const d = getSafeDate(msg.createdAt || msg.timestamp);
+          const msgTime = d.getTime();
 
           if (!grouped[clientEmail]) {
             grouped[clientEmail] = {
@@ -87,7 +119,7 @@ export function Messenger() {
               lastMessageTime: 0
             };
           }
-          
+
           grouped[clientEmail].messages.push({
             id: msg.id,
             sender: msg.isAdmin ? "user" : "contact",
@@ -95,8 +127,11 @@ export function Messenger() {
             text: msg.message,
             type: msg.type || "text",
             rawTime: msgTime,
-            timestamp: new Date(msgTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            isAdmin: msg.isAdmin || false
+            // Ginagamit ang actual date object para makuha ang string representation
+            timestamp: d.toISOString(), 
+            isAdmin: msg.isAdmin || false,
+            isFAQ: msg.isFAQ || false,
+            isEdited: msg.isEdited || false
           });
 
           grouped[clientEmail].lastMessageTime = msgTime;
@@ -105,25 +140,67 @@ export function Messenger() {
         });
       }
       setConversations(Object.values(grouped));
-    } catch (err) { 
-      console.error("Fetch Error:", err); 
+    } catch (err) {
+      console.error("Fetch Error:", err);
     }
   };
 
   useEffect(() => {
     fetchChats();
-    const interval = setInterval(fetchChats, 4000); 
+    const interval = setInterval(fetchChats, 4000);
     return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
-    if (messagesContainerRef.current) {
-      messagesContainerRef.current.scrollTo({
-        top: messagesContainerRef.current.scrollHeight,
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    const isAtBottom =
+      container.scrollHeight - container.scrollTop <= container.clientHeight + 150;
+
+    const scrollToBottom = () => {
+      container.scrollTo({
+        top: container.scrollHeight,
         behavior: "smooth"
       });
+    };
+
+    if (selectedConversationId || isAtBottom) {
+      const timeoutId = setTimeout(scrollToBottom, 100);
+      return () => clearTimeout(timeoutId);
     }
   }, [conversations, selectedConversationId]);
+
+  const editAdminMessage = async (id: string, newContent: string) => {
+    if (!newContent.trim()) return;
+    try {
+      const res = await fetch("/api/chats", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, message: newContent }),
+      });
+      if (res.ok) {
+        toast.success("Transmission updated.");
+        fetchChats();
+      }
+    } catch (error) {
+      toast.error("Failed to update message.");
+    }
+  };
+
+  const deleteAdminMessage = async (id: string) => {
+    try {
+      const res = await fetch(`/api/chats?id=${id}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        toast.success("Data wiped.");
+        fetchChats();
+      }
+    } catch (error) {
+      toast.error("Wipe failed.");
+    }
+  };
 
   const saveToDB = async (content: string, type: "text" | "image") => {
     if (!selectedConversationId) return;
@@ -133,6 +210,7 @@ export function Messenger() {
       message: content,
       isAdmin: true,
       type: type,
+      isEdited: false,
       timestamp: new Date().toISOString()
     };
     const res = await fetch("/api/chats", {
@@ -175,30 +253,28 @@ export function Messenger() {
       .sort((a, b) => b.lastMessageTime - a.lastMessageTime);
   }, [conversations, searchTerm]);
 
-  const activeConversation = useMemo(() => 
-    conversations.find((c) => c.id === selectedConversationId), 
-  [conversations, selectedConversationId]);
+  const activeConversation = useMemo(() =>
+    conversations.find((c) => c.id === selectedConversationId),
+    [conversations, selectedConversationId]);
 
   return (
-    <section className="w-full h-[calc(100vh-80px)] lg:h-[calc(100vh-120px)] flex gap-6 overflow-hidden transition-colors duration-300">
-      
-      {/* IMAGE VIEW OVERLAY */}
+    <section className="w-full h-[calc(100vh-80px)] lg:h-[calc(100vh-120px)] flex gap-6 overflow-hidden">
+
       <AnimatePresence>
         {maximizedImage && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center p-4 backdrop-blur-sm"
             onClick={() => setMaximizedImage(null)}
           >
-            <img src={maximizedImage} className="max-w-full max-h-full object-contain rounded-lg shadow-2xl" alt="Enlarged view" />
-            <Button className="absolute top-4 right-4 bg-white/10 hover:bg-white/20 transition-colors" variant="ghost" size="icon" onClick={() => setMaximizedImage(null)}>
+            <img src={maximizedImage} className="max-w-full max-h-full object-contain rounded-lg" alt="Enlarged" />
+            <Button className="absolute top-4 right-4 bg-white/10" variant="ghost" size="icon" onClick={() => setMaximizedImage(null)}>
               <X className="text-white" />
             </Button>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* SIDEBAR: List of Clients */}
       <div className={cn(
         "w-full lg:w-80 flex flex-col bg-card border border-border lg:rounded-3xl overflow-hidden shadow-sm transition-all",
         selectedConversationId ? "hidden lg:flex" : "flex"
@@ -207,31 +283,26 @@ export function Messenger() {
           <h2 className="font-black uppercase tracking-tight text-xl text-foreground">Inbox</h2>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
-            <Input 
-              placeholder="Search..." 
-              value={searchTerm} 
-              onChange={(e) => setSearchTerm(e.target.value)} 
-              className="pl-10 bg-muted border-none rounded-2xl h-11 focus-visible:ring-1" 
+            <Input
+              placeholder="Search..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 bg-muted border-none rounded-2xl h-11"
             />
           </div>
         </div>
         <div className="flex-1 overflow-y-auto p-2 scrollbar-hide">
           {sortedAndFilteredConvos.map((conv) => (
-            <button 
-              key={conv.id} 
-              onClick={() => setSelectedConversationId(conv.id)} 
+            <button
+              key={conv.id}
+              onClick={() => setSelectedConversationId(conv.id)}
               className={cn(
-                "w-full flex items-center gap-3 p-4 rounded-2xl mb-1 text-left transition-all duration-200 group", 
-                selectedConversationId === conv.id 
-                  ? "bg-foreground text-background" 
-                  : "hover:bg-muted text-foreground"
+                "w-full flex items-center gap-3 p-4 rounded-2xl mb-1 text-left transition-all",
+                selectedConversationId === conv.id ? "bg-foreground text-background" : "hover:bg-muted text-foreground"
               )}
             >
-              <Avatar className="h-12 w-12 border border-border/50 shadow-sm">
-                <AvatarFallback className={cn(
-                  "font-bold",
-                  selectedConversationId === conv.id ? "bg-background text-foreground" : "bg-primary text-primary-foreground"
-                )}>
+              <Avatar className="h-12 w-12 border border-border/50">
+                <AvatarFallback className={cn("font-bold", selectedConversationId === conv.id ? "bg-background text-foreground" : "bg-primary text-primary-foreground")}>
                   {conv.initials}
                 </AvatarFallback>
               </Avatar>
@@ -239,13 +310,10 @@ export function Messenger() {
                 <div className="flex justify-between items-center mb-0.5">
                   <p className="text-sm font-bold truncate">{conv.name}</p>
                   {conv.hasUnread && selectedConversationId !== conv.id && (
-                    <span className="h-2 w-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)] animate-pulse" />
+                    <span className="h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
                   )}
                 </div>
-                <p className={cn(
-                  "text-xs truncate font-medium",
-                  selectedConversationId === conv.id ? "opacity-70" : "text-muted-foreground"
-                )}>
+                <p className={cn("text-xs truncate font-medium", selectedConversationId === conv.id ? "opacity-70" : "text-muted-foreground")}>
                   {conv.messages[conv.messages.length - 1]?.type === 'image' ? "Sent an image..." : conv.messages[conv.messages.length - 1]?.text}
                 </p>
               </div>
@@ -254,14 +322,12 @@ export function Messenger() {
         </div>
       </div>
 
-      {/* CHAT WINDOW */}
       <div className={cn(
         "flex-1 flex flex-col bg-card border border-border lg:rounded-3xl overflow-hidden relative shadow-sm transition-all",
         selectedConversationId ? "flex" : "hidden lg:flex"
       )}>
         {activeConversation ? (
           <div className="flex flex-col h-full bg-background/50">
-            {/* CHAT HEADER */}
             <div className="p-4 border-b border-border flex items-center justify-between bg-card/80 backdrop-blur-md sticky top-0 z-10">
               <div className="flex items-center gap-3">
                 <Button variant="ghost" size="icon" className="lg:hidden mr-1" onClick={() => setSelectedConversationId("")}>
@@ -280,56 +346,115 @@ export function Messenger() {
               </div>
             </div>
 
-            {/* MESSAGES AREA */}
-            <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6 scrollbar-hide">
-              {activeConversation.messages.map((msg) => (
-                <div key={msg.id} className={cn("flex w-full animate-in fade-in slide-in-from-bottom-2 duration-300", msg.sender === "user" ? "justify-end" : "justify-start")}>
-                  <div className={cn("flex flex-col max-w-[85%] md:max-w-[70%]", msg.sender === "user" ? "items-end" : "items-start")}>
+            <div
+              ref={messagesContainerRef}
+              className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6 scrollbar-hide scroll-smooth"
+            >
+              {activeConversation.messages.map((msg, index) => {
+                const isImage = msg.type === "image";
+                const isLink = /(https?:\/\/[^\s]+)/g.test(msg.text || "");
+                const isFAQ = msg.isFAQ === true;
+                const isMe = msg.isAdmin === true;
+
+                // Safe Date parsing
+                const currentMsgDate = getSafeDate(msg.timestamp);
+                const prevMsgDate = index > 0 ? getSafeDate(activeConversation.messages[index - 1].timestamp) : null;
+
+                const showDateSeparator = !prevMsgDate || 
+                  currentMsgDate.toLocaleDateString() !== prevMsgDate.toLocaleDateString();
+
+                return (
+                  <div key={msg.id || index} className="space-y-6">
+                    {showDateSeparator && (
+                      <div className="flex justify-center my-8">
+                        <span className="px-3 py-1 rounded-full bg-muted/50 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground border border-border/50">
+                          {formatDateSeparator(msg.timestamp)}
+                        </span>
+                      </div>
+                    )}
+
                     <div className={cn(
-                      "px-4 py-3 rounded-2xl text-sm shadow-sm border transition-colors leading-relaxed", 
-                      msg.sender === "user" 
-                        ? "bg-foreground text-background border-transparent rounded-tr-none font-medium" 
-                        : "bg-muted text-foreground border-border rounded-tl-none"
+                      "flex w-full animate-in fade-in slide-in-from-bottom-2 duration-300",
+                      isMe ? "justify-end" : "justify-start"
                     )}>
-                      {msg.type === "image" ? (
-                        <div className="relative group overflow-hidden rounded-lg">
-                          <img 
-                            src={msg.text} 
-                            onClick={() => setMaximizedImage(msg.text)} 
-                            className="max-h-64 w-auto object-cover cursor-zoom-in group-hover:scale-105 transition-transform duration-500" 
-                            alt="Sent image"
-                          />
+                      <div className={cn(
+                        "flex flex-col max-w-[85%] md:max-w-[70%] relative group",
+                        isMe ? "items-end" : "items-start"
+                      )}>
+
+                        {isMe && !isFAQ && (
+                          <div className="absolute -top-5 right-0 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity bg-black/90 rounded-md px-2 py-1 border border-zinc-800 z-20 shadow-xl">
+                            {!isImage && !isLink && (
+                              <button
+                                onClick={() => {
+                                  const newMsg = prompt("Edit message:", msg.text);
+                                  if (newMsg) editAdminMessage(msg.id, newMsg);
+                                }}
+                                className="text-[8px] font-black uppercase text-zinc-400 hover:text-orange-500"
+                              >
+                                Edit
+                              </button>
+                            )}
+                            <button
+                              onClick={() => confirm("Delete?") && deleteAdminMessage(msg.id)}
+                              className="text-[8px] font-black uppercase text-zinc-400 hover:text-red-500"
+                            >
+                              Wipe
+                            </button>
+                          </div>
+                        )}
+
+                        <div className={cn(
+                          "px-4 py-3 rounded-2xl text-sm border transition-colors leading-relaxed",
+                          !isMe ? "bg-white text-black border-transparent rounded-tl-none font-medium shadow-sm" 
+                                : "bg-muted text-foreground border-border rounded-tr-none"
+                        )}>
+                          {isImage ? (
+                            <img 
+                              src={msg.text} 
+                              onClick={() => setMaximizedImage(msg.text)} 
+                              className="max-h-64 rounded-lg cursor-zoom-in hover:scale-[1.02] transition-transform" 
+                              alt="Sent" 
+                            />
+                          ) : (
+                            <span className="whitespace-pre-wrap">{msg.text}</span>
+                          )}
                         </div>
-                      ) : (
-                        msg.text
-                      )}
+
+                        {/* TIME DISPLAY FIX: Ito yung kailangan mo par, AM/PM format */}
+                        <div className={cn("flex items-center gap-1.5 mt-1.5", isMe ? "flex-row-reverse" : "flex-row")}>
+                          <span className="text-[9px] font-bold text-muted-foreground/50 uppercase tracking-tighter">
+                            {currentMsgDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}
+                          </span>
+                          {msg.isEdited && (
+                            <span className="text-[7px] font-black text-orange-500/50 uppercase italic">(Edited)</span>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                    <span className="text-[9px] mt-1.5 font-bold text-muted-foreground/50 uppercase tracking-tighter">
-                      {msg.timestamp}
-                    </span>
                   </div>
-                </div>
-              ))}
+                );
+              })}
+              <div ref={scrollRef} className="h-1" />
             </div>
 
-            {/* INPUT AREA */}
             <div className="p-4 bg-card border-t border-border">
               <form onSubmit={handleSubmit} className="bg-muted/30 rounded-3xl border border-border p-2 focus-within:ring-2 ring-primary/10 transition-all">
-                <Textarea 
-                  value={draft} 
-                  onChange={(e) => setDraft(e.target.value)} 
-                  placeholder="Type your response..." 
-                  className="min-h-[80px] w-full bg-transparent border-none focus-visible:ring-0 text-sm resize-none text-foreground placeholder:text-muted-foreground/50" 
+                <Textarea
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  placeholder="Type your response..."
+                  className="min-h-[80px] w-full bg-transparent border-none focus-visible:ring-0 text-sm resize-none"
                   disabled={uploading}
                 />
                 <div className="flex items-center justify-between p-2 border-t border-border/50">
                   <div className="flex gap-2">
                     <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
-                    <Button type="button" variant="ghost" size="icon" onClick={() => fileInputRef.current?.click()} disabled={uploading} className="h-10 w-10 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+                    <Button type="button" variant="ghost" size="icon" onClick={() => fileInputRef.current?.click()} disabled={uploading} className="h-10 w-10 rounded-full">
                       {uploading ? <Loader2 className="animate-spin w-5 h-5" /> : <ImageIcon className="w-5 h-5" />}
                     </Button>
                   </div>
-                  <Button type="submit" size="sm" className="rounded-2xl h-10 px-6 font-bold uppercase tracking-widest text-[11px] bg-foreground text-background hover:opacity-90 transition-opacity" disabled={!draft.trim() || uploading}>
+                  <Button type="submit" size="sm" className="rounded-2xl h-10 px-6 font-bold uppercase tracking-widest text-[11px]" disabled={!draft.trim() || uploading}>
                     <Send className="w-4 h-4 mr-2" /> Send
                   </Button>
                 </div>

@@ -91,7 +91,7 @@ export default function PiercingGalleryPage() {
       <Navbar />
 
       {/* --- HERO SECTION --- */}
-      <section className="relative h-[50vh] w-full flex items-center justify-center overflow-hidden border-b border-white/5">
+      <section className="relative h-[40vh] w-full flex items-center justify-center overflow-hidden border-b border-white/5">
         <div 
           className="absolute inset-0 bg-cover bg-center bg-no-repeat bg-fixed grayscale opacity-30"
           style={{ backgroundImage: `url('https://images.unsplash.com/photo-1590201845110-386f5c888e93?q=80&w=2000')` }}
@@ -103,7 +103,7 @@ export default function PiercingGalleryPage() {
             <Zap className="w-3 h-3 text-orange-500" />
             <span className="text-[10px] font-black uppercase tracking-[0.3em] text-orange-500">Piercing Archive</span>
           </motion.div>
-          <h1 className="text-6xl md:text-7xl font-black uppercase tracking-tighter italic">
+          <h1 className="text-5xl md:text-6xl font-black uppercase tracking-tighter italic">
             THE ART OF BODY <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-600 via-orange-400 to-yellow-400">PIERCING</span>
           </h1>
         </div>

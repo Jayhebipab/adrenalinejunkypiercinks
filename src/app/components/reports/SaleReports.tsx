@@ -1,19 +1,27 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
+import React, { useEffect, useState } from 'react';
 import { 
-  Search, FileDown, TrendingUp, ShoppingBag, 
-  Package, Receipt, ArrowUpRight 
-} from "lucide-react"
-import { format, isValid } from "date-fns"
-import * as XLSX from "xlsx"
-import { Button } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
+  TrendingUp, Search, FileDown, ShoppingBag, Receipt, 
+  ArrowUpRight, Loader2, Calendar, User, Package, Filter, X
+} from "lucide-react";
+import { format, isValid, isWithinInterval, startOfDay, endOfDay, subDays, startOfMonth } from "date-fns";
+import * as XLSX from "xlsx";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 export default function SalesReports() {
   const [sales, setSales] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  
+  // --- NEW STATES FOR FILTERING ---
+  const [typeFilter, setTypeFilter] = useState<string>("ALL");
+  const [dateRange, setDateRange] = useState<{ start: Date | null; end: Date | null }>({
+    start: null,
+    end: null
+  });
 
   useEffect(() => {
     fetchSales();
@@ -22,8 +30,6 @@ export default function SalesReports() {
   const fetchSales = async () => {
     try {
       setLoading(true);
-      
-      // I-fetch ang tatlong source sabay-sabay
       const [resPromos, resBookings, resOrders] = await Promise.all([
         fetch("/api/promos"),
         fetch("/api/bookings"),
@@ -34,52 +40,35 @@ export default function SalesReports() {
       const bookingsData = await resBookings.json();
       const ordersData = await resOrders.json();
 
-      // 1. Normalize Promos Data
       const promosList = (Array.isArray(promosData) ? promosData : promosData.promos || []).map((p: any) => ({
-        ...p,
-        source: "Promo",
-        displayName: p.name,
-        displayPrice: Number(p.price || 0),
-        displayDate: p.createdAt || p.timestamp,
-        materials: p.productsUsed || []
+        ...p, source: "Promo", displayName: p.name, displayPrice: Number(p.price || 0),
+        displayDate: p.createdAt || p.timestamp, materials: p.productsUsed || []
       }));
 
-      // 2. Normalize Finished Bookings
       const bookingsList = (Array.isArray(bookingsData) ? bookingsData : bookingsData.bookings || [])
         .filter((b: any) => b.status === "finished")
         .map((b: any) => ({
-          ...b,
-          source: "Regular",
-          displayName: b.service,
-          displayPrice: Number(b.finalPrice || 0),
-          displayDate: b.finishedAt || b.timestamp,
-          materials: b.inventoryUsed || [] 
+          ...b, source: "Regular", displayName: b.service, displayPrice: Number(b.finalPrice || 0),
+          displayDate: b.finishedAt || b.timestamp, materials: b.inventoryUsed || [] 
         }));
 
-      // 3. Normalize Paid Orders (E-commerce/Shop)
       const ordersList = (Array.isArray(ordersData) ? ordersData : [])
-        .filter((o: any) => o.status === "Paid" || o.status === "Delivered")
+        .filter((o: any) => o.status === "Finished" || o.status === "Delivered" || o.status === "Paid")
         .map((o: any) => ({
-          ...o,
-          source: "Shop",
-          displayName: `Order: ${o.customer_name}`,
-          artist: "Store Sale", // Default artist name para sa orders
-          displayPrice: Number(o.total_amount || 0),
-          displayDate: o.createdAt || o.timestamp,
-          // I-convert ang items format para mag-match sa materials list
+          ...o, source: "Shop", displayName: `Order: ${o.customer_name}`, artist: "Store Sale", 
+          displayPrice: Number(o.total_amount || 0), displayDate: o.updatedAt || o.createdAt || o.timestamp, 
           materials: o.items?.map((i: any) => ({ name: i.name, quantity: i.quantity })) || []
         }));
 
-      // Combine and Sort by Date
       const combined = [...promosList, ...bookingsList, ...ordersList].sort((a, b) => {
-        const dateA = a.displayDate?.seconds || new Date(a.displayDate).getTime();
-        const dateB = b.displayDate?.seconds || new Date(b.displayDate).getTime();
+        const dateA = a.displayDate?.seconds ? a.displayDate.seconds * 1000 : new Date(a.displayDate).getTime();
+        const dateB = b.displayDate?.seconds ? b.displayDate.seconds * 1000 : new Date(b.displayDate).getTime();
         return dateB - dateA;
       });
 
       setSales(combined);
     } catch (error) {
-      console.error("Failed to fetch consolidated sales:", error);
+      toast.error("Database Sync Failed");
     } finally {
       setLoading(false);
     }
@@ -93,14 +82,30 @@ export default function SalesReports() {
     } catch (e) { return "N/A"; }
   };
 
-  const filteredSales = sales.filter(s => 
-    (s.displayName?.toLowerCase() || "").includes(search.toLowerCase()) ||
-    (s.artist?.toLowerCase() || "").includes(search.toLowerCase()) ||
-    (s.source?.toLowerCase() || "").includes(search.toLowerCase())
-  );
+  // --- FILTERING LOGIC ---
+  const filteredSales = sales.filter(s => {
+    // 1. Search Filter
+    const matchesSearch = (s.displayName?.toLowerCase() || "").includes(search.toLowerCase()) ||
+                          (s.artist?.toLowerCase() || "").includes(search.toLowerCase());
+    
+    // 2. Type Filter
+    const matchesType = typeFilter === "ALL" || s.source.toUpperCase() === typeFilter;
+
+    // 3. Date Filter
+    let matchesDate = true;
+    if (dateRange.start && dateRange.end) {
+      const saleDate = s.displayDate?.seconds ? new Date(s.displayDate.seconds * 1000) : new Date(s.displayDate);
+      matchesDate = isWithinInterval(saleDate, { 
+        start: startOfDay(dateRange.start), 
+        end: endOfDay(dateRange.end) 
+      });
+    }
+
+    return matchesSearch && matchesType && matchesDate;
+  });
 
   const totalRevenue = filteredSales.reduce((acc, curr) => acc + (curr.displayPrice || 0), 0);
-  
+
   const exportToExcel = () => {
     const dataToExport = filteredSales.map(sale => ({
       Date: safeFormatDate(sale.displayDate, "yyyy-MM-dd HH:mm"),
@@ -117,107 +122,165 @@ export default function SalesReports() {
   };
 
   return (
-    <div className="p-4 md:p-10 min-h-screen text-slate-900 font-sans">
-      <div className="max-w-7xl mx-auto space-y-6">
-        
-        {/* HEADER */}
-        <header className="grid grid-cols-1 lg:grid-cols-3 gap-6 bg-slate-900 p-8 rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden">
-          <div className="absolute top-[-20%] right-[-10%] w-64 h-64 bg-orange-600/10 rounded-full blur-3xl"></div>
-          <div className="lg:col-span-2 flex items-center gap-6 relative z-10">
-            <div className="p-5 bg-orange-600 rounded-3xl text-white shadow-xl shadow-orange-900/40 animate-pulse">
-              <TrendingUp size={32} />
-            </div>
-            <div>
-              <h1 className="text-4xl font-black italic uppercase tracking-tighter">Grand Ledger</h1>
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.4em]">Services + Shop Analytics</p>
-            </div>
-          </div>
-          <div className="flex flex-col justify-center items-end relative z-10">
-            <span className="text-[9px] font-black text-orange-500 uppercase tracking-widest bg-orange-500/10 px-3 py-1 rounded-full mb-2">Total Combined Revenue</span>
-            <h2 className="text-5xl font-black italic tracking-tighter text-white">₱{totalRevenue.toLocaleString()}</h2>
-            <Button onClick={exportToExcel} className="mt-4 bg-white text-black hover:bg-slate-200 rounded-xl h-10 w-full uppercase text-[10px] font-black">
-              <FileDown size={16} className="mr-2"/> Export Report
-            </Button>
-          </div>
-        </header>
+    <div className="space-y-8 p-2 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      
+      {/* HEADER SECTION - SAME AS PREVIOUS */}
+      <div className="flex flex-col lg:flex-row justify-between items-stretch lg:items-end gap-6 w-full">
+        <div className="flex flex-col justify-end pb-2"> 
+          <h2 className="text-5xl font-[1000] uppercase italic tracking-tighter text-zinc-900 dark:text-white leading-none">
+            Grand <span className="text-primary">Ledger</span>
+          </h2>
+          <p className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.3em] mt-3">
+            Consolidated Financial Analytics
+          </p>
+        </div>
 
-        {/* SEARCH */}
-        <div className="relative group max-w-2xl">
-          <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-orange-600 transition-colors" size={20} />
+        <div className="flex flex-col items-end gap-2 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-900 p-6 rounded-[2.5rem] min-w-[320px] shadow-sm">
+          <div className="text-right w-full">
+            <span className="text-[9px] font-black text-primary uppercase tracking-widest block mb-1">Total Combined Revenue</span>
+            <h2 className="text-5xl font-[1000] italic tracking-tighter text-zinc-900 dark:text-white leading-tight">
+              ₱{totalRevenue.toLocaleString()}
+            </h2>
+          </div>
+          <Button onClick={exportToExcel} className="mt-2 w-full bg-zinc-900 dark:bg-white text-white dark:text-black hover:bg-primary dark:hover:bg-primary dark:hover:text-white rounded-xl h-11 uppercase text-[10px] font-black tracking-widest transition-all shadow-md">
+            <FileDown size={16} className="mr-2"/> Export Report
+          </Button>
+        </div>
+      </div>
+
+      {/* FILTER TOOLBAR */}
+      <div className="space-y-4">
+        <div className="flex flex-wrap items-center gap-3">
+          {/* LOG TYPE SELECTOR */}
+          <div className="flex bg-zinc-100 dark:bg-zinc-900 p-1 rounded-xl border border-zinc-200 dark:border-zinc-800">
+            {['ALL', 'REGULAR', 'PROMO', 'SHOP'].map((t) => (
+              <button
+                key={t}
+                onClick={() => setTypeFilter(t)}
+                className={cn(
+                  "px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all",
+                  typeFilter === t 
+                    ? "bg-white dark:bg-zinc-800 text-primary shadow-sm" 
+                    : "text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
+                )}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
+
+          {/* QUICK DATE PRESETS */}
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => setDateRange({ start: startOfDay(new Date()), end: new Date() })}
+              className="px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 text-[9px] font-black uppercase text-zinc-500 hover:border-primary transition-all"
+            >
+              Today
+            </button>
+            <button 
+              onClick={() => setDateRange({ start: subDays(new Date(), 7), end: new Date() })}
+              className="px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 text-[9px] font-black uppercase text-zinc-500 hover:border-primary transition-all"
+            >
+              Last 7 Days
+            </button>
+            <button 
+              onClick={() => setDateRange({ start: startOfMonth(new Date()), end: new Date() })}
+              className="px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 text-[9px] font-black uppercase text-zinc-500 hover:border-primary transition-all"
+            >
+              This Month
+            </button>
+            {(dateRange.start) && (
+              <button 
+                onClick={() => setDateRange({ start: null, end: null })}
+                className="p-2 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-all"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* SEARCH BAR */}
+        <div className="relative group max-w-xl">
+          <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-zinc-400 group-focus-within:text-primary transition-colors" size={18} />
           <input 
             type="text" 
-            placeholder="Search service, shop order, or artist..." 
-            className="w-full bg-white border-2 border-slate-100 rounded-[2rem] px-8 py-6 pl-16 outline-none font-bold uppercase shadow-sm focus:border-orange-500 transition-all text-xs"
+            placeholder="Search service, artist, or source..." 
+            className="w-full bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-900 rounded-2xl px-6 py-4 pl-14 outline-none font-bold uppercase shadow-sm focus:border-primary transition-all text-[11px] text-zinc-900 dark:text-white"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
+      </div>
 
-        {/* TABLE */}
-        <div className="bg-white rounded-[3rem] shadow-xl border border-slate-100 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50/50 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 border-b border-slate-100">
-                  <th className="px-10 py-6">Timestamp</th>
-                  <th className="px-10 py-6">Transaction Type</th>
-                  <th className="px-10 py-6">Personnel</th>
-                  <th className="px-10 py-6">Details / Items</th>
-                  <th className="px-10 py-6 text-right">Revenue</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50">
-                {loading ? (
-                  <tr><td colSpan={5} className="py-32 text-center text-[10px] font-black uppercase text-slate-400">Syncing Master Database...</td></tr>
-                ) : filteredSales.map((sale, idx) => (
-                  <tr key={sale.id || idx} className="hover:bg-slate-50/80 transition-all group">
-                    <td className="px-10 py-8">
-                      <div className="flex flex-col">
-                        <span className="font-black text-sm uppercase italic text-slate-700">{safeFormatDate(sale.displayDate, "MMM dd, yyyy")}</span>
-                        <span className="text-[10px] text-slate-400 font-bold uppercase">{safeFormatDate(sale.displayDate, "hh:mm a")}</span>
+      {/* TRANSACTION TABLE (Same as your previous table but uses filteredSales) */}
+      <div className="bg-white dark:bg-zinc-950 rounded-[2.5rem] border border-zinc-200 dark:border-zinc-900 overflow-hidden shadow-sm">
+        {/* ... table content same as yours ... */}
+        {/* Gamitin lang ang `filteredSales` map function dito */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-zinc-50 dark:bg-zinc-900/50 text-[10px] font-black uppercase tracking-widest text-zinc-400 border-b border-zinc-100 dark:border-zinc-900">
+                <th className="px-8 py-5">Timestamp</th>
+                <th className="px-8 py-5">Type</th>
+                <th className="px-8 py-5">Personnel</th>
+                <th className="px-8 py-5">Breakdown</th>
+                <th className="px-8 py-5 text-right">Amount</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-zinc-100 dark:divide-zinc-900">
+              {loading ? (
+                <tr><td colSpan={5} className="py-32 text-center text-[10px] font-black uppercase text-zinc-500">Syncing Master Database...</td></tr>
+              ) : filteredSales.length === 0 ? (
+                <tr><td colSpan={5} className="py-32 text-center text-[10px] font-black uppercase text-zinc-500">No records found for this filter.</td></tr>
+              ) : (
+                filteredSales.map((sale, idx) => (
+                   <tr key={sale.id || idx} className="hover:bg-zinc-50 dark:hover:bg-zinc-900/30 transition-all group">
+                    <td className="px-8 py-6">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2.5 rounded-xl bg-zinc-100 dark:bg-zinc-900 text-zinc-400"><Calendar size={14} /></div>
+                        <div className="flex flex-col">
+                          <span className="font-black text-xs uppercase italic text-zinc-900 dark:text-white leading-none">{safeFormatDate(sale.displayDate, "MMM dd, yyyy")}</span>
+                          <span className="text-[9px] text-zinc-500 font-bold uppercase mt-1">{safeFormatDate(sale.displayDate, "hh:mm a")}</span>
+                        </div>
                       </div>
                     </td>
-                    <td className="px-10 py-8">
+                    <td className="px-8 py-6">
                       <div className="flex flex-col gap-1.5">
-                        <div className={cn(
-                          "w-fit px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border",
-                          sale.source === 'Promo' ? "bg-orange-50 text-orange-600 border-orange-100" : 
-                          sale.source === 'Regular' ? "bg-emerald-50 text-emerald-600 border-emerald-100" :
-                          "bg-blue-50 text-blue-600 border-blue-100"
-                        )}>
-                          {sale.source}
-                        </div>
-                        <p className="font-black text-sm uppercase tracking-tighter text-slate-800 flex items-center gap-1">
-                          {sale.source === 'Shop' ? <ShoppingBag size={14} className="text-blue-500" /> : <Receipt size={14} className="text-slate-300" />}
+                        <span className={cn(
+                          "w-fit px-2 py-0.5 rounded text-[8px] font-[1000] uppercase border",
+                          sale.source === 'Promo' ? "bg-orange-500/10 text-orange-500 border-orange-500/20" : 
+                          sale.source === 'Regular' ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" :
+                          "bg-blue-500/10 text-blue-500 border-blue-500/20"
+                        )}>{sale.source}</span>
+                        <p className="font-black text-xs uppercase italic text-zinc-900 dark:text-white flex items-center gap-1.5">
+                          {sale.source === 'Shop' ? <ShoppingBag size={12} className="text-blue-500" /> : <Receipt size={12} className="text-zinc-500" />}
                           {sale.displayName}
                         </p>
                       </div>
                     </td>
-                    <td className="px-10 py-8">
-                      <span className="text-xs font-black uppercase tracking-tight text-slate-600">{sale.artist}</span>
+                    <td className="px-8 py-6">
+                      <span className="text-[11px] font-black uppercase tracking-tight text-zinc-600 dark:text-zinc-400">{sale.artist}</span>
                     </td>
-                    <td className="px-10 py-8">
-                      <div className="flex flex-wrap gap-1.5 max-w-[220px]">
-                        {sale.materials?.map((item: any, i: number) => (
-                          <div key={i} className="bg-white border border-slate-200 text-[9px] font-bold px-2 py-1 rounded-md text-slate-500 uppercase flex items-center gap-1">
-                            {item.name} <span className="text-orange-600 font-black">×{item.quantity}</span>
+                    <td className="px-8 py-6">
+                      <div className="flex flex-wrap gap-1.5 max-w-[200px]">
+                        {sale.materials?.length > 0 ? sale.materials.map((m:any, i:number) => (
+                          <div key={i} className="bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-[8px] font-black px-2 py-0.5 rounded text-zinc-500 uppercase">
+                            {m.name} <span className="text-primary">×{m.quantity}</span>
                           </div>
-                        ))}
+                        )) : <span className="text-[9px] font-bold text-zinc-500 italic uppercase">Labor Only</span>}
                       </div>
                     </td>
-                    <td className="px-10 py-8 text-right">
-                      <div className="flex flex-col items-end">
-                        <span className="text-lg font-black italic tracking-tighter text-slate-900">₱{sale.displayPrice?.toLocaleString()}</span>
-                        <div className="flex items-center text-[8px] font-black text-green-500 uppercase">Paid <ArrowUpRight size={10} /></div>
-                      </div>
+                    <td className="px-8 py-6 text-right">
+                      <span className="text-lg font-[1000] italic tracking-tighter text-zinc-900 dark:text-white">₱{(sale.displayPrice ?? 0).toLocaleString()}</span>
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
-  )
+  );
 }

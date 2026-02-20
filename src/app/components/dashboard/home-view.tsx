@@ -1,34 +1,26 @@
 "use client";
 
 import type React from "react";
-
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { motion, type Variants } from "framer-motion";
+import { useState, useEffect, useMemo } from "react";
+import { db } from "@/lib/firebase"; 
+import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
+import { toast } from "sonner";
+import { motion, AnimatePresence, type Variants } from "framer-motion";
 import {
-  Activity,
-  BarChart3,
-  ChevronRight,
-  Clock,
   DollarSign,
+  Truck,
+  Package,
+  AlertTriangle,
   Download,
-  Menu,
-  Percent,
-  Settings,
-  TrendingDown,
-  TrendingUp,
-  Users,
-  Zap,
-  ArrowUpRight,
-  ArrowDownRight,
+  Activity,
   Sparkles,
-  Eye,
+  TrendingUp,
+  History,
+  RefreshCcw,
+  ShieldCheck,
 } from "lucide-react";
-import { useState } from "react";
 import {
   CartesianGrid,
-  Line,
-  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -36,427 +28,280 @@ import {
   Area,
   AreaChart,
 } from "recharts";
-
-// ============================================================================
-// TYPES & INTERFACES
-// ============================================================================
-
-interface MetricCardProps {
-  label: string;
-  value: string;
-  change: string;
-  trend: "up" | "down";
-  icon: React.ReactNode;
-  description?: string;
-}
-
-interface ChartCardProps {
-  title: string;
-  description: string;
-  data: Array<{ name: string; value: number }>;
-  dataKey: string;
-  height?: number;
-}
-
-interface DetailItem {
-  label: string;
-  value: string;
-  subtitle: string;
-}
-
-interface DetailedCardProps {
-  title: string;
-  items: DetailItem[];
-}
-
-// ============================================================================
-// STATIC CHART DATA
-// ============================================================================
-
-const USER_GROWTH_DATA = [
-  { name: "Jan", value: 2400 },
-  { name: "Feb", value: 3210 },
-  { name: "Mar", value: 2290 },
-  { name: "Apr", value: 2780 },
-  { name: "May", value: 3181 },
-  { name: "Jun", value: 3500 },
-  { name: "Jul", value: 4100 },
-  { name: "Aug", value: 4200 },
-  { name: "Sep", value: 3890 },
-  { name: "Oct", value: 4500 },
-  { name: "Nov", value: 4800 },
-  { name: "Dec", value: 5200 },
-];
-
-const REVENUE_TREND_DATA = [
-  { name: "Jan", value: 4000 },
-  { name: "Feb", value: 4500 },
-  { name: "Mar", value: 4200 },
-  { name: "Apr", value: 5780 },
-  { name: "May", value: 5890 },
-  { name: "Jun", value: 6390 },
-  { name: "Jul", value: 7490 },
-  { name: "Aug", value: 8200 },
-  { name: "Sep", value: 7800 },
-  { name: "Oct", value: 9200 },
-  { name: "Nov", value: 9800 },
-  { name: "Dec", value: 10500 },
-];
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 // ============================================================================
 // ANIMATION VARIANTS
 // ============================================================================
-
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.05,
-      delayChildren: 0.1,
-    },
-  },
+  visible: { opacity: 1, transition: { staggerChildren: 0.1 } },
 };
 
 const itemVariants: Variants = {
   hidden: { opacity: 0, y: 20 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.5, ease: "easeOut" },
-  },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } },
 };
 
 // ============================================================================
-// COMPONENTS
+// MAIN COMPONENT
 // ============================================================================
+export default function DashboardHome() {
+  const [loading, setLoading] = useState(true);
+  const [reports, setReports] = useState<any[]>([]); 
+  const [sales, setSales] = useState<any[]>([]);     
+  const [products, setProducts] = useState<any[]>([]); 
 
-// Enhanced Metric Card
-function MetricCard({ label, value, change, trend, icon, description }: MetricCardProps) {
-  const isPositive = trend === "up";
-  const TrendIcon = isPositive ? ArrowUpRight : ArrowDownRight;
+  // 1. REAL-TIME LISTENER: Delivery Reports (Firestore)
+  useEffect(() => {
+    const q = query(collection(db, "delivery_reports"), orderBy("createdAt", "desc"));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const data = snapshot.docs.map(doc => ({ 
+        id: doc.id, 
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.seconds ? new Date(doc.data().createdAt.seconds * 1000) : new Date()
+      }));
+      setReports(data);
+    }, (error) => {
+      toast.error("Real-time sync failed");
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // 2. DATA FETCHING: Sales & Inventory (API)
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const [resPromos, resBookings, resOrders, resProducts] = await Promise.all([
+        fetch("/api/promos"),
+        fetch("/api/bookings"),
+        fetch("/api/orders"),
+        fetch("/api/products")
+      ]);
+
+      const [promosData, bookingsData, ordersData, productsData] = await Promise.all([
+        resPromos.json(), resBookings.json(), resOrders.json(), resProducts.json()
+      ]);
+
+      const promosList = (Array.isArray(promosData) ? promosData : promosData.promos || []).map((p: any) => ({
+        ...p, source: "Promo", displayName: p.name, displayPrice: Number(p.price || 0),
+        displayDate: p.createdAt || p.timestamp
+      }));
+
+      const bookingsList = (Array.isArray(bookingsData) ? bookingsData : bookingsData.bookings || [])
+        .filter((b: any) => b.status === "finished")
+        .map((b: any) => ({
+          ...b, source: "Regular", displayName: b.service, displayPrice: Number(b.finalPrice || 0),
+          displayDate: b.finishedAt || b.timestamp
+        }));
+
+      const ordersList = (Array.isArray(ordersData) ? ordersData : [])
+        .filter((o: any) => ["Finished", "Delivered", "Paid"].includes(o.status))
+        .map((o: any) => ({
+          ...o, source: "Shop", displayName: `Order: ${o.customer_name}`,
+          displayPrice: Number(o.total_amount || 0), 
+          displayDate: o.updatedAt || o.createdAt || o.timestamp
+        }));
+
+      const combinedSales = [...promosList, ...bookingsList, ...ordersList].sort((a, b) => {
+        const getTime = (date: any) => date?.seconds ? date.seconds * 1000 : new Date(date).getTime();
+        return getTime(b.displayDate) - getTime(a.displayDate);
+      });
+
+      setSales(combinedSales);
+      setProducts(productsData);
+    } catch (error) {
+      toast.error("Database sync failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchData(); }, []);
+
+  // ============================================================================
+  // COMPUTED VALUES (Stock Intelligence & Sales)
+  // ============================================================================
+  const stats = useMemo(() => {
+    const totalRevenue = sales.reduce((acc, curr) => acc + curr.displayPrice, 0);
+    
+    // Stock Intelligence Logic
+    const lowStockThreshold = 5;
+    const lowStockItems = products.filter(p => p.quantity > 0 && p.quantity <= lowStockThreshold);
+    const outOfStockItems = products.filter(p => p.quantity === 0);
+    const criticalItems = [...outOfStockItems, ...lowStockItems];
+
+    const recentChartData = sales.slice(0, 10).reverse().map(s => ({
+      name: new Date(s.displayDate?.seconds ? s.displayDate.seconds * 1000 : s.displayDate).toLocaleDateString('en-US', { weekday: 'short' }),
+      value: s.displayPrice
+    }));
+
+    return { 
+        totalRevenue, 
+        lowStockCount: criticalItems.length, 
+        recentChartData,
+        criticalItems 
+    };
+  }, [sales, products]);
 
   return (
-    <motion.div
-      variants={itemVariants}
-      whileHover={{ y: -6, scale: 1.02 }}
-      transition={{ duration: 0.3, ease: "easeOut" }}
-      className="group relative overflow-hidden rounded-3xl border border-border/40 bg-card/50 p-6 backdrop-blur-xl transition-all hover:border-border/60 hover:shadow-2xl hover:shadow-primary/5"
-    >
-      {/* Gradient overlay on hover */}
-      <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 via-transparent to-purple-500/5 opacity-0 transition-opacity duration-500 group-hover:opacity-100 -z-10" />
-
-      {/* Animated shine effect */}
-      <div className="absolute inset-0 -translate-x-full transition-transform duration-1000 group-hover:translate-x-full bg-gradient-to-r from-transparent via-foreground/5 to-transparent" />
-
-      <div className="relative space-y-5">
-        <div className="flex items-start justify-between">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-500/20 to-purple-500/20 backdrop-blur-sm ring-1 ring-border/50">
-            <div className="text-orange-500 dark:text-orange-400">{icon}</div>
-          </div>
-          
-          <div
-            className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold backdrop-blur-sm ${
-              isPositive
-                ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 ring-1 ring-emerald-500/20"
-                : "bg-red-500/15 text-red-600 dark:text-red-400 ring-1 ring-red-500/20"
-            }`}
-          >
-            <TrendIcon className="h-3.5 w-3.5" />
-            {change}
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
-            {label}
-          </p>
-          <p className="text-3xl font-black tracking-tight text-foreground">
-            {value}
-          </p>
-          {description && (
-            <p className="text-xs text-muted-foreground/70">{description}</p>
-          )}
-        </div>
+    <main className="relative min-h-screen bg-background text-foreground selection:bg-primary/30 pb-20">
+      {/* BACKGROUND DECORATION */}
+      <div className="absolute inset-0 -z-10 overflow-hidden">
+        <div className="absolute left-1/2 top-0 h-150 w-150 -translate-x-1/2 rounded-full bg-primary/5 blur-[120px]" />
       </div>
 
-      {/* Corner accent */}
-      <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-gradient-to-br from-orange-500/10 to-purple-500/10 blur-2xl transition-all duration-500 group-hover:scale-150" />
-    </motion.div>
-  );
-}
-
-// Enhanced Chart Card
-function ChartCard({ title, description, data, dataKey, height = 320 }: ChartCardProps) {
-  return (
-    <motion.div
-      variants={itemVariants}
-      whileHover={{ y: -6 }}
-      transition={{ duration: 0.3 }}
-      className="group relative overflow-hidden rounded-3xl border border-border/40 bg-card/50 p-8 backdrop-blur-xl transition-all hover:border-border/60 hover:shadow-2xl hover:shadow-primary/5"
-    >
-      <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 via-transparent to-purple-500/5 opacity-0 transition-opacity duration-500 group-hover:opacity-100 -z-10" />
-
-      <div className="relative space-y-6">
-        <div className="flex items-start justify-between">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <div className="h-2 w-2 rounded-full bg-gradient-to-r from-orange-500 to-purple-500 animate-pulse" />
-              <h3 className="text-xs font-black uppercase tracking-[0.2em] text-foreground/70">
-                {title}
-              </h3>
-            </div>
-            <p className="text-sm text-muted-foreground">{description}</p>
+      <div className="relative px-6 py-12 mx-auto max-w-7xl">
+        {/* HEADER SECTION */}
+        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-12 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h1 className="text-4xl font-[1000] tracking-tighter uppercase italic text-foreground md:text-5xl">
+              Studio <span className="text-primary text-glow">Intelligence</span>
+            </h1>
           </div>
-          
-          <button className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted/50 text-muted-foreground backdrop-blur-sm ring-1 ring-border/50 transition-all hover:bg-muted hover:text-foreground">
-            <Eye className="h-4 w-4" />
-          </button>
-        </div>
+          <div className="flex items-center gap-3">
+            <Button variant="outline" size="sm" onClick={fetchData} disabled={loading} className="rounded-xl border-border/40 bg-card/50 backdrop-blur-md">
+              <RefreshCcw className={cn("mr-2 h-4 w-4", loading && "animate-spin")} />
+              Sync
+            </Button>
+          </div>
+        </motion.div>
 
-        <div style={{ width: "100%", height: height }} className="relative">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-              <defs>
-                <linearGradient id={`gradient-${title}`} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="rgb(249, 115, 22)" stopOpacity={0.3} />
-                  <stop offset="100%" stopColor="rgb(168, 85, 247)" stopOpacity={0} />
-                </linearGradient>
-                <linearGradient id="gradient-line" x1="0" y1="0" x2="1" y2="0">
-                  <stop offset="0%" stopColor="rgb(249, 115, 22)" />
-                  <stop offset="100%" stopColor="rgb(168, 85, 247)" />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="currentColor" className="text-border/30" vertical={false} />
-              <XAxis 
-                dataKey="name" 
-                stroke="currentColor"
-                className="text-muted-foreground"
-                style={{ fontSize: "11px", fontWeight: "600" }}
-                tickLine={false}
-                axisLine={false}
-              />
-              <YAxis 
-                stroke="currentColor"
-                className="text-muted-foreground"
-                style={{ fontSize: "11px", fontWeight: "600" }}
-                tickLine={false}
-                axisLine={false}
-              />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "hsl(var(--card))",
-                  border: "1px solid hsl(var(--border))",
-                  borderRadius: "12px",
-                  backdropFilter: "blur(12px)",
-                  padding: "12px",
-                }}
-                labelStyle={{ color: "hsl(var(--foreground))", fontWeight: "bold" }}
-                cursor={{ stroke: "rgb(249, 115, 22)", strokeOpacity: 0.2, strokeWidth: 2 }}
-              />
-              <Area
-                type="monotone"
-                dataKey={dataKey}
-                stroke="url(#gradient-line)"
-                strokeWidth={3}
-                fill={`url(#gradient-${title})`}
-                dot={false}
-                activeDot={{ r: 6, fill: "rgb(249, 115, 22)" }}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-    </motion.div>
-  );
-}
+        {/* METRICS GRID */}
+        <motion.div variants={containerVariants} initial="hidden" animate="visible" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+          <MetricCard label="Gross Revenue" value={`₱${stats.totalRevenue.toLocaleString()}`} change="Total" trend="up" icon={<DollarSign />} />
+          <MetricCard label="Orders/Sales" value={sales.length.toString()} change="Live" trend="up" icon={<Sparkles />} />
+          <MetricCard 
+            label="Stock Alerts" 
+            value={stats.lowStockCount.toString()} 
+            change="Attention" 
+            trend="down" 
+            icon={<AlertTriangle className={cn(stats.lowStockCount > 0 ? "text-red-500 animate-pulse" : "text-primary")} />} 
+          />
+          <MetricCard label="Delivery Logs" value={reports.length.toString()} change="Synced" trend="up" icon={<Truck />} />
+        </motion.div>
 
-// Enhanced Detailed Card
-function DetailedCard({ title, items }: DetailedCardProps) {
-  return (
-    <motion.div
-      variants={itemVariants}
-      whileHover={{ y: -6 }}
-      transition={{ duration: 0.3 }}
-      className="group relative overflow-hidden rounded-3xl border border-border/40 bg-card/50 p-6 backdrop-blur-xl transition-all hover:border-border/60 hover:shadow-2xl hover:shadow-primary/5"
-    >
-      <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 via-transparent to-purple-500/5 opacity-0 transition-opacity duration-500 group-hover:opacity-100 -z-10" />
-
-      <div className="relative space-y-5">
-        <div className="flex items-center gap-2">
-          <Sparkles className="h-4 w-4 text-orange-500" />
-          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-foreground/70">
-            {title}
-          </h3>
-        </div>
-
-        <div className="space-y-2.5">
-          {items.map((item, index) => (
-            <motion.button
-              key={`${item.label}-${index}`}
-              whileHover={{ x: 6 }}
-              transition={{ duration: 0.2 }}
-              className="group/item w-full text-left"
-            >
-              <div className="flex items-center justify-between rounded-2xl border border-border/30 bg-muted/20 p-4 backdrop-blur-sm transition-all hover:border-border/50 hover:bg-muted/40">
-                <div className="space-y-1 flex-1">
-                  <p className="text-sm font-bold text-foreground">{item.label}</p>
-                  <p className="text-xs text-muted-foreground">{item.subtitle}</p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <p className="text-sm font-black text-orange-500 dark:text-orange-400">{item.value}</p>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground transition-all group-hover/item:translate-x-1 group-hover/item:text-orange-500" />
+        <div className="grid gap-6 lg:grid-cols-3">
+          {/* LEFT COLUMN: CRITICAL ATTENTION */}
+          <motion.div variants={itemVariants} initial="hidden" animate="visible" className="space-y-6">
+             <div className="p-6 rounded-[2.5rem] bg-[#d11a2a]/5 border border-[#d11a2a]/20 backdrop-blur-xl">
+                <h4 className="text-sm font-black uppercase italic text-[#d11a2a] mb-6 flex items-center gap-2">
+                  <ShieldCheck size={18} /> Critical Attention
+                </h4>
+                <div className="space-y-3">
+                  {stats.criticalItems.length === 0 ? (
+                    <p className="text-[10px] font-bold text-zinc-500 uppercase italic">All stocks are stable par.</p>
+                  ) : (
+                    stats.criticalItems.slice(0, 5).map((item, idx) => (
+                      <div key={idx} className="flex justify-between items-center p-4 rounded-2xl bg-white dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                        <div className="max-w-[150px]">
+                          <p className="text-[10px] font-black uppercase text-zinc-900 dark:text-white truncate">{item.name}</p>
+                          <p className="text-[8px] font-bold text-zinc-400 uppercase tracking-tighter">{item.category}</p>
+                        </div>
+                        <DashboardBadge variant={item.quantity === 0 ? "destructive" : "warning"}>
+                          {item.quantity === 0 ? "EMPTY" : `${item.quantity} LEFT`}
+                        </DashboardBadge>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
-            </motion.button>
-          ))}
-        </div>
-      </div>
-    </motion.div>
-  );
-}
 
-// ============================================================================
-// MAIN DASHBOARD COMPONENT
-// ============================================================================
-
-export function DashboardHome() {
-  return (
-    <main className="relative min-h-screen overflow-hidden bg-background">
-      {/* Enhanced background gradients */}
-      <div className="absolute inset-0 -z-10">
-        <div className="absolute left-1/2 top-0 h-[600px] w-[600px] -translate-x-1/2 rounded-full bg-orange-500/10 dark:bg-orange-500/5 blur-[150px]" />
-        <div className="absolute bottom-0 right-0 h-[500px] w-[500px] rounded-full bg-purple-500/10 dark:bg-purple-500/5 blur-[140px]" />
-        <div className="absolute top-1/2 left-1/4 h-[400px] w-[400px] rounded-full bg-pink-500/5 dark:bg-pink-500/3 blur-[130px]" />
-      </div>
-
-      {/* Grid pattern overlay */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,hsl(var(--border))_1px,transparent_1px),linear-gradient(to_bottom,hsl(var(--border))_1px,transparent_1px)] bg-[size:4rem_4rem] opacity-20 [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,#000_70%,transparent_110%)]" />
-
-      {/* Main Content */}
-      <div className="relative px-6 py-12 lg:py-16">
-        <div className="mx-auto max-w-7xl">
-          
-          {/* Compact header */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-12 flex items-center justify-between"
-          >
-            <div>
-              <h1 className="text-4xl font-black tracking-tight text-foreground md:text-5xl">
-                Analytics
-              </h1>
-              <p className="mt-2 text-sm text-muted-foreground">Real-time performance insights</p>
-            </div>
-
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-10 w-10 rounded-xl border-border/50 bg-background/50 backdrop-blur-sm hover:border-border hover:bg-muted"
-              >
-                <Download className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-10 w-10 rounded-xl border-border/50 bg-background/50 backdrop-blur-sm hover:border-border hover:bg-muted"
-              >
-                <Settings className="h-4 w-4" />
-              </Button>
-            </div>
+              {/* RECENT SALES LOG (Quick View) */}
+              <div className="p-6 rounded-[2.5rem] border border-border/40 bg-card/40 backdrop-blur-xl">
+                 <h4 className="text-[10px] font-black uppercase tracking-widest text-primary mb-4 flex items-center gap-2">
+                    <Activity size={14} /> Last Transaction
+                 </h4>
+                 {sales[0] && (
+                    <div className="flex justify-between items-center">
+                        <div>
+                            <p className="text-xs font-bold truncate w-32 uppercase tracking-tighter">{sales[0].displayName}</p>
+                            <p className="text-[9px] text-muted-foreground">{new Date(sales[0].displayDate?.seconds ? sales[0].displayDate.seconds * 1000 : sales[0].displayDate).toLocaleDateString()}</p>
+                        </div>
+                        <p className="text-sm font-black text-primary italic">₱{sales[0].displayPrice.toLocaleString()}</p>
+                    </div>
+                 )}
+              </div>
           </motion.div>
 
-          {/* Dashboard Grid */}
-          <motion.div
-            variants={containerVariants}
-            initial="hidden"
-            animate="visible"
-            className="space-y-6"
-          >
-            {/* Metrics Grid */}
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <MetricCard
-                label="Total Users"
-                value="24,582"
-                change="+12.5%"
-                trend="up"
-                icon={<Users className="h-5 w-5" />}
-                description="Active this month"
-              />
-              <MetricCard
-                label="Active Now"
-                value="8,924"
-                change="+8.2%"
-                trend="up"
-                icon={<Zap className="h-5 w-5" />}
-                description="Live sessions"
-              />
-              <MetricCard
-                label="Conversion"
-                value="3.47%"
-                change="-1.3%"
-                trend="down"
-                icon={<Percent className="h-5 w-5" />}
-                description="Last 30 days"
-              />
-              <MetricCard
-                label="Revenue"
-                value="$47,320"
-                change="+24.8%"
-                trend="up"
-                icon={<DollarSign className="h-5 w-5" />}
-                description="This month"
-              />
-            </div>
+          {/* RIGHT COLUMN: CHART & LIVE FEED */}
+          <div className="lg:col-span-2 space-y-6">
+            <motion.div variants={itemVariants} initial="hidden" animate="visible" className="rounded-3xl border border-border/40 bg-card/40 p-8 backdrop-blur-xl shadow-2xl shadow-black/20">
+              <h3 className="text-xs font-black uppercase tracking-widest text-primary mb-6 flex items-center gap-2">
+                <TrendingUp size={14} /> Revenue Momentum
+              </h3>
+              <div className="h-64 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={stats.recentChartData}>
+                    <defs>
+                      <linearGradient id="colorVal" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" opacity={0.5} />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 10}} />
+                    <YAxis axisLine={false} tickLine={false} tick={{fontSize: 10}} />
+                    <Tooltip contentStyle={{ borderRadius: '12px', backgroundColor: '#000', border: '1px solid #333' }} />
+                    <Area type="monotone" dataKey="value" stroke="hsl(var(--primary))" fill="url(#colorVal)" strokeWidth={3} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </motion.div>
 
-            {/* Charts */}
-            <div className="grid gap-6 lg:grid-cols-2">
-              <ChartCard
-                title="User Growth"
-                description="Monthly active users"
-                data={USER_GROWTH_DATA}
-                dataKey="value"
-              />
-              <ChartCard
-                title="Revenue Trend"
-                description="Monthly revenue performance"
-                data={REVENUE_TREND_DATA}
-                dataKey="value"
-              />
-            </div>
-
-            {/* Details */}
-            <div className="grid gap-6 lg:grid-cols-3">
-              <DetailedCard
-                title="Top Pages"
-                items={[
-                  { label: "Homepage", value: "12.5k", subtitle: "visits today" },
-                  { label: "Dashboard", value: "8.3k", subtitle: "visits today" },
-                  { label: "Settings", value: "4.1k", subtitle: "visits today" },
-                ]}
-              />
-              <DetailedCard
-                title="Traffic Sources"
-                items={[
-                  { label: "Organic Search", value: "68.5%", subtitle: "Google, Bing" },
-                  { label: "Direct", value: "18.2%", subtitle: "URL entry" },
-                  { label: "Referrals", value: "9.3%", subtitle: "External links" },
-                ]}
-              />
-              <DetailedCard
-                title="Recent Events"
-                items={[
-                  { label: "Login Spike", value: "Now", subtitle: "2.5k users online" },
-                  { label: "Deploy v2.1", value: "2h ago", subtitle: "Production" },
-                  { label: "Bug Fixed", value: "5h ago", subtitle: "Critical issue" },
-                ]}
-              />
-            </div>
-          </motion.div>
+            <motion.div variants={itemVariants} initial="hidden" animate="visible" className="rounded-3xl border border-border/40 bg-card/40 p-6 backdrop-blur-xl">
+                <h3 className="text-xs font-black uppercase tracking-widest text-primary mb-6 flex items-center gap-2">
+                    <History size={14} /> Real-time Supply Feed
+                </h3>
+                <div className="space-y-3 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar">
+                    {reports.slice(0, 5).map((report) => (
+                        <div key={report.id} className="p-4 rounded-2xl bg-muted/20 border border-border/50 flex justify-between items-center group hover:bg-muted/30 transition-all">
+                            <div>
+                                <p className="text-[10px] font-black uppercase group-hover:text-primary">{report.supplier || "Supplier"}</p>
+                                <p className="text-[9px] text-muted-foreground italic line-clamp-1 truncate w-40">"{report.notes || "Recorded delivery"}"</p>
+                            </div>
+                            <span className="text-[9px] font-bold text-primary italic">{report.createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        </div>
+                    ))}
+                </div>
+            </motion.div>
+          </div>
         </div>
       </div>
     </main>
+  );
+}
+
+// --- Internal UI Components ---
+
+function MetricCard({ label, value, change, trend, icon }: any) {
+  return (
+    <motion.div variants={itemVariants} className="p-6 rounded-[2rem] border border-border/40 bg-card/40 backdrop-blur-xl relative overflow-hidden group transition-all hover:border-primary/40">
+      <div className="relative z-10">
+        <div className="flex justify-between items-start mb-4">
+          <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+            {icon}
+          </div>
+          <div className={cn("text-[9px] font-black px-2 py-1 rounded-full uppercase tracking-tighter bg-primary/10 text-primary")}>
+            {change}
+          </div>
+        </div>
+        <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">{label}</p>
+        <p className="text-2xl font-[1000] tracking-tighter italic">{value}</p>
+      </div>
+      <div className="absolute -right-4 -bottom-4 h-16 w-16 bg-primary/5 rounded-full blur-2xl group-hover:scale-150 transition-all duration-700" />
+    </motion.div>
+  );
+}
+
+function DashboardBadge({ children, variant }: { children: React.ReactNode, variant: "destructive" | "warning" }) {
+  const styles = variant === "destructive" 
+    ? "bg-red-500/10 text-red-500 border-red-500/20" 
+    : "bg-amber-500/10 text-amber-500 border-amber-500/20";
+  return (
+    <span className={`px-2 py-0.5 rounded-lg border text-[8px] font-black uppercase tracking-tighter ${styles}`}>
+      {children}
+    </span>
   );
 }

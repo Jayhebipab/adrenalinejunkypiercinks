@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
+
 import { 
   X, ShoppingBag, PackageOpen, Flame, Filter, 
   ChevronRight, ShoppingCart, Search 
@@ -11,6 +12,10 @@ import { Navbar } from '../components/navigation/navbar';
 import { Footer } from '../components/navigation/footer';
 import { cn } from "@/lib/utils";
 import FloatingChatWidget from '../components/chatbot';
+
+// --- AUTH & TOAST ---
+import { useSession } from "next-auth/react";
+import { toast } from "sonner";
 
 interface Product {
   id: string;
@@ -24,6 +29,7 @@ interface Product {
 
 export default function ShopPage() {
   const router = useRouter();
+  const { data: session } = useSession(); 
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<string>("All");
@@ -31,11 +37,9 @@ export default function ShopPage() {
 
   // --- ADD TO CART LOGIC ---
   const handleAddToCart = (product: Product) => {
-    // 1. Get current cart from storage
     const savedCart = localStorage.getItem('adrenaline_cart');
     let currentCart = savedCart ? JSON.parse(savedCart) : [];
 
-    // 2. Check if item exists
     const existingIndex = currentCart.findIndex((item: any) => item.id === product.id);
 
     if (existingIndex > -1) {
@@ -44,17 +48,33 @@ export default function ShopPage() {
       currentCart.push({
         id: product.id,
         name: product.name,
-        cost_price: product.selling_price || product.cost_price, // Match drawer price key
+        cost_price: product.selling_price || product.cost_price, 
         image: product.image,
         quantity: 1
       });
     }
 
-    // 3. Save back to storage
     localStorage.setItem('adrenaline_cart', JSON.stringify(currentCart));
-
-    // 4. Dispatch custom event to notify Navbar/CartButton
     window.dispatchEvent(new Event('cart-updated'));
+    toast.success(`${product.name} added to cart!`);
+  };
+
+  // --- FIXED BUY NOW LOGIC ---
+  const handleBuyNow = (product: Product) => {
+    // 1. Create the checkout item object
+    const checkoutItem = {
+      id: product.id,
+      name: product.name,
+      cost_price: product.selling_price || product.cost_price,
+      image: product.image,
+      quantity: 1
+    };
+
+    // 2. I-save sa localStorage para mabasa ng Checkout page
+    localStorage.setItem('adrenaline_checkout_item', JSON.stringify(checkoutItem));
+    
+    // 3. Lipat na sa Checkout page
+    router.push('/checkout');
   };
 
   useEffect(() => {
@@ -89,7 +109,7 @@ export default function ShopPage() {
       <Navbar />
 
       {/* --- HERO SECTION --- */}
-      <section className="relative h-[45vh] w-full flex items-center justify-center overflow-hidden border-b border-black/5">
+      <section className="relative h-[40vh] w-full flex items-center justify-center overflow-hidden border-b border-black/5">
         <div 
           className="absolute inset-0 bg-cover bg-center bg-no-repeat bg-fixed grayscale opacity-30"
           style={{ backgroundImage: `url('https://res.cloudinary.com/diwrwmjgw/image/upload/v1770215345/Screenshot_2025-04-17_112705_wgdjo6.png')` }} 
@@ -101,7 +121,7 @@ export default function ShopPage() {
             <Flame className="w-3 h-3 text-orange-500" />
             <span className="text-[10px] font-black uppercase tracking-[0.3em] text-orange-500">Studio Essentials</span>
           </motion.div>
-          <h1 className="text-6xl md:text-8xl font-black uppercase tracking-tighter text-white">
+          <h1 className="text-5xl md:text-7xl font-black uppercase tracking-tighter text-white">
             THE <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-600 via-orange-400 to-yellow-400">SHOP</span>
           </h1>
         </div>
@@ -148,89 +168,78 @@ export default function ShopPage() {
             </div>
           </aside>
 
-          {/* --- PRODUCT GRID --- */}
+{/* --- PRODUCT GRID --- */}
 <div className="flex-1">
-  <AnimatePresence mode='wait'>
-    {filteredProducts.length === 0 ? (
-      <motion.div 
-        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-        className="flex flex-col items-center py-40 border border-white/5 rounded-[3rem] bg-zinc-900/10"
-      >
-        <PackageOpen className="w-12 h-12 text-zinc-800 mb-4" />
-        <p className="text-zinc-600 text-[10px] font-black uppercase tracking-[0.3em]">No items match your hunt</p>
-      </motion.div>
-    ) : (
-      /* Inupdate ko itong grid-cols-1 para maging grid-cols-2 at binawasan ang gap sa mobile */
-      <motion.div layout className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-8">
-        {filteredProducts.map((product) => (
-          <motion.div
-            key={product.id}
-            layout
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            whileHover={{ y: -10 }}
-            /* Binawasan ang rounded corners at shadow para sa mobile performance */
-            className="relative group flex flex-col rounded-[1.5rem] md:rounded-[2.5rem] bg-zinc-900/30 border border-white/5 overflow-hidden transition-all duration-500 hover:border-orange-500/30 shadow-xl"
+  {filteredProducts.length === 0 ? (
+    <div className="flex flex-col items-center py-40 border border-white/5 rounded-[3rem] bg-zinc-900/10">
+      <PackageOpen className="w-12 h-12 text-zinc-800 mb-4" />
+      <p className="text-zinc-600 text-[10px] font-black uppercase tracking-[0.3em]">No items match your hunt</p>
+    </div>
+  ) : (
+    <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-8">
+      {filteredProducts.map((product) => (
+        <div
+          key={product.id}
+          className="relative group flex flex-col rounded-[1.5rem] md:rounded-[2.5rem] bg-zinc-900/30 border border-white/5 overflow-hidden hover:border-orange-500/30 shadow-xl transition-colors duration-300"
+        >
+          {/* Image Area */}
+          <div 
+            className="relative aspect-[4/5] overflow-hidden cursor-pointer"
+            onClick={() => router.push(`/shop/${product.id}`)}
           >
-            {/* Image Area */}
-            <div 
-              className="relative aspect-[4/5] overflow-hidden cursor-pointer"
-              onClick={() => router.push(`/shop/${product.id}`)}
-            >
-              <img
-                src={product.image || "/placeholder-gear.jpg"}
-                alt={product.name}
-                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-              />
-              {/* Pinaliit ang price tag sa mobile */}
-              <div className="absolute top-3 right-3 md:top-6 md:right-6 bg-black/80 backdrop-blur-md px-2 py-1 md:px-4 md:py-2 rounded-full border border-white/10">
-                <span className="text-orange-500 font-black text-[10px] md:text-sm tracking-tighter">
-                  ₱{(Number(product.selling_price) || 0).toLocaleString()}
-                </span>
-              </div>
+            <img
+              src={product.image || "/placeholder-gear.jpg"}
+              alt={product.name}
+              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+            />
+            <div className="absolute top-3 right-3 md:top-6 md:right-6 bg-black/80 backdrop-blur-md px-2 py-1 md:px-4 md:py-2 rounded-full border border-white/10">
+              <span className="text-orange-500 font-black text-[10px] md:text-sm tracking-tighter">
+                ₱{(Number(product.selling_price) || 0).toLocaleString()}
+              </span>
+            </div>
+          </div>
+
+          {/* Info Area */}
+          <div className="p-4 md:p-8 space-y-2 md:space-y-4 text-left">
+            <div className="space-y-1">
+              <span className="text-[8px] md:text-[10px] font-black uppercase tracking-[0.2em] text-orange-500/80">
+                {product.category}
+              </span>
+              <h3 className="text-xs md:text-xl font-black uppercase tracking-tight text-white leading-tight truncate">
+                {product.name}
+              </h3>
             </div>
 
-            {/* Info Area - Binawasan ang padding sa mobile (p-4 instead of p-8) */}
-            <div className="p-4 md:p-8 space-y-2 md:space-y-4 text-left">
-              <div className="space-y-1">
-                <span className="text-[8px] md:text-[10px] font-black uppercase tracking-[0.2em] text-orange-500/80">
-                  {product.category}
-                </span>
-                {/* Responsive text size para sa product name */}
-                <h3 className="text-xs md:text-xl font-black uppercase tracking-tight text-white leading-tight truncate">
-                  {product.name}
-                </h3>
-              </div>
-
-              <div className="flex flex-col gap-2 pt-1 md:pt-2">
+            <div className="flex flex-col gap-2 pt-1 md:pt-2">
+              {session && (
                 <button 
                   onClick={(e) => {
                     e.stopPropagation();
-                    router.push(`/shop/${product.id}`);
+                    handleBuyNow(product);
                   }}
-                  /* Flexible button heights */
                   className="w-full bg-orange-600 text-white py-3 md:py-4 rounded-xl md:rounded-2xl font-black uppercase text-[8px] md:text-[10px] tracking-[0.1em] md:tracking-[0.2em] hover:bg-orange-700 transition-all shadow-lg shadow-orange-600/20 active:scale-95"
                 >
                   Buy Now
                 </button>
+              )}
 
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleAddToCart(product);
-                  }}
-                  className="w-full bg-zinc-800/50 border border-white/5 text-zinc-300 py-3 md:py-4 rounded-xl md:rounded-2xl font-black uppercase text-[8px] md:text-[10px] tracking-[0.1em] md:tracking-[0.2em] flex items-center justify-center gap-1 md:gap-2 hover:bg-zinc-800 hover:text-white transition-all active:scale-95"
-                >
-                  <ShoppingCart size={10} className="md:w-3 md:h-3" /> <span className="hidden xs:inline">Add to Cart</span>
-                  <span className="xs:hidden">Add</span>
-                </button>
-              </div>
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleAddToCart(product);
+                }}
+                className="w-full bg-zinc-900 border border-white/5 text-zinc-300 py-3 md:py-4 rounded-xl md:rounded-2xl font-black uppercase text-[8px] md:text-[10px] tracking-[0.1em] md:tracking-[0.2em] flex items-center justify-center gap-1 md:gap-2 hover:bg-zinc-800 hover:text-white transition-all active:scale-95"
+              >
+                <ShoppingCart size={10} className="md:w-3 md:h-3" /> 
+                <span className="hidden xs:inline">Add to Cart</span>
+                <span className="xs:hidden">Add</span>
+              </button>
             </div>
-          </motion.div>
-        ))}
-      </motion.div>
-    )}
-  </AnimatePresence>
+          </div>
+        </div>
+      ))}
+    </div>
+  )}
 </div>
         </div>
       </main>

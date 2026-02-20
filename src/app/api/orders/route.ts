@@ -8,7 +8,6 @@ import { NextResponse } from "next/server";
 // --- GET: FETCH ALL ORDERS ---
 export async function GET() {
   try {
-    // Kinukuha lahat ng orders mula sa "orders" collection, pinakabago ang una
     const q = query(collection(db, "orders"), orderBy("createdAt", "desc"));
     const snapshot = await getDocs(q);
     
@@ -24,35 +23,43 @@ export async function GET() {
   }
 }
 
-// --- POST: SUBMIT NEW ORDER ---
+// --- POST: SUBMIT NEW ORDER (UPDATED) ---
 export async function POST(req: Request) {
   try {
     const body = await req.json();
     const { 
       customer_name, 
+      customer_email, // 1. Tinanggap na natin ang email dito
       contact_number, 
       address, 
       items, 
+      subtotal,       // 2. Isinama na rin natin ang breakdown para sa record
+      vat_percentage,
+      vat_deduction,
       total_amount, 
       payment_method, 
       screenshot 
     } = body;
 
-    // Validation para masiguro na kumpleto ang data bago i-save
-    if (!customer_name || !items || !screenshot) {
-      return NextResponse.json({ error: "Missing required order details." }, { status: 400 });
+    // 3. Updated Validation (Dapat may email na rin)
+    if (!customer_name || !customer_email || !items || !screenshot) {
+      return NextResponse.json({ error: "Missing required order details (Name, Email, Items, or Receipt)." }, { status: 400 });
     }
 
-    // Pag-save ng bagong order document sa Firestore
+    // 4. Pag-save sa Firestore
     const docRef = await addDoc(collection(db, "orders"), {
       customer_name: customer_name.trim(),
+      customer_email: customer_email.trim(), // Isasama sa record ng order
       contact_number: contact_number.trim(),
       address: address.trim(),
       items: items, 
+      subtotal: Number(subtotal),
+      vat_percentage: Number(vat_percentage),
+      vat_deduction: Number(vat_deduction),
       total_amount: Number(total_amount),
       payment_method: payment_method,
-      screenshot: screenshot, 
-      status: "Pending", // Default status para sa verification
+      screenshot: screenshot, // Base64 string ito
+      status: "Pending",
       createdAt: serverTimestamp()
     });
 
@@ -63,41 +70,58 @@ export async function POST(req: Request) {
 
   } catch (error: any) {
     console.error("Post Error:", error);
-    return NextResponse.json({ error: "System Error: Failed to submit order." }, { status: 500 });
+    // Mas detalyadong error handling para sa debug
+    return NextResponse.json({ error: error.message || "System Error: Failed to submit order." }, { status: 500 });
   }
 }
 
-// --- PUT: UPDATE ORDER STATUS ---
+// --- PUT: UPDATE ORDER STATUS & COURIER ---
 export async function PUT(req: Request) {
   try {
-    const { id, status } = await req.json();
+    const { id, status, courier } = await req.json(); // Tinatanggap na natin ang 'courier' dito
 
     if (!id || !status) {
       return NextResponse.json({ error: "ID and Status are required" }, { status: 400 });
     }
 
-    // Update ang specific order document (halimbawa: Pending -> Paid)
     const orderRef = doc(db, "orders", id);
-    await updateDoc(orderRef, {
+    
+    // Gagawa tayo ng update object para dynamic
+    const updateData: any = {
       status: status,
       updatedAt: serverTimestamp()
-    });
+    };
 
-    return NextResponse.json({ message: "Order status updated" });
+    // Kung may pinasang courier (halimbawa pag 'Finished' na), isama sa database
+    if (courier) {
+      updateData.courier = courier;
+    }
+
+    await updateDoc(orderRef, updateData);
+
+    return NextResponse.json({ message: "Order updated successfully" });
   } catch (error) {
     console.error("Update Error:", error);
     return NextResponse.json({ error: "Update failed" }, { status: 500 });
   }
 }
 
-// --- DELETE: REMOVE ORDER ---
 export async function DELETE(req: Request) {
   try {
-    const { id } = await req.json();
-    // Pag-delete ng record sa Firestore gamit ang Document ID
-    await deleteDoc(doc(db, "orders", id));
-    return NextResponse.json({ message: "Order record deleted" });
-  } catch (error) {
-    return NextResponse.json({ error: "Delete failed" }, { status: 500 });
+    const body = await req.json();
+    const { id } = body;
+
+    if (!id) {
+      return NextResponse.json({ error: "Order ID is required" }, { status: 400 });
+    }
+
+    // Hanapin ang specific order document sa Firestore at burahin
+    const orderRef = doc(db, "orders", id);
+    await deleteDoc(orderRef);
+
+    return NextResponse.json({ message: "Order deleted successfully" }, { status: 200 });
+  } catch (error: any) {
+    console.error("Delete Error:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

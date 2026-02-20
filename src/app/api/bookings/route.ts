@@ -1,7 +1,7 @@
 import { db } from "@/lib/firebase";
 import { 
   collection, getDocs, addDoc, deleteDoc, 
-  updateDoc, doc, query, orderBy, serverTimestamp, getDoc, increment 
+  updateDoc, doc, query, orderBy, serverTimestamp, getDoc, increment, where 
 } from "firebase/firestore";
 import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
@@ -34,18 +34,62 @@ const getEmailTemplate = (name: string, content: string) => `
   </div>
 `;
 
-// --- 1. GET ALL BOOKINGS ---
-export async function GET() {
+export async function GET(req: Request) {
   try {
-    const q = query(collection(db, "bookings"), orderBy("timestamp", "desc"));
+    const { searchParams } = new URL(req.url);
+    const email = searchParams.get("email");
+
+    let q;
+    if (email) {
+      // INALIS ang orderBy dito para iwas 500 error (Firestore Index requirement)
+      q = query(
+        collection(db, "bookings"), 
+        where("email", "==", email)
+      );
+    } else {
+      q = query(collection(db, "bookings"), orderBy("timestamp", "desc"));
+    }
+
     const snapshot = await getDocs(q);
-    const bookings = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    return NextResponse.json({ bookings });
+    
+    // I-map ang data at i-convert ang timestamps
+    const bookings = snapshot.docs.map(doc => {
+      const data = doc.data();
+      
+      // I-convert ang preferredDate kung ito ay Firestore Timestamp
+      let displayDate = data.preferredDate;
+      if (data.preferredDate && typeof data.preferredDate.toDate === 'function') {
+        displayDate = data.preferredDate.toDate().toLocaleDateString();
+      } else if (data.preferredDate?.seconds) {
+        displayDate = new Date(data.preferredDate.seconds * 1000).toLocaleDateString();
+      }
+
+      return { 
+        id: doc.id, 
+        ...data,
+        // Eto yung gagamitin sa frontend mo {b.date} at {b.time}
+        date: displayDate || "No Date",
+        time: data.preferredTime || "No Time",
+        // I-save ang raw seconds para sa manual sorting mamaya
+        sortTimestamp: data.timestamp?.seconds || 0
+      };
+    });
+
+    // MANUAL SORTING: Dahil tinanggal natin ang orderBy sa query, 
+    // tayo na ang mag-aayos dito (Latest first)
+    bookings.sort((a, b) => b.sortTimestamp - a.sortTimestamp);
+
+    // Ibalik ang tamang format base sa request
+    if (email) {
+      return NextResponse.json(bookings); // Array para sa Portal
+    }
+    
+    return NextResponse.json({ bookings }); // Object para sa Admin
   } catch (error: any) {
+    console.error("GET Error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
-
 // --- 2. NEW BOOKING REQUEST ---
 export async function POST(req: Request) {
   try {
@@ -102,11 +146,9 @@ export async function PATCH(req: Request) {
     const booking = snap.data();
     const updateFields: any = { status };
 
-    // Siguraduhin na ang fields ay nag-ma-match sa database schema mo
     if (preferredDate) updateFields.preferredDate = preferredDate;
     if (preferredTime) updateFields.preferredTime = preferredTime;
 
-    // --- CASE: FINISHED ---
     if (status === "finished") {
       updateFields.artist = artist;
       updateFields.finalPrice = Number(finalPrice);
@@ -131,10 +173,8 @@ export async function PATCH(req: Request) {
       }
     }
 
-    // UPDATE MAIN DOCUMENT sa Firestore
     await updateDoc(docRef, updateFields);
 
-    // --- CASE: APPROVED (Email Notification) ---
     if (status === "approved") {
       const approvalContent = `
         <p style="font-size: 18px; color: #ea580c; font-weight: bold;">SESSION CONFIRMED!</p>
@@ -155,8 +195,6 @@ export async function PATCH(req: Request) {
       });
     }
 
-    // --- CASE: ADJUSTMENT / RESCHEDULE (Email Notification) ---
-    // Binago ko: preferredDate/Time na ang ginagamit dito para match sa POST mo
     if (status === "adjusted") {
       const adjustmentContent = `
         <p style="font-size: 18px; color: #3b82f6; font-weight: bold;">SCHEDULE ADJUSTED!</p>

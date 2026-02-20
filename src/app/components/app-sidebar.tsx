@@ -70,12 +70,15 @@ const data = {
             icon: FileText,
             id: "content",
             items: [
+
                 { title: "Artist", id: "Artist" },
                 { title: "Tattoo Gallery", id: "TattooGallery" },
                 { title: "Piercing Gallery", id: "PiercingGallery" },
                 { title: "Reviews", id: "Reviews" },
                 { title: "Blogs", id: "Blogs" },
+                { title: "Waiver", id: "Waiver" },
                 { title: "FAQ", id: "FAQ" },
+                { title: "Announcement", id: "Announcement" },
             ],
         },
         {
@@ -84,10 +87,10 @@ const data = {
             id: "maintenance",
             items: [
                 { title: "Inventory", id: "Inventory" }, // Tugma sa screenshot: "inventory": "live"
-                { title: "Product & Materials", id: "ProductManagement" },
+                { title: "Product & Materials", id: "Product&Materials" },
                 { title: "Category", id: "Category" }, // Ito ang hinahanap mo
                 { title: "Supplier", id: "Supplier" },
-                { title: "Vat Management", id: "Vat" },
+                { title: "Vat Management", id: "VatManagement" },
                 { title: "User Management", id: "UserManagement" },
             ],
         },

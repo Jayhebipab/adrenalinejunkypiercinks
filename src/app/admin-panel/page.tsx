@@ -11,7 +11,7 @@ const jetbrainsMono = JetBrains_Mono({
 })
 
 // VIEWS IMPORTS
-import { DashboardHome } from "../components/dashboard/home-view"
+import  DashboardHome  from "../components/dashboard/home-view"
 import BookingList from "../components/reservation/BookingList"
 import BookingRequest from "../components/reservation/BookingRequest"
 import ProductList from "../components/shop/ProductList"
@@ -38,6 +38,10 @@ import PromoPage from "../components/promo"
 import DeliveryReports from "../components/reports/DeliveryReports"
 import FAQEditor from "../components/pages/Faqsettings"
 import AccessControl from "../components/settings/Access-Control"
+import AnnouncementDialog from "../components/pages/Announcement"
+import ProtocolManager from "../components/pages/SafetyProtocols"
+import AuditTrail from "../components/reports/AuditTrail"
+import StockReports from "../components/reports/StockReports"
 
 import {
   Breadcrumb,
@@ -106,14 +110,18 @@ export default function AdminPanelPage() {
       case "Artist" : return <ArtistProfile/>
       case "Reviews": return <Reviewgallery/>
       case "UserManagement": return <UserManagement />
+      case "StockReports" : return <StockReports/>
+      case "AuditTrail": return <AuditTrail/>
       case "Category": return <CategoryManagement />
-      case "ProductManagement": return <ProductManagement />
+      case "Product&Materials": return <ProductManagement />
       case "Supplier": return <SupplierMaintenance />
       case "Equipment": return <EquipmentManagement />
-      case "Vat": return <VatManagement />
+      case "VatManagement": return <VatManagement />
       case "QrSettings": return <QrImagesManager/>
       case "Inventory": return <Inventory/>
       case "FAQ": return <FAQEditor/>
+      case "Waiver": return <ProtocolManager/>
+      case "Announcement": return <AnnouncementDialog/>
       case "SalesReports": return <SalesReports />
       case "DeliveryReports": return <DeliveryReports />
       case "ChangePassword": return <ChangePassword />

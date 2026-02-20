@@ -1,7 +1,8 @@
 "use client";
 
 import React from "react";
-
+import { db } from "@/lib/firebase";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { signIn, useSession } from "next-auth/react";
@@ -34,8 +35,7 @@ const footerLinks = [
     title: "Legal",
     links: [
       { label: "Privacy Policy", href: "/privacy" },
-      { label: "Terms of Service", href: "/terms" },
-      { label: "Safety Protocols", href: "/safety" },
+      { label: "Safety Protocols", href: "/protocols" },
     ],
   },
 ];
@@ -46,6 +46,7 @@ const socialLinks = [
 ];
 
 export function Footer() {
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
   const { data: session } = useSession();
   const router = useRouter();
 
@@ -53,12 +54,45 @@ export function Footer() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const handleJoin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!session) {
-      signIn("google");
-    }
-  };
+
+
+// 2. Updated handleJoin function
+const handleJoin = async (e: React.FormEvent<HTMLFormElement>) => {
+  e.preventDefault();
+  
+  if (session) {
+    router.push("/user-panel");
+    return;
+  }
+
+  const formData = new FormData(e.currentTarget);
+  const email = formData.get("email")?.toString();
+
+  if (!email) return;
+
+  setIsSubmitting(true);
+
+  try {
+    // 1. I-save sa 'subscribers' collection
+    // Gagamit tayo ng email bilang ID (doc name) para iwas duplicate 
+    // o addDoc lang kung gusto mo kahit ilan silang mag-submit
+    await addDoc(collection(db, "subscribers"), {
+      email: email.toLowerCase(),
+      joinedAt: serverTimestamp(),
+      source: "footer_join_the_cult",
+      status: "pending_login" // Marker para malaman mong di pa sila nag-google login
+    });
+    
+    // 2. Ituloy ang Google Sign In
+    await signIn("google");
+  } catch (err) {
+    console.error("Firebase Error:", err);
+    // Kahit mag-fail ang Firestore, ituloy pa rin ang sign in para di ma-badtrip ang user
+    await signIn("google");
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   return (
     <footer className="relative w-full overflow-hidden pt-20 pb-10">
@@ -128,20 +162,23 @@ export function Footer() {
             >
               <div className="flex items-center border-b-2 border-zinc-700 py-4 transition-all duration-300 focus-within:border-white hover:border-zinc-500">
                 <Mail size={16} className="text-zinc-500 mr-3" />
-                <input
-                  type="email"
-                  placeholder="Enter email to join"
-                  className="w-full bg-transparent px-2 text-lg outline-none text-white placeholder:text-zinc-500 placeholder:uppercase font-semibold"
-                  required
-                />
-                <motion.button
-                  type="submit"
-                  whileHover={{ x: 3 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-white hover:text-zinc-300 transition-colors duration-300"
-                >
-                  Join <ChevronRight size={16} />
-                </motion.button>
+              <input
+  name="email" // Importante 'to par!
+  type="email"
+  placeholder={isSubmitting ? "SIGNING YOU UP..." : "Enter email to join"}
+  className="w-full bg-transparent px-2 text-lg outline-none text-white placeholder:text-zinc-500 placeholder:uppercase font-semibold disabled:opacity-50"
+  required
+  disabled={isSubmitting}
+/>
+<motion.button
+  type="submit"
+  disabled={isSubmitting}
+  whileHover={{ x: 3 }}
+  whileTap={{ scale: 0.95 }}
+  className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-white hover:text-zinc-300 transition-colors duration-300 disabled:text-zinc-600"
+>
+  {isSubmitting ? "..." : "Join"} <ChevronRight size={16} />
+</motion.button>
               </div>
             </motion.form>
           )}
