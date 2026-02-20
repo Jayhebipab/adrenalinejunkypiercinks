@@ -524,7 +524,7 @@ useEffect(() => {
                       ) : (
                         <span className="flex items-center justify-center gap-2">
                           <Send size={16} />
-                          {phoneNumber.length !== 11 ? "Enter 11-Digit Number" : "Submit Request"}
+                          {phoneNumber.length !== 11 ? "Submit Request" : "Submit Request"}
                         </span>
                       )}
                     </Button>

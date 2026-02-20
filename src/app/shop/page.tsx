@@ -3,8 +3,8 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  PackageOpen, Flame, Filter, ChevronRight, 
+import {
+  PackageOpen, Flame, Filter, ChevronRight,
   ShoppingCart, Search, ChevronDown, ArrowUpRight
 } from 'lucide-react';
 import { Navbar } from '../components/navigation/navbar';
@@ -35,6 +35,7 @@ interface Product {
   image: string;
   description: string;
   selling_price: number;
+  isVisible?: boolean; // ✅ Added — used to filter hidden products
 }
 
 export default function ShopPage() {
@@ -81,7 +82,13 @@ export default function ShopPage() {
   useEffect(() => {
     fetch("/api/products")
       .then(res => res.json())
-      .then(data => { if (Array.isArray(data)) setProducts(data); })
+      .then(data => {
+        if (Array.isArray(data)) {
+          // ✅ FILTER: Only show products where isVisible is true
+          // Products with isVisible === undefined (old data) are treated as visible by default
+          setProducts(data.filter((p: Product) => p.isVisible !== false));
+        }
+      })
       .catch(err => console.error("Shop Error:", err))
       .finally(() => setLoading(false));
   }, []);
@@ -122,7 +129,6 @@ export default function ShopPage() {
         <div className="absolute inset-0 bg-cover bg-center bg-no-repeat bg-fixed grayscale opacity-25"
           style={{ backgroundImage: `url('https://res.cloudinary.com/diwrwmjgw/image/upload/v1770215345/Screenshot_2025-04-17_112705_wgdjo6.png')` }} />
         <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/20 to-black" />
-        {/* Bottom red glow */}
         <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[400px] h-[150px] bg-orange-600/8 blur-[80px] rounded-full" />
 
         <div className="relative z-10 text-center space-y-4 px-4">
@@ -146,7 +152,6 @@ export default function ShopPage() {
 
       {/* MOBILE FILTER + SEARCH BAR */}
       <div className="lg:hidden sticky top-0 z-40 bg-black/95 backdrop-blur-md border-b border-white/5 px-4 py-3 space-y-2">
-        {/* Search */}
         <div className="relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-600" />
           <input
@@ -157,7 +162,6 @@ export default function ShopPage() {
             onChange={e => setSearchQuery(e.target.value)}
           />
         </div>
-        {/* Filter dropdown */}
         <button onClick={() => setIsMobileFilterOpen(!isMobileFilterOpen)}
           className="w-full flex items-center justify-between px-4 py-3 bg-zinc-950 rounded-2xl border border-zinc-900">
           <div className="flex items-center gap-2">
@@ -191,7 +195,6 @@ export default function ShopPage() {
           {/* DESKTOP SIDEBAR */}
           <aside className="hidden lg:block w-64 flex-shrink-0">
             <div className="sticky top-28 space-y-6">
-              {/* Search */}
               <div className="relative">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-600" />
                 <input
@@ -203,7 +206,6 @@ export default function ShopPage() {
                 />
               </div>
 
-              {/* Filter */}
               <div className="space-y-3">
                 <div className="flex items-center gap-3 px-1">
                   <div className="h-px w-4 bg-orange-500" />
@@ -225,7 +227,6 @@ export default function ShopPage() {
                 </nav>
               </div>
 
-              {/* Product count */}
               <div className="px-1 pt-2 border-t border-white/5">
                 <p className="text-[9px] font-black uppercase tracking-widest text-zinc-700">
                   {filteredProducts.length} {filteredProducts.length === 1 ? "item" : "items"} found
@@ -265,15 +266,11 @@ export default function ShopPage() {
                         alt={product.name}
                         className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                       />
-
-                      {/* Category badge */}
                       <div className="absolute top-3 left-3 md:top-4 md:left-4">
                         <span className="bg-black/70 backdrop-blur-md text-orange-400 border border-orange-500/20 text-[8px] font-black px-2 py-1 rounded-lg uppercase tracking-tight">
                           {product.category}
                         </span>
                       </div>
-
-                      {/* Price badge */}
                       <div className="absolute top-3 right-3 md:top-4 md:right-4">
                         <div className="bg-black/80 backdrop-blur-md border border-white/10 px-2.5 py-1 rounded-full">
                           <span className="text-orange-400 font-black text-[10px] md:text-xs tracking-tighter">
@@ -281,8 +278,6 @@ export default function ShopPage() {
                           </span>
                         </div>
                       </div>
-
-                      {/* View detail hint */}
                       <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-500 flex items-center justify-center opacity-0 group-hover:opacity-100">
                         <div className="p-3 bg-black/60 backdrop-blur-sm rounded-full border border-white/10">
                           <ArrowUpRight size={16} className="text-white" />
@@ -297,8 +292,6 @@ export default function ShopPage() {
                           {product.name}
                         </h3>
                       </div>
-
-                      {/* Buttons */}
                       <div className="flex flex-col gap-2 mt-auto">
                         {session && (
                           <button

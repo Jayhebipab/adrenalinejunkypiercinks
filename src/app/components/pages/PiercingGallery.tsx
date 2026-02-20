@@ -145,9 +145,17 @@ export default function PiercingGallery() {
         setRowErrors(prev => { const e = { ...prev }; delete e[id]; return e; });
     };
 
+    const ALLOWED_TYPES = ["image/jpeg", "image/jpg", "image/png"];
+
     const handleImageChange = (rowId: number, files: FileList | null) => {
         if (!files) return;
-        const newFiles = Array.from(files);
+        const allFiles = Array.from(files);
+        const invalidFiles = allFiles.filter(f => !ALLOWED_TYPES.includes(f.type));
+        if (invalidFiles.length > 0) {
+            toast.error(`Invalid file type: only JPG, JPEG, and PNG are allowed.`);
+            return;
+        }
+        const newFiles = allFiles;
         const newPreviews = newFiles.map(f => URL.createObjectURL(f));
         setRows(prev => prev.map(r =>
             r.id === rowId ? { ...r, files: [...r.files, ...newFiles], previews: [...r.previews, ...newPreviews] } : r
@@ -523,7 +531,7 @@ export default function PiercingGallery() {
                                     )}>
                                         <UploadCloud className="size-8 text-muted-foreground group-hover:text-foreground mb-2 transition-colors" />
                                         <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Drop or click to upload</span>
-                                        <input type="file" multiple className="hidden" accept="image/*" onChange={e => handleImageChange(row.id, e.target.files)} />
+                                        <input type="file" multiple className="hidden" accept=".jpg,.jpeg,.png,image/jpeg,image/png" onChange={e => handleImageChange(row.id, e.target.files)} />
                                     </label>
 
                                     {row.previews.length > 0 && (

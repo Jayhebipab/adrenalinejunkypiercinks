@@ -244,18 +244,6 @@ const handleResetPassword = async (e: React.FormEvent) => {
                         </button>
                     )}
                 </form>
-
-                {!resetMode && (
-                    <footer className="text-center">
-                        <button 
-                            type="button"
-                            onClick={() => setVaultMode(!vaultMode)}
-                            className="text-[8px] font-black uppercase tracking-widest text-zinc-700 hover:text-white transition-all"
-                        >
-                            {vaultMode ? "[!] Standard Login" : "Secure System Access"}
-                        </button>
-                    </footer>
-                )}
             </div>
         </div>
     );
