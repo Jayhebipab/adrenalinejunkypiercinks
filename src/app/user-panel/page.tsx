@@ -429,8 +429,14 @@ export default function PortalPage() {
                                     <h2 className="text-2xl font-black uppercase italic text-[#d11a2a]">Shop History</h2>
                                 </div>
 
-                                <div className="grid gap-8">
-                                    {myOrders.length > 0 ? myOrders.map((o) => (
+<div className="grid gap-8">
+    {dataLoading ? (
+        <div className="animate-pulse space-y-4">
+            {[1, 2].map(i => (
+                <div key={i} className="h-64 bg-white/5 rounded-[40px] border border-white/10" />
+            ))}
+        </div>
+    ) : myOrders.length > 0 ? myOrders.map((o) => (
                                         <div
                                             key={o.id}
                                             id={`receipt-${o.id}`}

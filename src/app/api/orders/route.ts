@@ -1,14 +1,21 @@
 import { db } from "@/lib/firebase";
 import { 
   collection, getDocs, addDoc, deleteDoc, 
-  updateDoc, doc, query, orderBy, serverTimestamp 
+  updateDoc, doc, query, orderBy, serverTimestamp, where 
 } from "firebase/firestore";
 import { NextResponse } from "next/server";
 
-// --- GET: FETCH ALL ORDERS ---
-export async function GET() {
+// --- GET: FETCH ORDERS (filtered by email kung meron) ---
+export async function GET(req: Request) {
   try {
-    const q = query(collection(db, "orders"), orderBy("createdAt", "desc"));
+    const { searchParams } = new URL(req.url);
+    const email = searchParams.get("email");
+
+    const ordersRef = collection(db, "orders");
+    const q = email
+      ? query(ordersRef, where("customer_email", "==", email), orderBy("createdAt", "desc"))
+      : query(ordersRef, orderBy("createdAt", "desc"));
+
     const snapshot = await getDocs(q);
     
     const orders = snapshot.docs.map(doc => ({
