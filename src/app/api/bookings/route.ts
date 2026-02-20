@@ -124,7 +124,7 @@ export async function DELETE(req: Request) {
   }
 }
 
-// --- 4. UPDATE STATUS (Strictly Bookings Only) ---
+// --- 4. UPDATE STATUS (With Decline Reason Support) ---
 export async function PATCH(req: Request) {
   try {
     const body = await req.json();
@@ -135,7 +135,8 @@ export async function PATCH(req: Request) {
       preferredTime, 
       finalPrice, 
       inventoryUsed, 
-      artist 
+      artist,
+      declineReason // <--- Dito natin kukunin yung comment mula sa frontend
     } = body;
     
     const docRef = doc(db, "bookings", id);
@@ -148,7 +149,35 @@ export async function PATCH(req: Request) {
 
     if (preferredDate) updateFields.preferredDate = preferredDate;
     if (preferredTime) updateFields.preferredTime = preferredTime;
+    
+    // I-save ang reason sa Firestore kung meron
+    if (declineReason) updateFields.declineReason = declineReason;
 
+    // --- LOGIC FOR DECLINED ---
+    if (status === "declined") {
+      const declineContent = `
+        <p style="font-size: 18px; color: #ef4444; font-weight: bold;">APPOINTMENT DECLINED</p>
+        <p>We're sorry, but your appointment for <strong>${booking.service.toUpperCase()}</strong> could not be accepted at this time.</p>
+        
+        <div style="background: #fef2f2; border-left: 4px solid #ef4444; padding: 20px; margin: 20px 0;">
+          <p style="margin: 0; font-size: 10px; color: #ef4444; letter-spacing: 2px; font-weight: bold;">REASON FROM STUDIO</p>
+          <p style="margin: 10px 0 0 0; color: #1a1a1a; font-style: italic;">
+            "${declineReason || "No specific reason provided. Please contact the studio for more details."}"
+          </p>
+        </div>
+        
+        <p style="font-size: 12px; color: #666;">You can try booking another schedule or contact us at our social media pages.</p>
+      `;
+
+      await transporter.sendMail({
+        from: `"ADRENALINE JUNKY" <${process.env.EMAIL_USER}>`,
+        to: booking.email,
+        subject: `❌ DECLINED: Appointment Request`,
+        html: getEmailTemplate(booking.name, declineContent),
+      });
+    }
+
+    // --- LOGIC FOR FINISHED (Inventory subtraction) ---
     if (status === "finished") {
       updateFields.artist = artist;
       updateFields.finalPrice = Number(finalPrice);
@@ -158,23 +187,20 @@ export async function PATCH(req: Request) {
       if (Array.isArray(inventoryUsed)) {
         for (const item of inventoryUsed) {
           const productsRef = collection(db, "products");
-          const q = query(productsRef);
+          const q = query(productsRef, where("name", "==", item.name));
           const querySnapshot = await getDocs(q);
           
           for (const productDoc of querySnapshot.docs) {
-            if (productDoc.data().name === item.name) {
-              const productRef = doc(db, "products", productDoc.id);
-              await updateDoc(productRef, {
-                quantity: increment(-item.quantity) 
-              });
-            }
+            const productRef = doc(db, "products", productDoc.id);
+            await updateDoc(productRef, {
+              quantity: increment(-item.quantity) 
+            });
           }
         }
       }
     }
 
-    await updateDoc(docRef, updateFields);
-
+    // --- LOGIC FOR APPROVED ---
     if (status === "approved") {
       const approvalContent = `
         <p style="font-size: 18px; color: #ea580c; font-weight: bold;">SESSION CONFIRMED!</p>
@@ -195,6 +221,7 @@ export async function PATCH(req: Request) {
       });
     }
 
+    // --- LOGIC FOR ADJUSTED ---
     if (status === "adjusted") {
       const adjustmentContent = `
         <p style="font-size: 18px; color: #3b82f6; font-weight: bold;">SCHEDULE ADJUSTED!</p>
@@ -205,7 +232,6 @@ export async function PATCH(req: Request) {
             ${new Date(updateFields.preferredDate).toDateString()} @ ${updateFields.preferredTime}
           </p>
         </div>
-        <p style="font-size: 12px; color: #666;">If this schedule doesn't work for you, please contact us immediately.</p>
       `;
 
       await transporter.sendMail({
@@ -215,6 +241,9 @@ export async function PATCH(req: Request) {
         html: getEmailTemplate(booking.name, adjustmentContent),
       });
     }
+
+    // Isang bagsakang update sa Firestore
+    await updateDoc(docRef, updateFields);
 
     return NextResponse.json({ message: "Update successful!" });
   } catch (error: any) {

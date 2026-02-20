@@ -1,29 +1,28 @@
 import { db } from "@/lib/firebase";
-import { 
-  collection, 
-  getDocs, 
-  getDoc, 
-  addDoc, 
-  deleteDoc, 
-  updateDoc, 
-  doc, 
-  query, 
-  where, 
+import {
+  collection,
+  getDocs,
+  getDoc,
+  addDoc,
+  deleteDoc,
+  updateDoc,
+  doc,
+  query,
+  where,
   orderBy,
-  serverTimestamp 
+  serverTimestamp
 } from "firebase/firestore";
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 
-// --- 1. GET: Fetch all users (Security: No passwords/PINs) ---
+// ─── 1. GET: Fetch all users (No passwords/PINs) ─────────────────────────────
 export async function GET() {
   try {
     const q = query(collection(db, "users"), orderBy("createdAt", "desc"));
     const querySnapshot = await getDocs(q);
-    
+
     const users = querySnapshot.docs.map(docSnap => {
       const data = docSnap.data();
-      // Manual exclusion ng sensitive data
       const { password, systemPIN, ...safeData } = data;
       return { id: docSnap.id, ...safeData };
     });
@@ -34,25 +33,38 @@ export async function GET() {
   }
 }
 
-// --- 2. POST: Register with Duplicate Validation ---
+// ─── 2. POST: Register — no password field, auto-generate temp or skip ────────
 export async function POST(req: Request) {
   try {
     const body = await req.json();
     const { username, email, password, role, contact, systemPIN } = body;
 
-    // VALIDATION: Check kung may duplicate Email, Username, o Contact
+    // ── Required field check ──
+    if (!username?.trim()) return NextResponse.json({ error: "Username is required." }, { status: 400 });
+    if (!email?.trim()) return NextResponse.json({ error: "Email is required." }, { status: 400 });
+    if (!password?.trim()) return NextResponse.json({ error: "Password is required." }, { status: 400 });
+    if (password.length < 6) return NextResponse.json({ error: "Password must be at least 6 characters." }, { status: 400 });
+    if (!role?.trim()) return NextResponse.json({ error: "Role is required." }, { status: 400 });
+    if (role === "Super Admin" && !systemPIN?.trim()) {
+      return NextResponse.json({ error: "Master PIN is required for Super Admin." }, { status: 400 });
+    }
+
     const usersRef = collection(db, "users");
-    
+
+    // ── Duplicate checks ──
     const emailCheck = await getDocs(query(usersRef, where("email", "==", email)));
-    if (!emailCheck.empty) return NextResponse.json({ error: "Email already exists" }, { status: 400 });
+    if (!emailCheck.empty) return NextResponse.json({ error: "Email already exists." }, { status: 400 });
 
     const usernameCheck = await getDocs(query(usersRef, where("username", "==", username)));
-    if (!usernameCheck.empty) return NextResponse.json({ error: "Username already taken" }, { status: 400 });
+    if (!usernameCheck.empty) return NextResponse.json({ error: "Username already taken." }, { status: 400 });
 
-    const contactCheck = await getDocs(query(usersRef, where("contact", "==", contact)));
-    if (!contactCheck.empty) return NextResponse.json({ error: "Contact number already registered" }, { status: 400 });
+    // ── Contact duplicate check — only if contact is provided ──
+    if (contact?.trim()) {
+      const contactCheck = await getDocs(query(usersRef, where("contact", "==", contact)));
+      if (!contactCheck.empty) return NextResponse.json({ error: "Contact number already registered." }, { status: 400 });
+    }
 
-    // Hashing
+    // ── Password + PIN hashing ──
     const hashedPassword = await bcrypt.hash(password, 10);
     let hashedPin = "";
     if (role === "Super Admin" && systemPIN) {
@@ -60,15 +72,15 @@ export async function POST(req: Request) {
     }
 
     const newUser = {
-      username,
-      email,
+      username: username.trim(),
+      email: email.trim().toLowerCase(),
       role,
-      contact,
+      contact: contact?.trim() || "",
       password: hashedPassword,
       systemPIN: hashedPin,
       avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`,
       createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp()
+      updatedAt: serverTimestamp(),
     };
 
     const docRef = await addDoc(collection(db, "users"), newUser);
@@ -79,46 +91,53 @@ export async function POST(req: Request) {
   }
 }
 
-// --- Updated PUT Logic sa /api/users/route.ts ---
+// ─── 3. PUT: Update user / Verify Super Admin ────────────────────────────────
 export async function PUT(req: Request) {
   try {
     const body = await req.json();
-    const { id, isVerifying, currentPassword, systemPIN, ...otherData } = body;
+    const { id, isVerifying, currentPassword, systemPIN } = body;
 
-    if (!id) return NextResponse.json({ error: "ID required" }, { status: 400 });
+    if (!id) return NextResponse.json({ error: "ID required." }, { status: 400 });
 
     const docRef = doc(db, "users", id);
     const docSnap = await getDoc(docRef);
 
-    if (!docSnap.exists()) return NextResponse.json({ error: "User not found" }, { status: 404 });
+    if (!docSnap.exists()) return NextResponse.json({ error: "User not found." }, { status: 404 });
     const userData = docSnap.data();
 
-    // --- SECURITY VERIFICATION MODE ---
+    // ── Verification mode (Super Admin auth check) ──
     if (isVerifying) {
-      const passMatch = currentPassword ? await bcrypt.compare(currentPassword, userData.password) : false;
-      const pinMatch = systemPIN ? await bcrypt.compare(systemPIN, userData.systemPIN || "") : false;
+      const passMatch = currentPassword && userData.password
+        ? await bcrypt.compare(currentPassword, userData.password)
+        : false;
+      const pinMatch = systemPIN && userData.systemPIN
+        ? await bcrypt.compare(systemPIN, userData.systemPIN)
+        : false;
 
       if (passMatch || pinMatch) return NextResponse.json({ message: "Root Access Granted" });
       return NextResponse.json({ error: "Invalid Credentials" }, { status: 401 });
     }
 
-    // --- DYNAMIC PERMISSIONS & PROFILE UPDATE ---
-    const updateData: any = { 
-      updatedAt: serverTimestamp() 
+    // ── Profile / Permissions update ──
+    const updateData: any = {
+      updatedAt: serverTimestamp(),
     };
 
-    // Ito yung magic: lahat ng extra fields (like inventory, products, etc.) 
-    // na pinasa mo sa toggleAccess, isasama dito automatic.
     const reservedKeys = ["id", "isVerifying", "currentPassword", "systemPIN", "newPassword", "newSystemPIN"];
-    
+
     Object.keys(body).forEach(key => {
-      if (!reservedKeys.includes(key)) {
+      if (!reservedKeys.includes(key) && body[key] !== undefined) {
         updateData[key] = body[key];
       }
     });
 
-    if (body.newPassword) updateData.password = await bcrypt.hash(body.newPassword, 10);
-    if (body.newSystemPIN) updateData.systemPIN = await bcrypt.hash(body.newSystemPIN, 10);
+    // ── Credential overrides (Super Admin only) ──
+    if (body.newPassword?.trim()) {
+      updateData.password = await bcrypt.hash(body.newPassword, 10);
+    }
+    if (body.newSystemPIN?.trim()) {
+      updateData.systemPIN = await bcrypt.hash(body.newSystemPIN, 10);
+    }
 
     await updateDoc(docRef, updateData);
     return NextResponse.json({ message: "Sync Successful" });
@@ -127,25 +146,27 @@ export async function PUT(req: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
-// --- 4. DELETE: Anti-Root Protection ---
+
+// ─── 4. DELETE: Anti-Root Protection ─────────────────────────────────────────
 export async function DELETE(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
 
-    if (!id) return NextResponse.json({ error: "ID required" }, { status: 400 });
+    if (!id) return NextResponse.json({ error: "ID required." }, { status: 400 });
 
     const docRef = doc(db, "users", id);
     const docSnap = await getDoc(docRef);
 
-    if (!docSnap.exists()) return NextResponse.json({ error: "User not found" }, { status: 404 });
+    if (!docSnap.exists()) return NextResponse.json({ error: "User not found." }, { status: 404 });
 
     if (docSnap.data().role === "Super Admin") {
-      return NextResponse.json({ error: "Root user cannot be deleted" }, { status: 403 });
+      return NextResponse.json({ error: "Root user cannot be deleted." }, { status: 403 });
     }
 
     await deleteDoc(docRef);
-    return NextResponse.json({ message: "Personnel removed" });
+    return NextResponse.json({ message: "Personnel removed." });
+
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

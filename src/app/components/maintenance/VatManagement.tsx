@@ -1,29 +1,70 @@
 "use client"
 import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { 
-    Edit3, RotateCcw, X, Loader2, Percent, Calculator, Plus, Sparkles, ShieldCheck 
+import {
+    Edit3, RotateCcw, X, Loader2, Percent, Calculator,
+    Plus, Sparkles, ShieldCheck, AlertCircle, History,
+    TrendingUp, Clock, CheckCircle2
 } from "lucide-react"
 import { Toaster, toast } from "sonner"
+import { db } from "@/lib/firebase"
+import { collection, addDoc, serverTimestamp } from "firebase/firestore"
+import { cn } from "@/lib/utils"
 
 interface VatRecord {
-    id: string; // Firebase ID
+    id: string;
     percentage: number;
     vat_name?: string;
 }
 
+// ─── AUDIT TRAIL HELPER ───────────────────────────────────────────────────────
+async function logAudit({ action, details, module = "VAT Management" }: {
+    action: string; details: string; module?: string;
+}) {
+    try {
+        const stored = localStorage.getItem("user");
+        const parsed = stored ? JSON.parse(stored) : null;
+        await addDoc(collection(db, "audit_logs"), {
+            adminName: parsed?.name ?? "Unknown Admin",
+            adminEmail: parsed?.email ?? "—",
+            action, details, module,
+            timestamp: serverTimestamp(),
+        });
+    } catch (err) { console.warn("Audit log failed:", err); }
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ─── VALIDATION ───────────────────────────────────────────────────────────────
+interface FormErrors {
+    percentage?: string;
+    vat_name?: string;
+}
+
+function validateVat(data: { percentage: number; vat_name: string }): FormErrors {
+    const errors: FormErrors = {};
+
+    if (!data.vat_name.trim()) errors.vat_name = "Protocol name is required.";
+    else if (data.vat_name.trim().length < 3) errors.vat_name = "Name must be at least 3 characters.";
+
+    if (!data.percentage || isNaN(data.percentage)) errors.percentage = "Percentage is required.";
+    else if (data.percentage < 1 || data.percentage > 99) errors.percentage = "Must be between 1% and 99%.";
+
+    return errors;
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 export default function VatManagement() {
     const [vatRecord, setVatRecord] = useState<VatRecord | null>(null);
     const [fetching, setFetching] = useState(true);
+    const [saving, setSaving] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [newPercentage, setNewPercentage] = useState<number>(1);
+    const [newPercentage, setNewPercentage] = useState<number>(12);
     const [vatName, setVatName] = useState("Standard VAT");
+    const [formErrors, setFormErrors] = useState<FormErrors>({});
 
     const fetchVat = async () => {
         setFetching(true);
         try {
-            // Siguraduhing tama ang API path (lowercase or uppercase depende sa file mo)
-            const res = await fetch("/api/VAT"); 
+            const res = await fetch("/api/VAT");
             const data = await res.json();
             if (Array.isArray(data) && data.length > 0) {
                 setVatRecord(data[0]);
@@ -32,8 +73,8 @@ export default function VatManagement() {
             } else {
                 setVatRecord(null);
             }
-        } catch (err) {
-            toast.error("Connection to Matrix Failed");
+        } catch {
+            toast.error("Connection to database failed.");
         } finally {
             setFetching(false);
         }
@@ -41,189 +82,371 @@ export default function VatManagement() {
 
     useEffect(() => { fetchVat(); }, []);
 
+    // Live validate
+    const liveValidate = (field: keyof FormErrors, value: string | number) => {
+        const current = {
+            percentage: field === "percentage" ? Number(value) : newPercentage,
+            vat_name: field === "vat_name" ? String(value) : vatName,
+        };
+        const errors = validateVat(current);
+        setFormErrors(prev => ({ ...prev, [field]: errors[field] }));
+    };
+
     const handleAction = async (e: React.FormEvent) => {
         e.preventDefault();
-        
-        if (newPercentage < 1 || newPercentage > 99) {
-            return toast.error("Invalid Range: 1% to 99% only");
+
+        const errors = validateVat({ percentage: newPercentage, vat_name: vatName });
+        if (Object.keys(errors).length > 0) {
+            setFormErrors(errors);
+            toast.error("Please fix the form errors before submitting.");
+            return;
         }
 
         const method = vatRecord ? "PUT" : "POST";
-        const body = vatRecord 
+        const body = vatRecord
             ? { id: vatRecord.id, percentage: newPercentage, vat_name: vatName }
             : { percentage: newPercentage, vat_name: vatName };
 
-        toast.promise(async () => {
+        const isUpdate = !!vatRecord;
+        const previousRate = vatRecord?.percentage;
+        setSaving(true);
+
+        const doAction = async () => {
             const res = await fetch(`/api/VAT`, {
-                method: method,
+                method,
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(body),
             });
-            
             const result = await res.json();
             if (!res.ok) throw new Error(result.error || "Action failed");
-            
+
+            // ✅ AUDIT LOG
+            if (isUpdate) {
+                await logAudit({
+                    action: "UPDATED VAT RATE",
+                    details: `Updated VAT "${vatName}" from ${previousRate}% to ${newPercentage}% (ID: ${vatRecord?.id})`,
+                });
+            } else {
+                await logAudit({
+                    action: "INITIALIZED VAT RATE",
+                    details: `Initialized new VAT protocol "${vatName}" at ${newPercentage}%`,
+                });
+            }
+
             setIsModalOpen(false);
+            setFormErrors({});
             fetchVat();
-        }, {
-            loading: 'Syncing Tax Protocols...',
-            success: vatRecord ? 'Tax Matrix Updated!' : 'Initial VAT Established!',
-            error: (err) => err.message,
-        });
+            return result;
+        };
+
+        try {
+            await toast.promise(doAction(), {
+                loading: "Syncing Tax Protocols...",
+                success: isUpdate ? "Tax Matrix Updated!" : "Initial VAT Established!",
+                error: (err: Error) => err.message,
+            });
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const openModal = () => {
+        if (vatRecord) {
+            setNewPercentage(vatRecord.percentage);
+            setVatName(vatRecord.vat_name || "Standard VAT");
+        } else {
+            setNewPercentage(12);
+            setVatName("Standard VAT");
+        }
+        setFormErrors({});
+        setIsModalOpen(true);
     };
 
     return (
-        <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-8 min-h-screen text-black italic font-sans">
-            <Toaster position="top-center" richColors />
+        <div className="min-h-screen bg-background text-foreground p-4 md:p-8">
+            <Toaster position="bottom-right" richColors />
 
-            {/* HEADER - SAME AS USER MANAGEMENT */}
-            <header className="flex flex-col md:flex-row justify-between items-center bg-zinc-900 p-8 rounded-[2.5rem] text-white shadow-2xl gap-6">
-                <div className="flex items-center gap-4">
-                    <div className="p-4 bg-white rounded-3xl -rotate-6 shadow-xl text-black">
-                        <Calculator size={28} />
-                    </div>
+            <div className="max-w-5xl mx-auto space-y-8">
+
+                {/* ── HEADER ── */}
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
                     <div>
-                        <h1 className="text-3xl font-black uppercase italic tracking-tighter leading-none">VAT Protocol</h1>
-                        <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest italic mt-1">Global Tax Configuration v3.0</p>
+                        <p className="text-[9px] font-black uppercase tracking-[0.35em] text-muted-foreground mb-2 flex items-center gap-2">
+                            <span className="h-px w-5 bg-current inline-block" /> Tax Configuration
+                        </p>
+                        <h1 className="text-5xl md:text-6xl font-black uppercase italic tracking-tighter leading-none">
+                            The<br />
+                            <span className="text-muted-foreground/30">Protocol</span>
+                        </h1>
+                    </div>
+                    <div className="flex gap-3">
+                        <button
+                            onClick={fetchVat}
+                            disabled={fetching}
+                            className="h-12 w-12 flex items-center justify-center bg-card border border-border rounded-xl hover:bg-muted transition-all disabled:opacity-40"
+                        >
+                            <RotateCcw size={16} className={cn(fetching && "animate-spin")} />
+                        </button>
+                        {!vatRecord && !fetching && (
+                            <button
+                                onClick={openModal}
+                                className="h-12 px-6 bg-foreground text-background rounded-xl font-black uppercase text-[10px] tracking-widest flex items-center gap-2 hover:opacity-90 transition-all shadow-lg"
+                            >
+                                <Plus size={16} /> Initialize Protocol
+                            </button>
+                        )}
                     </div>
                 </div>
-                <Button 
-                    onClick={() => fetchVat()} 
-                    className="bg-zinc-800 text-zinc-400 hover:text-white rounded-2xl h-14 w-14 p-0 border border-white/5 shadow-xl transition-all active:scale-90"
-                >
-                    <RotateCcw className={fetching ? "animate-spin" : ""} />
-                </Button>
-            </header>
 
-            {/* MAIN CARD */}
-            <div className="relative overflow-hidden bg-white border border-zinc-100 rounded-[3rem] shadow-sm p-8 md:p-16 text-center">
-                {/* Background Decor */}
-                <div className="absolute top-0 right-0 p-10 opacity-[0.02] pointer-events-none">
-                    <Percent size={200} strokeWidth={8} />
-                </div>
-
-                {fetching ? (
-                    <div className="py-20 flex flex-col items-center gap-4">
-                        <Loader2 className="animate-spin w-12 h-12 text-zinc-900" />
-                        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400">Scanning Database...</p>
-                    </div>
-                ) : vatRecord ? (
-                    <div className="space-y-8 relative z-10">
-                        <div className="inline-flex items-center gap-2 px-5 py-2 bg-emerald-50 text-emerald-600 rounded-full text-[10px] font-black uppercase tracking-widest border border-emerald-100 animate-pulse">
-                            <ShieldCheck size={12} /> Active System Tax
-                        </div>
-
-                        <div className="space-y-2">
-                            <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-400">{vatRecord.vat_name || "Standard VAT"}</h2>
-                            <div className="flex items-center justify-center gap-2">
-                                <span className="text-8xl md:text-[7rem] font-black text-zinc-900 tracking-tighter leading-none">
-                                    {vatRecord.percentage}
-                                </span>
-                                <div className="flex flex-col items-start">
-                                    <Percent size={40} className="text-zinc-900" strokeWidth={4} />
-                                    <span className="text-[10px] font-black uppercase text-zinc-400 tracking-widest">Rate</span>
-                                </div>
+                {/* ── STATS ROW ── */}
+                <div className="grid grid-cols-3 gap-4">
+                    {[
+                        {
+                            label: "Current Rate",
+                            value: vatRecord ? `${vatRecord.percentage}%` : "—",
+                            icon: Percent,
+                            color: "text-foreground",
+                            bg: "bg-muted"
+                        },
+                        {
+                            label: "Protocol Name",
+                            value: vatRecord?.vat_name || "—",
+                            icon: ShieldCheck,
+                            color: "text-emerald-500",
+                            bg: "bg-emerald-500/10"
+                        },
+                        {
+                            label: "System Status",
+                            value: vatRecord ? "Active" : "Inactive",
+                            icon: vatRecord ? CheckCircle2 : AlertCircle,
+                            color: vatRecord ? "text-emerald-500" : "text-amber-500",
+                            bg: vatRecord ? "bg-emerald-500/10" : "bg-amber-500/10"
+                        },
+                    ].map(stat => (
+                        <div key={stat.label} className="bg-card border border-border rounded-[1.5rem] p-5 flex items-center gap-4">
+                            <div className={cn("p-2.5 rounded-xl", stat.bg, stat.color)}>
+                                <stat.icon className="size-4" />
+                            </div>
+                            <div className="min-w-0">
+                                <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">{stat.label}</p>
+                                <p className="text-lg font-black truncate">{stat.value}</p>
                             </div>
                         </div>
+                    ))}
+                </div>
 
-                        <Button 
-                            onClick={() => {
-                                setNewPercentage(vatRecord.percentage);
-                                setIsModalOpen(true);
-                            }}
-                            className="bg-black text-white hover:bg-zinc-800 rounded-3xl h-15 px-12 font-black uppercase text-xs tracking-[0.2em] shadow-2xl transition-all active:scale-95 group"
-                        >
-                            <Edit3 className="w-4 h-4 mr-3 group-hover:rotate-12 transition-transform" /> 
-                            Modify Rate Matrix
-                        </Button>
+                {/* ── MAIN VAT CARD ── */}
+                <div className="bg-card border border-border rounded-[2rem] overflow-hidden shadow-sm">
+                    <div className="px-8 py-5 border-b border-border flex items-center justify-between">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                            VAT Configuration
+                        </p>
+                        {vatRecord && (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 rounded-lg text-[9px] font-black uppercase tracking-widest">
+                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" /> Live
+                            </span>
+                        )}
                     </div>
-                ) : (
-                    <div className="py-20 space-y-6">
-                        <div className="w-24 h-24 bg-zinc-50 rounded-[2rem] flex items-center justify-center mx-auto border-2 border-dashed border-zinc-200">
-                            <Plus className="text-zinc-300 w-10 h-10" />
-                        </div>
-                        <div className="space-y-1">
-                            <h3 className="font-black uppercase italic text-zinc-900 text-2xl tracking-tighter">No Protocol Found</h3>
-                            <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest">Initialize global tax percentage</p>
-                        </div>
-                        <Button 
-                            onClick={() => {
-                                setNewPercentage(1);
-                                setIsModalOpen(true);
-                            }}
-                            className="bg-black text-white hover:bg-zinc-800 rounded-2xl h-16 px-10 font-black uppercase text-xs tracking-widest shadow-xl"
-                        >
-                            Initialize System
-                        </Button>
+
+                    <div className="p-8 md:p-16">
+                        {fetching ? (
+                            <div className="py-20 flex flex-col items-center gap-4">
+                                <Loader2 className="animate-spin size-10 text-muted-foreground/30" />
+                                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground/50">Scanning Database...</p>
+                            </div>
+
+                        ) : vatRecord ? (
+                            <div className="flex flex-col md:flex-row items-center justify-between gap-10">
+                                {/* BIG PERCENTAGE DISPLAY */}
+                                <div className="text-center md:text-left">
+                                    <p className="text-[9px] font-black uppercase tracking-[0.4em] text-muted-foreground mb-2">
+                                        {vatRecord.vat_name || "Standard VAT"}
+                                    </p>
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-[7rem] md:text-[9rem] font-black tracking-tighter leading-none">
+                                            {vatRecord.percentage}
+                                        </span>
+                                        <div className="flex flex-col items-start">
+                                            <Percent size={36} strokeWidth={4} className="text-foreground" />
+                                            <span className="text-[9px] font-black uppercase text-muted-foreground tracking-widest mt-1">Rate</span>
+                                        </div>
+                                    </div>
+                                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-2">
+                                        Applied globally to all taxable items
+                                    </p>
+                                </div>
+
+                                {/* INFO + ACTION */}
+                                <div className="flex flex-col gap-4 w-full md:w-auto md:min-w-[220px]">
+                                    <div className="bg-muted rounded-2xl p-5 space-y-3">
+                                        <div className="flex items-center gap-2 text-muted-foreground">
+                                            <Calculator size={13} />
+                                            <span className="text-[9px] font-black uppercase tracking-widest">Quick Calc</span>
+                                        </div>
+                                        {[100, 500, 1000].map(amount => (
+                                            <div key={amount} className="flex justify-between items-center">
+                                                <span className="text-[10px] font-bold text-muted-foreground">₱{amount.toLocaleString()}</span>
+                                                <span className="text-[10px] font-black">
+                                                    +₱{((amount * vatRecord.percentage) / 100).toFixed(2)}
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    <button
+                                        onClick={openModal}
+                                        className="h-12 px-6 bg-foreground text-background rounded-xl font-black uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 hover:opacity-90 transition-all shadow-lg group"
+                                    >
+                                        <Edit3 size={14} className="group-hover:rotate-12 transition-transform" />
+                                        Modify Rate
+                                    </button>
+                                </div>
+                            </div>
+
+                        ) : (
+                            <div className="py-20 flex flex-col items-center gap-6 text-center">
+                                <div className="w-20 h-20 bg-muted rounded-[1.5rem] flex items-center justify-center border-2 border-dashed border-border">
+                                    <Percent className="text-muted-foreground/30 size-8" />
+                                </div>
+                                <div>
+                                    <h3 className="font-black uppercase italic text-2xl tracking-tighter">No Protocol Found</h3>
+                                    <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest mt-1">Initialize global tax percentage</p>
+                                </div>
+                                <button
+                                    onClick={openModal}
+                                    className="h-12 px-8 bg-foreground text-background rounded-xl font-black uppercase text-[10px] tracking-widest flex items-center gap-2 hover:opacity-90 transition-all shadow-lg"
+                                >
+                                    <Plus size={16} /> Initialize System
+                                </button>
+                            </div>
+                        )}
                     </div>
-                )}
+                </div>
             </div>
 
-            {/* MODAL - SAME AS USER MANAGEMENT AESTHETIC */}
+            {/* ── MODAL ── */}
             {isModalOpen && (
-                <div className="fixed inset-0 bg-black/95 backdrop-blur-xl flex items-center justify-center z-[100] p-4">
-                    <div className="bg-white rounded-[3rem] shadow-2xl w-full max-w-md p-10 space-y-8 animate-in zoom-in duration-300">
-                        <div className="text-center space-y-2">
-                            <div className="mx-auto w-16 h-16 bg-zinc-900 text-white rounded-2xl flex items-center justify-center -rotate-6 shadow-2xl mb-4">
-                                <Sparkles />
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
+                    <div className="bg-card border border-border rounded-[2.5rem] shadow-2xl w-full max-w-sm animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
+                        <div className="p-8 space-y-6">
+                            {/* Modal Header */}
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <h2 className="text-lg font-black uppercase italic tracking-tighter">
+                                        {vatRecord ? "Modify Protocol" : "Init Protocol"}
+                                    </h2>
+                                    <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5">
+                                        {vatRecord ? "Override global tax matrix" : "Set initial tax configuration"}
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={() => { setIsModalOpen(false); setFormErrors({}); }}
+                                    className="p-2.5 hover:bg-muted rounded-full transition-all text-muted-foreground"
+                                >
+                                    <X size={18} />
+                                </button>
                             </div>
-                            <h2 className="text-3xl font-black tracking-tighter uppercase italic">
-                                {vatRecord ? "Adjust Tax" : "Setup Tax"}
-                            </h2>
-                            <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Global Matrix Override</p>
-                        </div>
-                        
-                        <form onSubmit={handleAction} className="space-y-6">
-                            <div className="space-y-4">
-                                <div className="space-y-1">
-                                    <label className="text-[9px] font-black uppercase text-zinc-400 ml-2 tracking-widest">Protocol Name</label>
-                                    <input 
+
+                            <form onSubmit={handleAction} className="space-y-4">
+
+                                {/* Protocol Name */}
+                                <div className="space-y-1.5">
+                                    <label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest ml-1">
+                                        Protocol Name
+                                    </label>
+                                    <input
                                         type="text"
-                                        className="w-full bg-zinc-50 border border-zinc-100 rounded-2xl px-6 py-4 outline-none font-bold text-sm focus:ring-2 ring-black transition-all"
-                                        value={vatName}
-                                        onChange={(e) => setVatName(e.target.value)}
                                         placeholder="e.g. Standard VAT"
+                                        className={cn(
+                                            "w-full bg-muted rounded-xl px-4 py-3.5 text-xs font-bold uppercase outline-none border-2 transition-all",
+                                            formErrors.vat_name ? "border-destructive bg-destructive/5" : "border-transparent focus:border-foreground"
+                                        )}
+                                        value={vatName}
+                                        onChange={e => {
+                                            setVatName(e.target.value);
+                                            liveValidate("vat_name", e.target.value);
+                                        }}
                                     />
+                                    {formErrors.vat_name && (
+                                        <div className="flex items-center gap-1.5 text-destructive text-[10px] font-bold ml-1">
+                                            <AlertCircle className="size-3 flex-shrink-0" /> {formErrors.vat_name}
+                                        </div>
+                                    )}
                                 </div>
 
-                                <div className="space-y-1">
-                                    <label className="text-[9px] font-black uppercase text-zinc-400 ml-2 tracking-widest text-center block">Tax Percentage (%)</label>
+                                {/* Tax Percentage — big input */}
+                                <div className="space-y-1.5">
+                                    <label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest ml-1 block text-center">
+                                        Tax Percentage (%)
+                                    </label>
                                     <div className="relative">
-                                        <input 
-                                            required 
-                                            type="number" 
+                                        <input
+                                            required
+                                            type="number"
                                             min="1"
                                             max="99"
                                             autoFocus
-                                            className="w-full bg-zinc-900 text-white rounded-[2rem] px-4 py-10 outline-none text-6xl font-black text-center tracking-tighter" 
-                                            value={newPercentage} 
-                                            onChange={(e) => setNewPercentage(parseInt(e.target.value) || 0)} 
+                                            className={cn(
+                                                "w-full bg-foreground text-background rounded-2xl px-4 py-10 outline-none text-6xl font-black text-center tracking-tighter border-2 transition-all",
+                                                formErrors.percentage ? "border-destructive" : "border-transparent"
+                                            )}
+                                            value={newPercentage}
+                                            onChange={e => {
+                                                const val = parseInt(e.target.value) || 0;
+                                                setNewPercentage(val);
+                                                liveValidate("percentage", val);
+                                            }}
                                         />
-                                        <Percent className="absolute right-8 top-1/2 -translate-y-1/2 text-white/20" size={40} />
+                                        <Percent className="absolute right-6 top-1/2 -translate-y-1/2 text-background/20" size={36} />
                                     </div>
-                                    <p className="text-[8px] text-zinc-400 font-black uppercase mt-4 text-center tracking-[0.2em]">Safe Range: 01% - 99%</p>
+                                    {formErrors.percentage ? (
+                                        <div className="flex items-center gap-1.5 text-destructive text-[10px] font-bold ml-1">
+                                            <AlertCircle className="size-3 flex-shrink-0" /> {formErrors.percentage}
+                                        </div>
+                                    ) : (
+                                        <p className="text-[8px] text-muted-foreground font-black uppercase text-center tracking-[0.2em] mt-1">
+                                            Safe Range: 01% – 99%
+                                        </p>
+                                    )}
                                 </div>
-                            </div>
 
-                            <div className="space-y-3">
-                                <Button 
-                                    type="submit" 
-                                    className="w-full h-20 bg-black text-white rounded-3xl font-black uppercase tracking-[0.2em] shadow-2xl transition-all active:scale-95 text-xs"
+                                {/* Preview */}
+                                {!formErrors.percentage && newPercentage >= 1 && (
+                                    <div className="bg-muted rounded-xl p-4 space-y-2">
+                                        <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+                                            <TrendingUp size={10} /> Preview
+                                        </p>
+                                        {[100, 500, 1000].map(amount => (
+                                            <div key={amount} className="flex justify-between items-center">
+                                                <span className="text-[10px] font-bold text-muted-foreground">₱{amount.toLocaleString()}</span>
+                                                <span className="text-[10px] font-black">
+                                                    → ₱{(amount + (amount * newPercentage) / 100).toFixed(2)}
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+
+                                <button
+                                    type="submit"
+                                    disabled={saving || Object.values(formErrors).some(Boolean)}
+                                    className="w-full h-14 bg-foreground text-background rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-2"
                                 >
-                                    Confirm Protocol
-                                </Button>
-                                <button 
-                                    type="button"
-                                    onClick={() => setIsModalOpen(false)} 
-                                    className="w-full text-[10px] font-black text-zinc-400 uppercase tracking-widest hover:text-black transition-colors"
-                                >
-                                    Abort Mission
+                                    {saving ? <Loader2 className="animate-spin size-4" /> : "Commit Protocol"}
                                 </button>
-                            </div>
-                        </form>
+
+                                <button
+                                    type="button"
+                                    onClick={() => { setIsModalOpen(false); setFormErrors({}); }}
+                                    className="w-full text-[10px] font-black text-muted-foreground uppercase tracking-widest hover:text-foreground transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                            </form>
+                        </div>
                     </div>
                 </div>
             )}
         </div>
-    )
+    );
 }

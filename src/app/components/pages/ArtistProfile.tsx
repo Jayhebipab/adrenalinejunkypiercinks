@@ -2,48 +2,123 @@
 
 import { useState, useEffect, useMemo } from "react";
 import Script from "next/script";
-import { Button } from "@/components/ui/button"; 
 import ArtistModal from "../../components/ArtistModal";
-import { 
-    Plus, Loader2, ShieldCheck, UserPlus, 
-    Search, Trash2, Mail, Phone, Instagram, 
-    Eye, EyeOff, Circle, User, Briefcase
+import {
+    Plus, Loader2, Search, Trash2,
+    Eye, EyeOff, User, Lock
 } from "lucide-react";
 import { Toaster, toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { db } from "@/lib/firebase";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+
+// ─── AUDIT TRAIL HELPER ───────────────────────────────────────────────────────
+async function logAudit({ action, details, module = "Artist Management" }: {
+    action: string; details: string; module?: string;
+}) {
+    try {
+        const stored = localStorage.getItem("user");
+        const parsed = stored ? JSON.parse(stored) : null;
+        await addDoc(collection(db, "audit_logs"), {
+            adminName: parsed?.name ?? "Unknown Admin",
+            adminEmail: parsed?.email ?? "—",
+            action, details, module,
+            timestamp: serverTimestamp(),
+        });
+    } catch (err) { console.warn("Audit log failed:", err); }
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 export default function ArtistProfile() {
     const [artists, setArtists] = useState<any[]>([]);
+    const [bookedArtistIds, setBookedArtistIds] = useState<Set<string>>(new Set());
     const [fetching, setFetching] = useState(true);
     const [search, setSearch] = useState("");
     const [loading, setLoading] = useState(false);
     const [activeTab, setActiveTab] = useState<"all" | "active" | "inactive">("all");
-    
-    const [modal, setModal] = useState<{ isOpen: boolean; data: any | null }>({ 
-        isOpen: false, 
-        data: null 
+
+    const [modal, setModal] = useState<{ isOpen: boolean; data: any | null }>({
+        isOpen: false,
+        data: null
     });
 
-    useEffect(() => { fetchArtists(); }, []);
+    useEffect(() => { fetchAll(); }, []);
 
-    const fetchArtists = async () => {
+    const fetchAll = async () => {
         setFetching(true);
         try {
-            const res = await fetch("/api/artists");
-            const data = await res.json();
-            if (Array.isArray(data)) setArtists(data);
+            // Fetch artists + bookings in parallel
+            const [artistRes, bookingRes] = await Promise.all([
+                fetch("/api/artists"),
+                fetch("/api/bookings"),
+            ]);
+            const artistData = await artistRes.json();
+            const bookingData = await bookingRes.json();
+
+            if (Array.isArray(artistData)) setArtists(artistData);
+
+            // Build set of artist IDs that are assigned to any booking
+            if (Array.isArray(bookingData)) {
+                const booked = new Set<string>(
+                    bookingData
+                        .filter((b: any) => b.artistId || b.artist_id)
+                        .map((b: any) => (b.artistId || b.artist_id) as string)
+                );
+                setBookedArtistIds(booked);
+            }
         } catch (err) {
             toast.error("Failed to load team data.");
         } finally { setFetching(false); }
     };
 
+    // ─── DUPLICATE VALIDATION ─────────────────────────────────────────────────
+    const checkDuplicates = (payload: any, excludeId?: string): string | null => {
+        for (const artist of artists) {
+            const id = artist.id || artist._id;
+            if (id === excludeId) continue;
+
+            if (artist.fullName?.toLowerCase().trim() === payload.fullName?.toLowerCase().trim()) {
+                return `Artist name "${payload.fullName}" is already registered.`;
+            }
+            if (payload.email?.trim() && artist.email?.toLowerCase() === payload.email?.toLowerCase().trim()) {
+                return `Email "${payload.email}" is already in use.`;
+            }
+            if (payload.contactNumber?.trim() && artist.contactNumber === payload.contactNumber?.trim()) {
+                return `Contact number "${payload.contactNumber}" is already registered.`;
+            }
+        }
+        return null;
+    };
+
+    // ─── HANDLE SAVE (ADD / EDIT) ─────────────────────────────────────────────
     const handleSave = async (payload: any) => {
+        const artistId = payload.id || payload._id;
+        const isUpdate = !!artistId;
+
+        // Booking lock — block edit if artist is in a booking
+        if (isUpdate && bookedArtistIds.has(artistId)) {
+            toast.error(`Cannot edit "${payload.fullName}" — assigned to an existing booking.`, {
+                description: "Remove or complete the booking first.",
+            });
+            return;
+        }
+
+        // Required field check
+        if (!payload.fullName?.trim()) {
+            toast.error("Artist name is required.");
+            return;
+        }
+
+        // Duplicate check
+        const dupeError = checkDuplicates(payload, artistId);
+        if (dupeError) {
+            toast.error(dupeError);
+            return;
+        }
+
         setLoading(true);
         try {
-            const artistId = payload.id || payload._id;
-            const isUpdate = !!artistId;
             const finalPayload = { ...payload, status: payload.status || "active" };
-
             const res = await fetch("/api/artists", {
                 method: isUpdate ? "PUT" : "POST",
                 headers: { "Content-Type": "application/json" },
@@ -51,20 +126,32 @@ export default function ArtistProfile() {
             });
 
             if (res.ok) {
-                toast.success(isUpdate ? "Artist Sync successful" : "New Artist added");
+                // ✅ AUDIT LOG
+                await logAudit({
+                    action: isUpdate ? "EDITED ARTIST" : "ADDED ARTIST",
+                    details: isUpdate
+                        ? `Edited artist "${payload.fullName}" (${payload.position}) — ID: ${artistId}`
+                        : `Added new artist "${payload.fullName}" (${payload.position || "No position"})`,
+                });
+
+                toast.success(isUpdate ? "Artist updated!" : "New artist added!");
                 setModal({ isOpen: false, data: null });
-                fetchArtists();
+                fetchAll();
+            } else {
+                const err = await res.json();
+                toast.error(err.error || "Operation failed.");
             }
         } catch (err) {
-            toast.error("Operation failed");
+            toast.error("Operation failed.");
         } finally { setLoading(false); }
     };
 
+    // ─── TOGGLE STATUS ────────────────────────────────────────────────────────
     const toggleStatus = async (e: React.MouseEvent, artist: any) => {
-        e.stopPropagation(); 
+        e.stopPropagation();
         const artistId = artist.id || artist._id;
         const newStatus = artist.status === "inactive" ? "active" : "inactive";
-        
+
         try {
             const res = await fetch("/api/artists", {
                 method: "PUT",
@@ -72,154 +159,261 @@ export default function ArtistProfile() {
                 body: JSON.stringify({ ...artist, id: artistId, status: newStatus }),
             });
             if (res.ok) {
-                toast.info(`Artist visibility: ${newStatus.toUpperCase()}`);
-                fetchArtists();
+                await logAudit({
+                    action: "TOGGLED ARTIST STATUS",
+                    details: `Artist "${artist.fullName}" status changed to ${newStatus.toUpperCase()}`,
+                });
+                toast.info(`${artist.fullName}: ${newStatus.toUpperCase()}`);
+                fetchAll();
             }
         } catch (err) {
-            toast.error("Status update failed");
+            toast.error("Status update failed.");
         }
     };
 
-    const deleteArtist = async (id: string) => {
-        if (!confirm("Delete this profile?")) return;
+    // ─── DELETE ───────────────────────────────────────────────────────────────
+    const deleteArtist = async (e: React.MouseEvent, artist: any) => {
+        e.stopPropagation();
+        const artistId = artist.id || artist._id;
+
+        // Booking lock — block delete if in booking
+        if (bookedArtistIds.has(artistId)) {
+            toast.error(`Cannot delete "${artist.fullName}" — assigned to an existing booking.`, {
+                description: "Remove or complete the booking first.",
+            });
+            return;
+        }
+
+        if (!confirm(`DELETE "${artist.fullName.toUpperCase()}"?`)) return;
+
         try {
-            const res = await fetch("/api/artists", { 
-                method: "DELETE", 
-                body: JSON.stringify({ id }),
-                headers: { "Content-Type": "application/json" }
+            const res = await fetch("/api/artists", {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id: artistId }),
             });
             if (res.ok) {
-                toast.error("Profile deleted");
-                fetchArtists();
+                await logAudit({
+                    action: "DELETED ARTIST",
+                    details: `Deleted artist "${artist.fullName}" (${artist.position || "No position"}) — ID: ${artistId}`,
+                });
+                toast.success(`"${artist.fullName}" has been removed.`);
+                fetchAll();
             }
         } catch (err) {
-            toast.error("Delete failed");
+            toast.error("Delete failed.");
         }
+    };
+
+    // ─── OPEN MODAL — block if booked ─────────────────────────────────────────
+    const handleRowClick = (artist: any) => {
+        const artistId = artist.id || artist._id;
+        if (bookedArtistIds.has(artistId)) {
+            toast.warning(`"${artist.fullName}" is assigned to a booking and cannot be edited.`, {
+                description: "Complete or remove the booking first.",
+            });
+            return;
+        }
+        setModal({ isOpen: true, data: artist });
     };
 
     const filteredArtists = useMemo(() => {
         return artists.filter(a => {
             const fullName = a.fullName || "";
             const position = a.position || "";
-            const matchesSearch = fullName.toLowerCase().includes(search.toLowerCase()) || 
-                                 position.toLowerCase().includes(search.toLowerCase());
+            const matchesSearch = fullName.toLowerCase().includes(search.toLowerCase()) ||
+                position.toLowerCase().includes(search.toLowerCase());
             const matchesTab = activeTab === "all" ? true : a.status === activeTab;
             return matchesSearch && matchesTab;
         });
     }, [artists, search, activeTab]);
 
     return (
-        <div className="min-h-screen p-4 md:p-8 text-slate-900 dark:text-white">
+        <div className="min-h-screen bg-background text-foreground p-4 md:p-8">
             <Script src="https://upload-widget.cloudinary.com/global/all.js" strategy="afterInteractive" />
-            <Toaster position="top-right" richColors />
-            
-            <div className="max-w-4xl mx-auto">
-                {/* HEADER - Styled like your Promo/Shop List */}
-                <div className="flex justify-between items-center mb-10">
+            <Toaster position="bottom-right" richColors />
+
+            <div className="max-w-5xl mx-auto space-y-8">
+
+                {/* ── HEADER ── */}
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
                     <div>
-                        <h1 className="text-4xl font-black uppercase italic tracking-tighter">The Crew</h1>
-                        <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.3em]">Artist & Personnel Management</p>
+                        <p className="text-[9px] font-black uppercase tracking-[0.35em] text-muted-foreground mb-2 flex items-center gap-2">
+                            <span className="h-px w-5 bg-current inline-block" /> Studio Management
+                        </p>
+                        <h1 className="text-5xl md:text-6xl font-black uppercase italic tracking-tighter leading-none">
+                            The<br />
+                            <span className="text-muted-foreground/30">Crew</span>
+                        </h1>
                     </div>
-                    <button 
+                    <button
                         onClick={() => setModal({ isOpen: true, data: { fullName: "", position: "", email: "", status: "active", artworks: [] } })}
-                        className="bg-black dark:bg-white dark:text-black text-white px-8 py-4 rounded-2xl font-black uppercase text-[11px] tracking-widest flex items-center gap-3 hover:opacity-90 transition-all shadow-xl shadow-black/10"
+                        className="h-12 px-6 bg-foreground text-background rounded-xl font-black uppercase text-[10px] tracking-widest flex items-center gap-2 hover:opacity-90 transition-all shadow-lg"
                     >
                         <Plus size={16} /> New Artist
                     </button>
                 </div>
 
-                {/* FILTERS SECTION */}
-                <div className="space-y-4 mb-8">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="relative">
-                            <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                            <input 
-                                type="text"
-                                placeholder="SEARCH BY NAME OR ROLE..."
-                                onChange={(e) => setSearch(e.target.value)}
-                                className="w-full pl-12 pr-5 py-4 bg-slate-50 dark:bg-zinc-900 border border-transparent dark:border-zinc-800 rounded-2xl text-[11px] font-bold uppercase tracking-widest outline-none focus:bg-white dark:focus:bg-zinc-800 focus:border-black dark:focus:border-white transition-all"
-                            />
-                        </div>
-                        <div className="flex bg-slate-50 dark:bg-zinc-900 p-1.5 rounded-2xl gap-1 border border-transparent dark:border-zinc-800">
-                            {(["all", "active", "inactive"] as const).map((tab) => (
-                                <button
-                                    key={tab}
-                                    onClick={() => setActiveTab(tab)}
-                                    className={cn(
-                                        "flex-1 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all",
-                                        activeTab === tab 
-                                            ? "bg-black text-white dark:bg-white dark:text-black shadow-lg" 
-                                            : "text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300"
-                                    )}
-                                >
-                                    {tab}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-
-                {/* LIST SECTION - Styled like your List items */}
-                <div className="space-y-3">
-                    {fetching ? (
-                        <div className="text-center py-20"><Loader2 className="animate-spin mx-auto text-slate-200" size={32} /></div>
-                    ) : filteredArtists.length === 0 ? (
-                        <div className="text-center py-20 bg-slate-50 dark:bg-zinc-900 rounded-[2rem] border-2 border-dashed border-slate-200 dark:border-zinc-800">
-                            <p className="text-[11px] font-black uppercase text-slate-400 tracking-widest">No artists found</p>
-                        </div>
-                    ) : filteredArtists.map((artist) => (
-                        <div 
-                            key={artist.id || artist._id}
-                            onClick={() => setModal({ isOpen: true, data: artist })}
-                            className={cn(
-                                "bg-white dark:bg-zinc-900 p-6 rounded-[2rem] border border-slate-100 dark:border-zinc-800 flex items-center gap-6 hover:shadow-2xl hover:shadow-slate-200/50 dark:hover:shadow-black/50 transition-all group cursor-pointer relative overflow-hidden",
-                                artist.status === 'inactive' && "opacity-60 grayscale-[0.5]"
-                            )}
-                        >
-                            {/* Profile Visual */}
-                            <div className="w-14 h-14 rounded-2xl flex items-center justify-center border bg-slate-50 border-slate-200 dark:bg-zinc-800 dark:border-zinc-700 overflow-hidden shrink-0">
-                                {artist.profileImage ? (
-                                    <img src={artist.profileImage} className="w-full h-full object-cover" alt="" />
-                                ) : (
-                                    <User size={22} className="text-slate-400" />
-                                )}
+                {/* ── STATS ROW ── */}
+                <div className="grid grid-cols-3 gap-4">
+                    {[
+                        { label: "Total Artists", value: artists.length, color: "text-foreground", bg: "bg-muted" },
+                        { label: "Active", value: artists.filter(a => a.status === "active").length, color: "text-emerald-500", bg: "bg-emerald-500/10" },
+                        { label: "Booked", value: bookedArtistIds.size, color: "text-amber-500", bg: "bg-amber-500/10" },
+                    ].map(stat => (
+                        <div key={stat.label} className="bg-card border border-border rounded-[1.5rem] p-5 flex items-center gap-4">
+                            <div className={cn("p-2.5 rounded-xl", stat.bg, stat.color)}>
+                                <User className="size-4" />
                             </div>
-
-                            {/* Info */}
-                            <div className="flex-1 min-w-0">
-                                <h3 className="text-sm font-black uppercase tracking-tight truncate flex items-center gap-2">
-                                    {artist.fullName}
-                                    {artist.status === 'active' && <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />}
-                                </h3>
-                                <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{artist.position}</p>
-                            </div>
-
-                            {/* Actions - Visible on hover to keep it clean */}
-                            <div className="flex items-center gap-2 px-4 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
-                                <button 
-                                    onClick={(e) => toggleStatus(e, artist)}
-                                    className="p-3 text-slate-400 hover:text-black dark:hover:text-white transition-all"
-                                >
-                                    {artist.status === 'active' ? <EyeOff size={18}/> : <Eye size={18}/>}
-                                </button>
-                                <button 
-                                    onClick={(e) => { e.stopPropagation(); deleteArtist(artist.id || artist._id); }}
-                                    className="p-3 text-slate-300 hover:text-red-500 transition-all"
-                                >
-                                    <Trash2 size={18}/>
-                                </button>
+                            <div>
+                                <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">{stat.label}</p>
+                                <p className="text-2xl font-black">{stat.value}</p>
                             </div>
                         </div>
                     ))}
                 </div>
+
+                {/* ── SEARCH + FILTER ── */}
+                <div className="flex flex-col md:flex-row gap-3">
+                    <div className="relative flex-1">
+                        <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
+                        <input
+                            type="text"
+                            placeholder="Search by name or role..."
+                            className="w-full bg-card border border-border rounded-xl py-3.5 pl-12 pr-6 text-sm font-bold uppercase tracking-widest outline-none focus:border-foreground transition-all"
+                            onChange={(e) => setSearch(e.target.value)}
+                        />
+                    </div>
+                    <div className="flex bg-card border border-border p-1.5 rounded-xl gap-1">
+                        {(["all", "active", "inactive"] as const).map((tab) => (
+                            <button
+                                key={tab}
+                                onClick={() => setActiveTab(tab)}
+                                className={cn(
+                                    "px-5 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all",
+                                    activeTab === tab
+                                        ? "bg-foreground text-background shadow"
+                                        : "text-muted-foreground hover:text-foreground"
+                                )}
+                            >
+                                {tab}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {/* ── LIST ── */}
+                <div className="bg-card border border-border rounded-[2rem] overflow-hidden shadow-sm">
+                    <div className="px-8 py-5 border-b border-border">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                            {filteredArtists.length} Artists
+                        </p>
+                    </div>
+
+                    <div className="divide-y divide-border/50">
+                        {fetching ? (
+                            <div className="py-20 text-center">
+                                <Loader2 className="animate-spin mx-auto size-8 text-muted-foreground/30" />
+                            </div>
+                        ) : filteredArtists.length === 0 ? (
+                            <div className="py-20 text-center">
+                                <User className="mx-auto size-10 text-muted-foreground/20 mb-3" />
+                                <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">No artists found</p>
+                            </div>
+                        ) : filteredArtists.map((artist) => {
+                            const artistId = artist.id || artist._id;
+                            const isBooked = bookedArtistIds.has(artistId);
+
+                            return (
+                                <div
+                                    key={artistId}
+                                    onClick={() => handleRowClick(artist)}
+                                    className={cn(
+                                        "group flex items-center gap-5 px-8 py-5 transition-all",
+                                        isBooked
+                                            ? "cursor-not-allowed opacity-70"
+                                            : "cursor-pointer hover:bg-muted/30"
+                                    )}
+                                >
+                                    {/* Avatar */}
+                                    <div className={cn(
+                                        "w-11 h-11 rounded-xl overflow-hidden flex items-center justify-center shrink-0 transition-all",
+                                        isBooked
+                                            ? "bg-amber-500/10 text-amber-500"
+                                            : "bg-muted text-muted-foreground group-hover:bg-foreground group-hover:text-background"
+                                    )}>
+                                        {artist.profileImage ? (
+                                            <img src={artist.profileImage} className="w-full h-full object-cover" alt="" />
+                                        ) : (
+                                            <User size={16} />
+                                        )}
+                                    </div>
+
+                                    {/* Info */}
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2">
+                                            <h3 className="text-sm font-black uppercase italic tracking-tight truncate">{artist.fullName}</h3>
+                                            {artist.status === "active" && !isBooked && (
+                                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                            )}
+                                            {isBooked && (
+                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-500/10 text-amber-500 border border-amber-500/20 rounded-md text-[8px] font-black uppercase tracking-widest">
+                                                    <Lock size={8} /> Booked
+                                                </span>
+                                            )}
+                                        </div>
+                                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest truncate">{artist.position}</p>
+                                    </div>
+
+                                    {/* Status badge */}
+                                    <span className={cn(
+                                        "hidden md:inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border",
+                                        artist.status === "active"
+                                            ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
+                                            : "bg-muted text-muted-foreground border-border"
+                                    )}>
+                                        <span className={cn("h-1.5 w-1.5 rounded-full", artist.status === "active" ? "bg-emerald-400 animate-pulse" : "bg-muted-foreground/30")} />
+                                        {artist.status}
+                                    </span>
+
+                                    {/* Actions */}
+                                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        {isBooked ? (
+                                            <div className="h-9 w-9 rounded-xl bg-muted border border-border flex items-center justify-center text-muted-foreground/30">
+                                                <Lock size={13} />
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <button
+                                                    onClick={(e) => toggleStatus(e, artist)}
+                                                    className="h-9 w-9 rounded-xl bg-muted border border-border flex items-center justify-center text-muted-foreground hover:bg-foreground hover:text-background hover:border-transparent transition-all"
+                                                    title={artist.status === "active" ? "Deactivate" : "Activate"}
+                                                >
+                                                    {artist.status === "active" ? <EyeOff size={14} /> : <Eye size={14} />}
+                                                </button>
+                                                <button
+                                                    onClick={(e) => deleteArtist(e, artist)}
+                                                    className="h-9 w-9 rounded-xl bg-muted border border-border flex items-center justify-center text-muted-foreground hover:bg-destructive hover:text-white hover:border-transparent transition-all"
+                                                    title="Delete artist"
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
             </div>
 
-            <ArtistModal 
-                isOpen={modal.isOpen} 
-                artistData={modal.data} 
-                onClose={() => setModal({ isOpen: false, data: null })} 
-                onSave={handleSave} 
-                loading={loading} 
+            <ArtistModal
+                isOpen={modal.isOpen}
+                artistData={modal.data}
+                onClose={() => setModal({ isOpen: false, data: null })}
+                onSave={handleSave}
+                loading={loading}
             />
         </div>
     );
