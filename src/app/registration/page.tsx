@@ -50,9 +50,6 @@ export default function RegisterPage() {
     const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault();
         
-        if (formData.systemPIN.length !== 6) {
-            return toast.error("System PIN must be exactly 6 digits");
-        }
 
         setLoading(true);
         try {
@@ -165,21 +162,6 @@ export default function RegisterPage() {
                                     className="w-full bg-black/50 border border-zinc-800 rounded-xl py-3 pl-11 pr-4 text-sm text-white font-bold outline-none focus:border-zinc-500 transition-all" 
                                     placeholder="••••••••"
                                     onChange={e => setFormData({...formData, password: e.target.value})}
-                                />
-                            </div>
-                        </div>
-
-                        <div className="space-y-2">
-                            <label className="text-[9px] font-black text-zinc-500 uppercase ml-2 tracking-widest italic">6-Digit Vault PIN</label>
-                            <div className="relative group">
-                                <ShieldCheck className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-700 group-focus-within:text-white transition-colors w-4 h-4" />
-                                <input 
-                                    type="password" 
-                                    required
-                                    maxLength={6}
-                                    className="w-full bg-black/50 border border-zinc-800 rounded-xl py-3 pl-11 pr-4 text-sm text-white font-bold outline-none focus:border-zinc-500 transition-all" 
-                                    placeholder="000000"
-                                    onChange={e => setFormData({...formData, systemPIN: e.target.value})}
                                 />
                             </div>
                         </div>
