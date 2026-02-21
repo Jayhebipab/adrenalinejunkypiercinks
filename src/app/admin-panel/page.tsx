@@ -11,7 +11,7 @@ const jetbrainsMono = JetBrains_Mono({
 })
 
 // VIEWS IMPORTS
-import  DashboardHome  from "../components/dashboard/home-view"
+import DashboardHome from "../components/dashboard/home-view"
 import BookingList from "../components/reservation/BookingList"
 import BookingRequest from "../components/reservation/BookingRequest"
 import ProductList from "../components/shop/ProductList"

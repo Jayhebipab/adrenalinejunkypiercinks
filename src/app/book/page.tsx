@@ -296,7 +296,7 @@ useEffect(() => {
                           name="phone" type="tel" required maxLength={11}
                           value={phoneNumber}
                           onChange={(e) => setPhoneNumber(e.target.value.replace(/[^0-9]/g, ''))}
-                          placeholder="09123456789"
+                          placeholder="*"
                           className="bg-zinc-900/60 border-zinc-800 focus:border-white text-white h-12 rounded-xl text-[11px] font-bold tracking-widest transition-all"
                         />
                       </div>

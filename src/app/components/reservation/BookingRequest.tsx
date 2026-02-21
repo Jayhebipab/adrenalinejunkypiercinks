@@ -56,7 +56,6 @@ async function logAudit({
   module?: string;
 }) {
   try {
-    // Kukunin ang admin info sa localStorage key "users"
     const stored = localStorage.getItem("user");
     const adminName = stored ? JSON.parse(stored)?.name ?? "Unknown Admin" : "Unknown Admin";
     const adminRole = stored ? JSON.parse(stored)?.role ?? "—" : "—";
@@ -159,128 +158,115 @@ export default function BookingRequest() {
     }
   };
 
-  // ─── HANDLE ADJUSTMENT (PROFESSIONAL VERSION) ────────────────────────────────
-const handleAdjustment = async () => {
-  if (!editingBooking) return;
+  // ─── HANDLE ADJUSTMENT ────────────────────────────────────────────────────────
+  const handleAdjustment = async () => {
+    if (!editingBooking) return;
 
-  // 1. ✅ DATE VALIDATION
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const selectedDateObj = new Date(newDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const selectedDateObj = new Date(newDate);
 
-  if (selectedDateObj < today) {
-    toast.error("Invalid Date", {
-      description: "Past dates are not allowed. Please select a current or future date."
-    });
-    return;
-  }
-
-  // 2. ✅ STRICT BUSINESS HOURS VALIDATION (8:00 AM - 10:00 PM)
-  const validateBusinessHours = (timeStr: string) => {
-    const input = timeStr.toUpperCase().trim();
-    const isAM = input.includes("AM");
-    const isPM = input.includes("PM");
-
-    if (!isAM && !isPM) {
-      return { valid: false, msg: "Format Error", desc: "Please include 'AM' or 'PM' (e.g., 8:00 AM)." };
+    if (selectedDateObj < today) {
+      toast.error("Invalid Date", {
+        description: "Past dates are not allowed. Please select a current or future date."
+      });
+      return;
     }
 
-    // Extract hour and minutes
-    const timeMatch = input.match(/(\d+):(\d+)/);
-    if (!timeMatch) return { valid: false, msg: "Format Error", desc: "Please use HH:MM format." };
+    const validateBusinessHours = (timeStr: string) => {
+      const input = timeStr.toUpperCase().trim();
+      const isAM = input.includes("AM");
+      const isPM = input.includes("PM");
 
-    let hour = parseInt(timeMatch[1]);
-    const minutes = parseInt(timeMatch[2]);
+      if (!isAM && !isPM) {
+        return { valid: false, msg: "Format Error", desc: "Please include 'AM' or 'PM' (e.g., 8:00 AM)." };
+      }
 
-    // Convert to 24-hour scale for precise comparison
-    if (isPM && hour < 12) hour += 12;
-    if (isAM && hour === 12) hour = 0;
+      const timeMatch = input.match(/(\d+):(\d+)/);
+      if (!timeMatch) return { valid: false, msg: "Format Error", desc: "Please use HH:MM format." };
 
-    const totalMinutes = hour * 60 + minutes;
-    const openTime = 8 * 60;      // 8:00 AM
-    const closeTime = 22 * 60;    // 10:00 PM (22:00)
+      let hour = parseInt(timeMatch[1]);
+      const minutes = parseInt(timeMatch[2]);
 
-    // Strict Check: 7:59 AM and below = Illegal | 10:01 PM and above = Illegal
-    if (totalMinutes < openTime || totalMinutes > closeTime) {
-      return { 
-        valid: false, 
-        msg: "Outside Business Hours", 
-        desc: "Operating hours are strictly from 8:00 AM to 10:00 PM." 
-      };
+      if (isPM && hour < 12) hour += 12;
+      if (isAM && hour === 12) hour = 0;
+
+      const totalMinutes = hour * 60 + minutes;
+      const openTime = 8 * 60;
+      const closeTime = 22 * 60;
+
+      if (totalMinutes < openTime || totalMinutes > closeTime) {
+        return {
+          valid: false,
+          msg: "Outside Business Hours",
+          desc: "Operating hours are strictly from 8:00 AM to 10:00 PM."
+        };
+      }
+      return { valid: true };
+    };
+
+    const timeCheck = validateBusinessHours(newTime);
+    if (!timeCheck.valid) {
+      toast.error(timeCheck.msg, { description: timeCheck.desc });
+      return;
     }
-    return { valid: true };
-  };
 
-  const timeCheck = validateBusinessHours(newTime);
-  if (!timeCheck.valid) {
-    toast.error(timeCheck.msg, { description: timeCheck.desc });
-    return;
-  }
-
-  // 3. ✅ CONFLICT CHECK (Existing Functionality Preserved)
-  const conflict = bookings.find(b => {
-    const isSameDate = b.preferredDate?.split('T')[0] === newDate;
-    const isSameTime = (b.preferredTime ?? "").toLowerCase().trim() === newTime.toLowerCase().trim();
-    const isSameArtist = b.artist?.toLowerCase() === editingBooking.artist?.toLowerCase();
-    const isNotSelf = b.id !== editingBooking.id;
-    const isActive = !['declined', 'finished'].includes(b.status.toLowerCase());
-
-    return isSameDate && isSameTime && isSameArtist && isNotSelf && isActive;
-  });
-
-  if (conflict) {
-    toast.error("Schedule Conflict", {
-      description: `${editingBooking.artist} is already booked on ${formatDate(newDate)} at ${newTime}. (Conflicting Client: ${conflict.name})`
-    });
-    return; 
-  }
-
-  // 4. ✅ EXECUTE UPDATE
-  setUpdatingId(editingBooking.id);
-  try {
-    const res = await fetch(`/api/bookings`, {
-      method: 'PATCH',
-      body: JSON.stringify({
-        id: editingBooking.id,
-        status: "adjusted",
-        preferredDate: newDate,
-        preferredTime: newTime
-      }),
-      headers: { 'Content-Type': 'application/json' }
+    const conflict = bookings.find(b => {
+      const isSameDate = b.preferredDate?.split('T')[0] === newDate;
+      const isSameTime = (b.preferredTime ?? "").toLowerCase().trim() === newTime.toLowerCase().trim();
+      const isSameArtist = b.artist?.toLowerCase() === editingBooking.artist?.toLowerCase();
+      const isNotSelf = b.id !== editingBooking.id;
+      const isActive = !['declined', 'finished'].includes(b.status.toLowerCase());
+      return isSameDate && isSameTime && isSameArtist && isNotSelf && isActive;
     });
 
-    if (res.ok) {
-      toast.success("Schedule Updated", {
-        description: "The appointment has been successfully rescheduled."
+    if (conflict) {
+      toast.error("Schedule Conflict", {
+        description: `${editingBooking.artist} is already booked on ${formatDate(newDate)} at ${newTime}. (Conflicting Client: ${conflict.name})`
+      });
+      return;
+    }
+
+    setUpdatingId(editingBooking.id);
+    try {
+      const res = await fetch(`/api/bookings`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          id: editingBooking.id,
+          status: "adjusted",
+          preferredDate: newDate,
+          preferredTime: newTime
+        }),
+        headers: { 'Content-Type': 'application/json' }
       });
 
-      setBookings(prev =>
-        prev.map(b => b.id === editingBooking.id
-          ? { ...b, preferredDate: newDate, preferredTime: newTime, status: "adjusted" }
-          : b
-        )
-      );
+      if (res.ok) {
+        toast.success("Schedule Updated", {
+          description: "The appointment has been successfully rescheduled."
+        });
 
-      // ✅ AUDIT LOG (Existing Functionality Preserved)
-      // @ts-ignore
-      if (typeof logAudit === 'function') {
-        // @ts-ignore
+        setBookings(prev =>
+          prev.map(b => b.id === editingBooking.id
+            ? { ...b, preferredDate: newDate, preferredTime: newTime, status: "adjusted" }
+            : b
+          )
+        );
+
         await logAudit({
           action: 'BOOKING ADJUSTMENT',
           details: `Rescheduled ${editingBooking.name} (${editingBooking.service}) to ${formatDate(newDate)} at ${newTime}`,
         });
-      }
 
-      setEditingBooking(null);
+        setEditingBooking(null);
+      }
+    } catch (error) {
+      toast.error("Process Failed", {
+        description: "Unable to update the schedule. Please check your connection."
+      });
+    } finally {
+      setUpdatingId(null);
     }
-  } catch (error) {
-    toast.error("Process Failed", {
-      description: "Unable to update the schedule. Please check your connection."
-    });
-  } finally {
-    setUpdatingId(null);
-  }
-};
+  };
   // ─────────────────────────────────────────────────────────────────────────────
 
   const formatDate = (dateStr: string) => {
@@ -342,7 +328,7 @@ const handleAdjustment = async () => {
 
         {/* LEFT/CENTER SIDE: MAIN CONTENT */}
         <main className="flex-1 p-6 lg:p-12">
-          <header className="max-w-7xl mx-auto mb-16 flex flex-col md:flex-row md:items-end justify-between gap-8">
+          <header className="max-w-[1600px] mx-auto mb-16 flex flex-col md:flex-row md:items-end justify-between gap-8">
             <div className="space-y-4">
               <h2 className="text-5xl md:text-6xl font-black uppercase tracking-tighter leading-[0.85]">
                 Inbound<br />
@@ -361,12 +347,13 @@ const handleAdjustment = async () => {
             </div>
           </header>
 
-          <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-10">
+          {/* ── 4 COLS ON DESKTOP ── */}
+          <div className="max-w-[1600px] mx-auto grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-8">
             {filteredBookings.length > 0 ? (
               filteredBookings.map((booking) => (
                 <div key={booking.id} className="group flex flex-col bg-card border border-border rounded-[2.5rem] overflow-hidden transition-all duration-500 hover:shadow-2xl hover:-translate-y-2">
 
-                  <div className="relative h-80 w-full bg-muted overflow-hidden">
+                  <div className="relative h-64 w-full bg-muted overflow-hidden">
                     {booking.images && booking.images.length > 0 ? (
                       <>
                         <img src={booking.images[0]} alt="Reference" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
@@ -382,42 +369,42 @@ const handleAdjustment = async () => {
                         <span className="uppercase font-bold text-[10px] tracking-widest">No Reference</span>
                       </div>
                     )}
-                    <div className="absolute top-6 left-6">
+                    <div className="absolute top-4 left-4">
                       <Badge className={cn(
-                        "px-4 py-1.5 rounded-full uppercase text-[10px] font-bold border-none",
-                        booking.status.toLowerCase() === 'pending' ? 'bg-amber-400 text-amber-950 shadow-lg shadow-amber-400/20' :
-                          booking.status.toLowerCase() === 'approved' ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' :
-                            booking.status.toLowerCase() === 'declined' ? 'bg-red-500 text-white shadow-lg shadow-red-500/20' :
-                              booking.status.toLowerCase() === 'adjusted' ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/20' :
-                                'bg-foreground text-background'
+                        "px-3 py-1 rounded-full uppercase text-[9px] font-bold border-none",
+                        booking.status.toLowerCase() === 'pending'  ? 'bg-amber-400 text-amber-950 shadow-lg shadow-amber-400/20' :
+                        booking.status.toLowerCase() === 'approved' ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' :
+                        booking.status.toLowerCase() === 'declined' ? 'bg-red-500 text-white shadow-lg shadow-red-500/20' :
+                        booking.status.toLowerCase() === 'adjusted' ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/20' :
+                        'bg-foreground text-background'
                       )}>
                         {booking.status}
                       </Badge>
                     </div>
                   </div>
 
-                  <div className="p-8 flex flex-col grow">
-                    <div className="mb-6">
-                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">{booking.service}</p>
-                      <h3 className="text-2xl font-black text-foreground uppercase tracking-tighter leading-none">{booking.name}</h3>
+                  <div className="p-6 flex flex-col grow">
+                    <div className="mb-4">
+                      <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-1">{booking.service}</p>
+                      <h3 className="text-xl font-black text-foreground uppercase tracking-tighter leading-none">{booking.name}</h3>
                     </div>
 
-                    <div className="space-y-3 mb-8">
+                    <div className="space-y-2 mb-6">
                       <div className="flex items-center text-muted-foreground">
-                        <Calendar className="h-3.5 w-3.5 mr-2" />
-                        <span className="text-xs font-medium">{formatDate(booking.preferredDate)}</span>
+                        <Calendar className="h-3.5 w-3.5 mr-2 shrink-0" />
+                        <span className="text-xs font-medium truncate">{formatDate(booking.preferredDate)}</span>
                       </div>
                       <div className="flex items-center text-muted-foreground">
-                        <Clock className="h-3.5 w-3.5 mr-2" />
+                        <Clock className="h-3.5 w-3.5 mr-2 shrink-0" />
                         <span className="text-xs font-medium">{booking.preferredTime || "Flexible"}</span>
                       </div>
                     </div>
 
-                    <div className="mt-auto pt-6 border-t border-border flex items-center justify-between">
+                    <div className="mt-auto pt-5 border-t border-border flex items-center justify-between">
                       <Dialog>
                         <DialogTrigger asChild>
-                          <button className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-foreground hover:text-muted-foreground cursor-pointer transition-colors">
-                            View Dossier <ChevronRight className="h-4 w-4" />
+                          <button className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-foreground hover:text-muted-foreground cursor-pointer transition-colors">
+                            View Dossier <ChevronRight className="h-3.5 w-3.5" />
                           </button>
                         </DialogTrigger>
                         <DialogContent className="max-w-2xl p-0 overflow-hidden rounded-[3rem] bg-popover border-border shadow-2xl">
@@ -515,8 +502,8 @@ const handleAdjustment = async () => {
                           </div>
                         </DialogContent>
                       </Dialog>
-                      <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center border border-border group-hover:bg-foreground group-hover:text-background transition-all">
-                        <Hash className="h-3.5 w-3.5 opacity-30" />
+                      <div className="h-9 w-9 rounded-full bg-muted flex items-center justify-center border border-border group-hover:bg-foreground group-hover:text-background transition-all">
+                        <Hash className="h-3 w-3 opacity-30" />
                       </div>
                     </div>
                   </div>

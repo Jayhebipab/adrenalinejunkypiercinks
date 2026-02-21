@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Trash2, Loader2, Plus, CheckCircle2, ImageIcon, Camera, User, Briefcase, Mail, Phone, Instagram } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { X, Trash2, Loader2, Plus, CheckCircle2, ImageIcon, Camera, User, Briefcase, Mail, Phone, Instagram, Lock } from "lucide-react";
 import { toast } from "sonner";
 
 interface ArtistModalProps {
@@ -11,16 +10,19 @@ interface ArtistModalProps {
     artistData: any;
     onSave: (data: any) => void;
     loading: boolean;
+    nameIsLocked?: boolean; // ✅ NEW — disables fullName field when true
 }
 
 declare global {
     interface Window { cloudinary: any; }
 }
 
-// ─── ALLOWED IMAGE FORMATS ────────────────────────────────────────────────────
 const ALLOWED_FORMATS = ["png", "jpeg", "jpg"];
 
-export default function ArtistModal({ isOpen, onClose, artistData, onSave, loading }: ArtistModalProps) {
+export default function ArtistModal({
+    isOpen, onClose, artistData, onSave, loading,
+    nameIsLocked = false,
+}: ArtistModalProps) {
     const [localData, setLocalData] = useState<any>(null);
     const [selectedIndexes, setSelectedIndexes] = useState<number[]>([]);
     const [newCategory, setNewCategory] = useState("");
@@ -37,7 +39,7 @@ export default function ArtistModal({ isOpen, onClose, artistData, onSave, loadi
                 profileImage: artistData.profileImage || "",
                 status: artistData.status || "active",
                 socials: artistData.socials || { instagram: "", facebook: "" },
-                artworks: artistData.artworks || []
+                artworks: artistData.artworks || [],
             });
             setSelectedIndexes([]);
         }
@@ -45,13 +47,12 @@ export default function ArtistModal({ isOpen, onClose, artistData, onSave, loadi
 
     if (!isOpen || !localData) return null;
 
-    // ─── CLOUDINARY UPLOAD — format restricted ────────────────────────────────
+    // ─── CLOUDINARY UPLOAD ────────────────────────────────────────────────────
     const uploadToCloudinary = (type: "profile" | "artwork") => {
         if (typeof window === "undefined" || !window.cloudinary) {
             toast.error("Cloudinary is still loading. Please wait a second.");
             return;
         }
-
         setUploading(true);
         const widget = window.cloudinary.createUploadWidget(
             {
@@ -60,15 +61,14 @@ export default function ArtistModal({ isOpen, onClose, artistData, onSave, loadi
                 multiple: type === "artwork",
                 maxFiles: type === "profile" ? 1 : 10,
                 folder: "artists_crew",
-                clientAllowedFormats: ALLOWED_FORMATS, // ✅ png, jpeg, jpg ONLY
-                maxFileSize: 5000000, // 5MB max
+                clientAllowedFormats: ALLOWED_FORMATS,
+                maxFileSize: 5000000,
             },
             (error: any, result: any) => {
                 if (!error && result && result.event === "success") {
                     const secureUrl = result.info.secure_url;
                     const format = result.info.format?.toLowerCase();
 
-                    // ✅ Double-check format even after Cloudinary widget (safety net)
                     if (!ALLOWED_FORMATS.includes(format)) {
                         toast.error(`Invalid format: "${format}". Only PNG, JPG, and JPEG are allowed.`);
                         setUploading(false);
@@ -81,7 +81,7 @@ export default function ArtistModal({ isOpen, onClose, artistData, onSave, loadi
                     } else {
                         setLocalData((prev: any) => ({
                             ...prev,
-                            artworks: [...(prev.artworks || []), { url: secureUrl, category: "Uncategorized" }]
+                            artworks: [...(prev.artworks || []), { url: secureUrl, category: "Uncategorized" }],
                         }));
                         toast.success("Artwork added to portfolio!");
                     }
@@ -89,9 +89,7 @@ export default function ArtistModal({ isOpen, onClose, artistData, onSave, loadi
                 } else if (error) {
                     setUploading(false);
                 }
-                if (result?.event === "close") {
-                    setUploading(false);
-                }
+                if (result?.event === "close") setUploading(false);
             }
         );
         widget.open();
@@ -140,7 +138,10 @@ export default function ArtistModal({ isOpen, onClose, artistData, onSave, loadi
         <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
             <div className="bg-card border border-border w-full max-w-7xl h-full lg:h-[90vh] rounded-[2.5rem] shadow-2xl relative overflow-hidden flex flex-col lg:flex-row animate-in zoom-in-95 duration-200">
 
-                <button onClick={onClose} className="absolute top-6 right-6 z-50 p-2.5 hover:bg-muted rounded-full transition-all text-muted-foreground">
+                <button
+                    onClick={onClose}
+                    className="absolute top-6 right-6 z-50 p-2.5 hover:bg-muted rounded-full transition-all text-muted-foreground"
+                >
                     <X size={18} />
                 </button>
 
@@ -179,36 +180,63 @@ export default function ArtistModal({ isOpen, onClose, artistData, onSave, loadi
                         </div>
                     </div>
 
+                    {/* ✅ Name Locked notice */}
+                    {nameIsLocked && (
+                        <div className="flex items-start gap-2.5 px-4 py-3 mb-4 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+                            <Lock size={14} className="text-amber-500 mt-0.5 shrink-0" />
+                            <div>
+                                <p className="text-[9px] font-black uppercase tracking-widest text-amber-500">Name Locked</p>
+                                <p className="text-[9px] text-amber-500/70 mt-0.5 leading-relaxed">
+                                    This artist has an approved booking. Full name cannot be changed until the booking is completed or cancelled.
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Fields */}
                     <div className="space-y-3">
                         {[
-                            { icon: User, placeholder: "Full Name *", field: "fullName", type: "text" },
-                            { icon: Briefcase, placeholder: "Position", field: "position", type: "text" },
-                            { icon: Mail, placeholder: "Email", field: "email", type: "email" },
-                            { icon: Phone, placeholder: "09XXXXXXXXX", field: "contactNumber", type: "tel" },
-                            { icon: Instagram, placeholder: "Instagram Link", field: "instagram", type: "text", isSocial: true },
-                        ].map(({ icon: Icon, placeholder, field, type, isSocial }) => (
-                            <div key={field} className="relative">
-                                <Icon className="absolute left-4 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground/40" />
-                                <input
-                                    type={type}
-                                    placeholder={placeholder}
-                                    className="w-full pl-10 pr-4 py-3.5 bg-card border border-border rounded-xl text-xs font-bold outline-none focus:border-foreground transition-all"
-                                    value={isSocial ? localData.socials?.instagram : localData[field]}
-                                    onChange={e => {
-                                        if (isSocial) {
-                                            setLocalData({ ...localData, socials: { ...localData.socials, instagram: e.target.value } });
-                                        } else {
-                                            // Auto-strip non-digits for contact
-                                            const val = field === "contactNumber"
-                                                ? e.target.value.replace(/\D/g, '').slice(0, 11)
-                                                : e.target.value;
-                                            setLocalData({ ...localData, [field]: val });
-                                        }
-                                    }}
-                                />
-                            </div>
-                        ))}
+                            { icon: User,      placeholder: "Full Name *",   field: "fullName",      type: "text" },
+                            { icon: Briefcase, placeholder: "Position",      field: "position",      type: "text" },
+                            { icon: Mail,      placeholder: "Email",         field: "email",         type: "email" },
+                            { icon: Phone,     placeholder: "09XXXXXXXXX",   field: "contactNumber", type: "tel" },
+                            { icon: Instagram, placeholder: "Instagram Link",field: "instagram",     type: "text", isSocial: true },
+                        ].map(({ icon: Icon, placeholder, field, type, isSocial }) => {
+                            // ✅ fullName is read-only when nameIsLocked
+                            const isDisabled = field === "fullName" && nameIsLocked;
+
+                            return (
+                                <div key={field} className="relative">
+                                    <Icon className="absolute left-4 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground/40" />
+                                    {/* ✅ Lock icon inside field when disabled */}
+                                    {isDisabled && (
+                                        <Lock className="absolute right-4 top-1/2 -translate-y-1/2 size-3 text-amber-500/60" />
+                                    )}
+                                    <input
+                                        type={type}
+                                        placeholder={placeholder}
+                                        disabled={isDisabled}
+                                        className={`w-full pl-10 pr-${isDisabled ? "9" : "4"} py-3.5 bg-card border rounded-xl text-xs font-bold outline-none transition-all ${
+                                            isDisabled
+                                                ? "border-amber-500/20 bg-amber-500/5 text-amber-600 cursor-not-allowed opacity-80 select-none"
+                                                : "border-border focus:border-foreground"
+                                        }`}
+                                        value={isSocial ? localData.socials?.instagram : localData[field]}
+                                        onChange={e => {
+                                            if (isDisabled) return; // extra safety
+                                            if (isSocial) {
+                                                setLocalData({ ...localData, socials: { ...localData.socials, instagram: e.target.value } });
+                                            } else {
+                                                const val = field === "contactNumber"
+                                                    ? e.target.value.replace(/\D/g, '').slice(0, 11)
+                                                    : e.target.value;
+                                                setLocalData({ ...localData, [field]: val });
+                                            }
+                                        }}
+                                    />
+                                </div>
+                            );
+                        })}
                     </div>
 
                     <button
@@ -236,7 +264,6 @@ export default function ArtistModal({ isOpen, onClose, artistData, onSave, loadi
                         </button>
                     </div>
 
-                    {/* Format notice */}
                     <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest mb-4">
                         Accepted formats: PNG · JPG · JPEG only
                     </p>
@@ -247,7 +274,11 @@ export default function ArtistModal({ isOpen, onClose, artistData, onSave, loadi
                                 <div
                                     key={idx}
                                     onClick={() => toggleSelect(idx)}
-                                    className={`relative aspect-square rounded-2xl overflow-hidden cursor-pointer transition-all border-4 ${selectedIndexes.includes(idx) ? 'border-foreground scale-95 shadow-2xl' : 'border-transparent shadow-sm hover:shadow-xl'}`}
+                                    className={`relative aspect-square rounded-2xl overflow-hidden cursor-pointer transition-all border-4 ${
+                                        selectedIndexes.includes(idx)
+                                            ? "border-foreground scale-95 shadow-2xl"
+                                            : "border-transparent shadow-sm hover:shadow-xl"
+                                    }`}
                                 >
                                     <img src={art.url} className="w-full h-full object-cover" alt={`Work ${idx}`} />
                                     <div className="absolute bottom-3 left-3">

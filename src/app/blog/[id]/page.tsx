@@ -67,7 +67,7 @@ export default function BlogPostPage() {
         <div className="absolute bottom-0 left-0 w-100 h-100 bg-orange-600/5 blur-[120px] rounded-full" />
         
         <div className="container mx-auto px-6 max-w-4xl relative z-10">
-          <Link href="/blog" className="inline-flex items-center text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500 hover:text-white mb-12 group">
+          <Link href="/home" className="inline-flex items-center text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500 hover:text-white mb-12 group">
             <ArrowLeft className="mr-2 h-3 w-3 group-hover:-translate-x-2 transition-transform" />
             Return to Collective
           </Link>

@@ -3,16 +3,15 @@
 import React, { useState, useEffect, useRef } from "react"
 import Image from "next/image"
 import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion"
-import { Card } from "@/components/ui/card"
 import Link from "next/link"
 import {
-  Star, ArrowRight, Mail, Phone, Facebook, Instagram,
-  ChevronRight, ShoppingBag, Syringe, Sparkles, X,
-  ChevronLeft, MessageSquareQuote, Quote, Loader2,
-  Calendar, ArrowUpRight, Zap, ImageIcon, ShieldCheck
+  Star, ArrowRight, Facebook, Instagram,
+  ChevronRight, Sparkles, X,
+  ChevronLeft, MessageSquareQuote, Loader2,
+  Calendar, ArrowUpRight, Zap, ImageIcon, ShieldCheck,
+  AlertTriangle, ShieldX
 } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Navbar } from "../components/navigation/navbar"
 import { Footer } from "../components/navigation/footer"
@@ -49,6 +48,109 @@ const NoiseOverlay = () => (
       mixBlendMode: "overlay",
     }}
   />
+)
+
+// ---------- AGE GATE ----------
+const AgeGate = ({ onConfirm }: { onConfirm: (allowed: boolean) => void }) => {
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-[99999] bg-black flex items-center justify-center p-6"
+      >
+        {/* Subtle bg texture */}
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(234,88,12,0.06),transparent_70%)] pointer-events-none" />
+
+        <motion.div
+          initial={{ opacity: 0, y: 30, scale: 0.97 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ delay: 0.1, duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+          className="relative w-full max-w-sm text-center space-y-8"
+        >
+          {/* Logo / Brand */}
+          <div className="space-y-3">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-orange-500/10 border border-orange-500/20 mx-auto">
+              <ShieldCheck className="text-orange-500" size={28} />
+            </div>
+            <div>
+              <p className="text-[9px] font-black uppercase tracking-[0.4em] text-zinc-600 mb-1">Adrenaline Junky Piercinks</p>
+              <h1 className="text-3xl md:text-4xl font-black uppercase italic tracking-tighter text-white leading-none">
+                Age<br />
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-yellow-400">Verification</span>
+              </h1>
+            </div>
+          </div>
+
+          {/* Divider */}
+          <div className="w-16 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent mx-auto" />
+
+          {/* Warning text */}
+          <div className="space-y-2">
+            <p className="text-white font-black uppercase text-sm tracking-wide">
+              You must be <span className="text-orange-400">18 years or older</span> to enter.
+            </p>
+            <p className="text-zinc-600 text-[10px] uppercase tracking-widest font-bold">
+              This site contains content related to tattoos and body piercings.
+            </p>
+          </div>
+
+          {/* Buttons */}
+          <div className="flex flex-col gap-3">
+            <motion.button
+              whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+              onClick={() => onConfirm(true)}
+              className="w-full py-4 bg-white text-black font-black uppercase text-[11px] tracking-widest rounded-2xl hover:bg-orange-500 hover:text-white transition-all shadow-lg"
+            >
+              Yes, I am 18 or older — Enter
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+              onClick={() => onConfirm(false)}
+              className="w-full py-4 border border-white/10 text-zinc-500 font-black uppercase text-[11px] tracking-widest rounded-2xl hover:border-white/20 hover:text-zinc-300 transition-all"
+            >
+              No, I am under 18 — Exit
+            </motion.button>
+          </div>
+
+          <p className="text-zinc-700 text-[9px] uppercase tracking-widest font-bold">
+            By entering you agree to our terms of service.
+          </p>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  )
+}
+
+// ---------- MINOR BLOCK ----------
+const MinorBlock = () => (
+  <div className="fixed inset-0 z-[99999] bg-black flex items-center justify-center p-6">
+    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(239,68,68,0.05),transparent_70%)] pointer-events-none" />
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+      className="relative w-full max-w-sm text-center space-y-6"
+    >
+      <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/20 mx-auto">
+        <ShieldX className="text-red-500" size={28} />
+      </div>
+      <div>
+        <h1 className="text-3xl font-black uppercase italic tracking-tighter text-white leading-none mb-3">
+          Access<br />
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-orange-400">Denied</span>
+        </h1>
+        <p className="text-zinc-500 text-[10px] uppercase tracking-widest font-bold">
+          Sorry, you must be 18 or older to access this site.
+        </p>
+      </div>
+      <div className="w-16 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent mx-auto" />
+      <p className="text-zinc-700 text-[9px] uppercase tracking-widest font-bold max-w-xs mx-auto">
+        Tattooing and body piercing services are for adults only.
+      </p>
+    </motion.div>
+  </div>
 )
 
 // ---------- IMAGE MODAL ----------
@@ -101,54 +203,84 @@ const ImageModal = ({ images, currentIndex, onClose }: { images: string[]; curre
 // ---------- HERO ----------
 const Hero = () => {
   const ref = useRef<HTMLDivElement>(null)
+  const [isMobile, setIsMobile] = useState(false)
+
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end start"] })
   const y = useTransform(scrollYProgress, [0, 1], ["0%", "30%"])
   const opacity = useTransform(scrollYProgress, [0, 0.8], [1, 0])
 
+  // Detect mobile — disable parallax on small screens
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768)
+    check()
+    window.addEventListener("resize", check)
+    return () => window.removeEventListener("resize", check)
+  }, [])
+
   return (
-    <section ref={ref} id="home" className="relative flex min-h-[100vh] items-center justify-center overflow-hidden bg-black">
-      {/* Parallax BG */}
-      <motion.div className="absolute inset-0" style={{ y }}>
-        <div className="absolute inset-0 bg-cover bg-center scale-110"
-          style={{ backgroundImage: "url('/images/about2.jpeg')", backgroundPosition: "center 45%" }} />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/30 to-black" />
-      </motion.div>
+    <section ref={ref} id="home" className="relative flex min-h-[100svh] items-center justify-center overflow-hidden bg-black">
 
-      {/* Red glow accent */}
-      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-red-700/10 blur-[120px] rounded-full" />
+      {/* BG: parallax on desktop, plain cover on mobile */}
+      {isMobile ? (
+        // Mobile — no motion.div wrapping, just a static positioned bg
+        <div className="absolute inset-0">
+          <div
+            className="absolute inset-0 bg-cover bg-center"
+            style={{ backgroundImage: "url('/images/about2.jpeg')", backgroundPosition: "center 45%" }}
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black" />
+        </div>
+      ) : (
+        // Desktop — parallax motion
+        <motion.div className="absolute inset-0" style={{ y }}>
+          <div
+            className="absolute inset-0 bg-cover bg-center scale-110"
+            style={{ backgroundImage: "url('/images/about2.jpeg')", backgroundPosition: "center 45%" }}
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/30 to-black" />
+        </motion.div>
+      )}
 
-      <motion.div style={{ opacity }} className="container relative z-10 text-center px-4">
-        <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
-          className="space-y-6">
+      {/* Red glow */}
+      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-red-700/10 blur-[120px] rounded-full pointer-events-none" />
 
-          {/* Main headline */}
+      {/* Content — opacity fade only on desktop */}
+      <motion.div
+        style={isMobile ? {} : { opacity }}
+        className="container relative z-10 text-center px-4"
+      >
+        <motion.div
+          initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
+          className="space-y-6"
+        >
           <motion.h1
-            initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35, duration: 1, ease: [0.16, 1, 0.3, 1] }}
+            initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.35, duration: 1, ease: [0.16, 1, 0.3, 1] }}
             className="text-5xl md:text-7xl font-black leading-[0.9] tracking-[-0.04em] text-white uppercase"
           >
-            SERMON IS
-            TEMPORARY,<br />
+            SERMON IS TEMPORARY,<br />
             <span className="relative inline-block">
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-orange-400 to-yellow-300">
                 VANITY IS FOREVER!
               </span>
             </span>
-            <br />
           </motion.h1>
 
-          {/* Divider line */}
-          <motion.div initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ delay: 0.8, duration: 0.8 }}
-            className="mx-auto w-24 h-px bg-gradient-to-r from-transparent via-white/40 to-transparent" />
+          <motion.div
+            initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ delay: 0.8, duration: 0.8 }}
+            className="mx-auto w-24 h-px bg-gradient-to-r from-transparent via-white/40 to-transparent"
+          />
 
-          {/* CTA Buttons */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.9 }}
-            className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.9 }}
+            className="flex flex-col sm:flex-row gap-4 justify-center items-center"
+          >
             <Link href="/book">
               <button className="group relative px-10 py-4 bg-white text-black font-black uppercase text-[11px] tracking-widest rounded-2xl overflow-hidden transition-all hover:shadow-[0_0_40px_rgba(255,255,255,0.15)] active:scale-95">
-                <span className="relative z-10 flex items-center gap-2">Book A Session <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" /></span>
                 <div className="absolute inset-0 bg-gradient-to-r from-orange-400 to-red-500 opacity-0 group-hover:opacity-100 transition-opacity" />
                 <span className="relative z-10 group-hover:text-white transition-colors flex items-center gap-2">
-                 
+                  Book A Session <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
                 </span>
               </button>
             </Link>
@@ -166,8 +298,10 @@ const Hero = () => {
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.5 }}
         className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2"
       >
-        <motion.div animate={{ y: [0, 8, 0] }} transition={{ repeat: Infinity, duration: 1.5 }}
-          className="w-px h-10 bg-gradient-to-b from-white/30 to-transparent" />
+        <motion.div
+          animate={{ y: [0, 8, 0] }} transition={{ repeat: Infinity, duration: 1.5 }}
+          className="w-px h-10 bg-gradient-to-b from-white/30 to-transparent"
+        />
         <span className="text-[8px] font-black uppercase tracking-[0.4em] text-zinc-600">Scroll</span>
       </motion.div>
     </section>
@@ -238,7 +372,7 @@ export const BlogSection = () => {
 
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[1,2,3].map(i => (
+            {[1, 2, 3].map(i => (
               <div key={i} className="space-y-5 animate-pulse">
                 <div className="aspect-[4/3] bg-zinc-900 rounded-3xl" />
                 <div className="space-y-2">
@@ -264,7 +398,6 @@ export const BlogSection = () => {
                       {post.category}
                     </span>
                   </div>
-                  {/* Number */}
                   <div className="absolute bottom-4 right-4 text-[60px] font-black leading-none text-white/5 select-none">
                     {String(idx + 1).padStart(2, '0')}
                   </div>
@@ -312,8 +445,6 @@ const GallerySection = ({ openModal }: { openModal: (imgs: string[], i: number) 
   return (
     <section id="gallery-section" className="py-24 md:py-36 bg-black px-6 overflow-hidden">
       <div className="container mx-auto max-w-6xl">
-
-        {/* Section label */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-16">
           <div className="space-y-3">
             <div className="flex items-center gap-3">
@@ -337,7 +468,7 @@ const GallerySection = ({ openModal }: { openModal: (imgs: string[], i: number) 
 
         {loading ? (
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6 animate-pulse">
-            {[1,2,3,4,5,6].map(i => <div key={i} className="aspect-[3/4] bg-zinc-900 rounded-[2rem]" />)}
+            {[1, 2, 3, 4, 5, 6].map(i => <div key={i} className="aspect-[3/4] bg-zinc-900 rounded-[2rem]" />)}
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
@@ -350,8 +481,6 @@ const GallerySection = ({ openModal }: { openModal: (imgs: string[], i: number) 
                 onClick={() => openModal(galleryItems.map(g => g.image), idx)}
               >
                 <img src={item.image} alt={item.placement} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
-
-                {/* Overlay */}
                 <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500 flex flex-col justify-end p-6">
                   <div className="flex flex-col items-center space-y-3 text-center">
                     <div className="relative">
@@ -371,13 +500,9 @@ const GallerySection = ({ openModal }: { openModal: (imgs: string[], i: number) 
                     </div>
                   </div>
                 </div>
-
-                {/* Side label */}
                 <div className="absolute top-5 left-5 group-hover:opacity-0 transition-opacity">
                   <span className="text-[11px] font-black text-white/30 uppercase tracking-[0.3em] [writing-mode:vertical-lr]">{item.placement}</span>
                 </div>
-
-                {/* Index number */}
                 <div className="absolute top-5 right-5 group-hover:opacity-0 transition-opacity">
                   <span className="text-[11px] font-black text-white/20 font-mono">{String(idx + 1).padStart(2, '0')}</span>
                 </div>
@@ -406,7 +531,6 @@ const TattooSection = ({ openModal }: { openModal: (imgs: string[], i: number) =
   return (
     <section id="tattoo-gallery" className="py-24 md:py-36 bg-[#030303] px-6 overflow-hidden border-t border-white/5">
       <div className="container mx-auto max-w-6xl">
-
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-16">
           <div className="space-y-3">
             <div className="flex items-center gap-3">
@@ -430,7 +554,7 @@ const TattooSection = ({ openModal }: { openModal: (imgs: string[], i: number) =
 
         {loading ? (
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6 animate-pulse">
-            {[1,2,3,4,5,6].map(i => <div key={i} className="aspect-[3/4] bg-zinc-900/50 rounded-[2rem]" />)}
+            {[1, 2, 3, 4, 5, 6].map(i => <div key={i} className="aspect-[3/4] bg-zinc-900/50 rounded-[2rem]" />)}
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
@@ -443,7 +567,6 @@ const TattooSection = ({ openModal }: { openModal: (imgs: string[], i: number) =
                 onClick={() => openModal(galleryItems.map(g => g.image), idx)}
               >
                 <img src={item.image} alt={item.placement} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
-
                 <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500 flex flex-col justify-end p-6">
                   <div className="flex flex-col items-center space-y-3 text-center">
                     <div className="relative">
@@ -463,7 +586,6 @@ const TattooSection = ({ openModal }: { openModal: (imgs: string[], i: number) =
                     </div>
                   </div>
                 </div>
-
                 <div className="absolute top-5 left-5 group-hover:opacity-0 transition-opacity">
                   <span className="text-[11px] font-black text-white/30 uppercase tracking-[0.3em] [writing-mode:vertical-lr]">{item.placement}</span>
                 </div>
@@ -498,7 +620,6 @@ export const ReviewsSection = () => {
   return (
     <section id="reviews-section" className="py-24 md:py-36 bg-black border-t border-white/5 overflow-hidden">
       <div className="container mx-auto max-w-6xl px-6">
-
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-20">
           <div className="space-y-3">
             <div className="flex items-center gap-3">
@@ -528,7 +649,6 @@ export const ReviewsSection = () => {
             <div className="flex overflow-hidden relative">
               <div className="absolute left-0 top-0 bottom-0 w-24 bg-gradient-to-r from-black to-transparent z-10 pointer-events-none" />
               <div className="absolute right-0 top-0 bottom-0 w-24 bg-gradient-to-l from-black to-transparent z-10 pointer-events-none" />
-
               <motion.div
                 className="flex gap-5 py-4"
                 animate={isPaused ? {} : { x: ["0%", "-50%"] }}
@@ -539,9 +659,7 @@ export const ReviewsSection = () => {
                 {sliderItems.map((item, idx) => (
                   <div key={`${item.id}-${idx}`} className="w-[300px] md:w-[380px] shrink-0">
                     <div className="relative h-full overflow-hidden border border-white/5 bg-zinc-950 rounded-3xl p-6 hover:border-orange-500/20 transition-colors group">
-                      {/* Big quote decoration */}
                       <div className="absolute -top-3 -right-3 text-[120px] font-black leading-none text-white/[0.015] select-none pointer-events-none">"</div>
-
                       <div className="relative z-10">
                         <div className="flex justify-between items-start mb-5">
                           <div className="flex gap-1">
@@ -557,17 +675,14 @@ export const ReviewsSection = () => {
                             </div>
                           )}
                         </div>
-
                         <p className="text-[11px] md:text-xs leading-relaxed text-zinc-400 italic font-medium mb-5 line-clamp-4">
                           &quot;{item.description.toUpperCase()}&quot;
                         </p>
-
                         {item.reviewImage && (
                           <div className="w-full h-28 rounded-2xl overflow-hidden border border-white/5 mb-5">
                             <img src={item.reviewImage} alt="Work" className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700" />
                           </div>
                         )}
-
                         <div className="flex items-center justify-between border-t border-white/5 pt-5">
                           <div className="flex items-center gap-3">
                             <div className="relative">
@@ -591,7 +706,6 @@ export const ReviewsSection = () => {
                 ))}
               </motion.div>
             </div>
-
             <div className="mt-16 flex justify-center">
               <Link href="/reviews">
                 <button className="group flex items-center gap-3 px-8 py-4 border border-zinc-800 hover:border-white/30 rounded-2xl text-zinc-500 hover:text-white text-[10px] font-black uppercase tracking-widest transition-all">
@@ -623,7 +737,6 @@ const ProductSection = () => {
   return (
     <section id="shop" className="py-24 md:py-36 bg-[#030303] px-6 border-t border-white/5">
       <div className="container mx-auto max-w-5xl">
-
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-16">
           <div className="space-y-3">
             <div className="flex items-center gap-3">
@@ -647,7 +760,7 @@ const ProductSection = () => {
 
         {loading ? (
           <div className="grid grid-cols-2 md:grid-cols-3 gap-5 animate-pulse">
-            {[1,2,3].map(i => <div key={i} className="aspect-square bg-zinc-900/50 rounded-[2rem]" />)}
+            {[1, 2, 3].map(i => <div key={i} className="aspect-square bg-zinc-900/50 rounded-[2rem]" />)}
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
@@ -691,9 +804,7 @@ const BookCTA = () => (
         <p className="text-[10px] font-black uppercase tracking-[0.5em] text-zinc-600 mb-4">Ready to commit?</p>
         <h2 className="text-5xl md:text-7xl font-black uppercase tracking-[-0.04em] leading-[0.9] italic">
           <span className="text-white">Book Your</span><br />
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-orange-400 to-yellow-300">
-            Session
-          </span>
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-orange-400 to-yellow-300">Session</span>
         </h2>
         <p className="text-zinc-500 text-sm mt-6 max-w-md mx-auto font-bold uppercase tracking-widest text-[10px]">
           Custom tattoos, body piercings, and premium aftercare. Walk-ins welcome.
@@ -722,35 +833,61 @@ export default function Dashboard() {
   const [modalImages, setModalImages] = useState<string[]>([])
   const [modalIndex, setModalIndex] = useState(0)
 
+  // Age gate: null = not decided, true = allowed, false = blocked
+  const [ageStatus, setAgeStatus] = useState<null | boolean>(null)
+
+  useEffect(() => {
+    // Check session storage so user doesn't see it every page refresh
+    const saved = sessionStorage.getItem("ageConfirmed")
+    if (saved === "true") setAgeStatus(true)
+    else if (saved === "false") setAgeStatus(false)
+    else setAgeStatus(null) // show gate
+  }, [])
+
+  const handleAgeConfirm = (allowed: boolean) => {
+    sessionStorage.setItem("ageConfirmed", String(allowed))
+    setAgeStatus(allowed)
+  }
+
   const openModal = (imgs: string[], i: number) => {
     setModalImages(imgs)
     setModalIndex(i)
     setModalOpen(true)
   }
 
+  // Show minor block screen
+  if (ageStatus === false) return <MinorBlock />
+
   return (
     <div className="bg-black text-white selection:bg-orange-400/30 font-sans">
       <NoiseOverlay />
-      <Navbar />
-      <FloatingChatWidget />
 
-      <AnimatePresence>
-        {modalOpen && (
-          <ImageModal images={modalImages} currentIndex={modalIndex} onClose={() => setModalOpen(false)} />
-        )}
-      </AnimatePresence>
+      {/* Age gate — show while not yet decided */}
+      {ageStatus === null && <AgeGate onConfirm={handleAgeConfirm} />}
 
-      <main>
-        <Hero />
-        <StatsMarquee />
-        <BlogSection />
-        <GallerySection openModal={openModal} />
-        <TattooSection openModal={openModal} />
-        <ReviewsSection />
-        <BookCTA />
-      </main>
+      {/* Main content — always rendered but hidden behind gate */}
+      <div className={ageStatus === null ? "invisible" : ""}>
+        <Navbar />
+        <FloatingChatWidget />
 
-      <Footer />
+        <AnimatePresence>
+          {modalOpen && (
+            <ImageModal images={modalImages} currentIndex={modalIndex} onClose={() => setModalOpen(false)} />
+          )}
+        </AnimatePresence>
+
+        <main>
+          <Hero />
+          <StatsMarquee />
+          <BlogSection />
+          <GallerySection openModal={openModal} />
+          <TattooSection openModal={openModal} />
+          <ReviewsSection />
+          <BookCTA />
+        </main>
+
+        <Footer />
+      </div>
     </div>
   )
 }

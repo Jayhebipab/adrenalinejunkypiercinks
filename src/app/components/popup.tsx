@@ -2,13 +2,12 @@
 
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { MessageCircle, Calendar, Info, X, Mail } from "lucide-react";
+import { MessageCircle, Calendar, Info, X, Mail, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function BookingPopup() {
   const [isOpen, setIsOpen] = useState(false);
 
-  // Popup appears 1.5 seconds after page load
   useEffect(() => {
     const timer = setTimeout(() => setIsOpen(true), 1500);
     return () => clearTimeout(timer);
@@ -17,8 +16,7 @@ export default function BookingPopup() {
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
-          {/* Backdrop Closer */}
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -27,84 +25,95 @@ export default function BookingPopup() {
             className="absolute inset-0"
           />
 
-          {/* Popup Card */}
           <motion.div
-            initial={{ scale: 0.9, opacity: 0, y: 20 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.9, opacity: 0, y: 20 }}
-            className="relative w-full max-w-lg bg-white rounded-[2.5rem] overflow-hidden shadow-2xl border border-zinc-100"
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.95, opacity: 0 }}
+            className="relative w-full max-w-md bg-white rounded-[2rem] overflow-hidden shadow-2xl border border-zinc-100"
           >
-            {/* Close Button */}
             <button 
               onClick={() => setIsOpen(false)}
-              className="absolute top-6 right-6 p-2 hover:bg-zinc-100 rounded-full transition-colors z-10"
+              className="absolute top-4 right-4 p-2 hover:bg-zinc-100 rounded-full z-20 bg-white/10 backdrop-blur-md md:bg-transparent"
             >
-              <X className="size-5 text-zinc-400" />
+              <X className="size-5 text-zinc-400 md:text-zinc-500" />
             </button>
 
-            {/* Header / Banner */}
-            <div className="bg-zinc-900 p-8 text-white relative overflow-hidden">
-                <div className="absolute -right-4 -top-4 opacity-10">
-                    <MessageCircle size={150} />
+            {/* Header */}
+            <div className="bg-zinc-900 p-6 text-white relative overflow-hidden">
+                <div className="absolute -right-2 -top-2 opacity-10">
+                    <MessageCircle size={100} />
                 </div>
-                <Badge className="bg-[#d11a2a] text-white border-none mb-4 rounded-full px-4 font-black italic tracking-widest text-[10px]">
-                    READ BEFORE BOOKING
+                <Badge className="bg-[#d11a2a] text-[9px] mb-3 tracking-widest">
+                    IMPORTANT NOTICE
                 </Badge>
-                <h2 className="text-3xl font-black uppercase italic leading-none tracking-tighter">
-                    Consult <span className="text-[#d11a2a]">First</span>,<br />Book Later.
+                <h2 className="text-2xl font-black uppercase italic leading-tight tracking-tighter">
+                    Verify <span className="text-[#d11a2a]">Details</span>,<br />Then Book.
                 </h2>
             </div>
 
             {/* Content */}
-            <div className="p-8 space-y-6">
-              <p className="text-zinc-500 text-sm font-medium leading-relaxed">
-                To ensure the best experience, <span className="text-black font-black uppercase italic">we highly recommend</span> chatting with us before filling out the booking form.
+            <div className="p-5 space-y-4">
+              <p className="text-zinc-500 text-[11px] font-medium leading-snug">
+                To avoid double-bookings or cancellations, please verify your schedule with us before submitting the form.
               </p>
 
-              <div className="grid gap-4">
+              <div className="grid gap-2">
                 {/* Artist Availability */}
-                <div className="flex gap-4 p-4 rounded-2xl bg-zinc-50 border border-zinc-100 group hover:border-red-100 transition-colors">
-                  <div className="size-10 bg-white rounded-xl shadow-sm flex items-center justify-center shrink-0">
-                    <Calendar className="size-5 text-[#d11a2a]" />
+                <div className="flex items-start gap-3 p-3 rounded-xl bg-zinc-50 border border-zinc-100">
+                  <div className="size-8 bg-white rounded-lg shadow-sm flex items-center justify-center shrink-0 border border-zinc-100">
+                    <Calendar className="size-4 text-[#d11a2a]" />
                   </div>
                   <div>
-                    <h4 className="font-black uppercase italic text-xs tracking-wider">Artist Availability</h4>
-                    <p className="text-[11px] text-zinc-400 font-bold uppercase">Confirm if your preferred artist is available on your desired date.</p>
+                    <h4 className="font-black uppercase italic text-[10px] tracking-wider">Confirm Date & Time</h4>
+                    <p className="text-[9px] text-zinc-400 font-bold uppercase leading-tight">
+                        Message us first to reserve your slot. Dates are not guaranteed until confirmed via chat.
+                    </p>
                   </div>
                 </div>
 
-                {/* Gmail Instruction */}
-                <div className="flex gap-4 p-4 rounded-2xl bg-red-50/50 border border-red-100 group transition-colors">
-                  <div className="size-10 bg-white rounded-xl shadow-sm flex items-center justify-center shrink-0 border border-red-100">
-                    <Mail className="size-5 text-[#d11a2a]" />
+                {/* Gmail & Portal Instruction */}
+                <div className="flex items-start gap-3 p-3 rounded-xl bg-red-50/50 border border-red-100">
+                  <div className="size-8 bg-white rounded-lg shadow-sm flex items-center justify-center shrink-0 border border-red-100">
+                    <Mail className="size-4 text-[#d11a2a]" />
                   </div>
                   <div>
-                    <h4 className="font-black uppercase italic text-xs tracking-wider text-red-700">Live Chat Access</h4>
-                    <p className="text-[11px] text-zinc-500 font-bold uppercase leading-tight">
-                        You can use your <span className="text-red-600 underline">Gmail account</span> to log in and use our Customer Service chat box.
+                    <h4 className="font-black uppercase italic text-[10px] tracking-wider text-red-700">Gmail Login Required</h4>
+                    <p className="text-[9px] text-zinc-500 font-bold uppercase leading-tight">
+                        You must log in using a <span className="text-red-600 underline text-bold">Gmail account</span> to access the <b>Live Chat</b> and your <b>Customer Portal</b>.
                     </p>
                   </div>
                 </div>
               </div>
 
-              {/* Chat Hint */}
-              <div className="bg-zinc-900 p-4 rounded-2xl flex items-center gap-3">
-                <Info className="size-5 text-[#d11a2a] shrink-0" />
-                <p className="text-[10px] font-black uppercase text-zinc-300 tracking-tight leading-tight">
-                  Our team is ready to help! Look for the chat bubble at the corner of your screen for immediate assistance.
-                </p>
+              {/* Requirements Summary */}
+              <div className="flex items-center justify-between px-1 py-1 border-y border-zinc-50">
+                <div className="flex items-center gap-1">
+                    <CheckCircle2 className="size-3 text-green-600" />
+                    <span className="text-[8px] font-black uppercase text-zinc-400">Portal Access</span>
+                </div>
+                <div className="flex items-center gap-1">
+                    <CheckCircle2 className="size-3 text-green-600" />
+                    <span className="text-[8px] font-black uppercase text-zinc-400">Live Support</span>
+                </div>
+                <div className="flex items-center gap-1">
+                    <CheckCircle2 className="size-3 text-green-600" />
+                    <span className="text-[8px] font-black uppercase text-zinc-400">Session Tracking</span>
+                </div>
               </div>
 
               <div className="pt-2 flex flex-col gap-3">
                 <Button 
                   onClick={() => setIsOpen(false)}
-                  className="w-full bg-black hover:bg-zinc-800 text-white h-14 rounded-full font-black uppercase tracking-[0.2em] text-xs shadow-lg shadow-black/10 transition-transform active:scale-95"
+                  className="w-full bg-black hover:bg-zinc-800 text-white h-12 rounded-full font-black uppercase tracking-widest text-[10px] shadow-lg transition-transform active:scale-95"
                 >
-                  Proceed to Booking Form
+                  Confirm & Proceed
                 </Button>
-                <p className="text-center text-[9px] font-bold text-zinc-300 uppercase tracking-widest">
-                  Adrenalin Junky Piercinks • Official Session Portal
-                </p>
+                <div className="flex items-center justify-center gap-2">
+                    <Info className="size-3 text-[#d11a2a]" />
+                    <p className="text-[8px] font-bold text-zinc-300 uppercase tracking-widest text-center">
+                        Adrenaline Junky Piercinks Official
+                    </p>
+                </div>
               </div>
             </div>
           </motion.div>
@@ -116,7 +125,7 @@ export default function BookingPopup() {
 
 function Badge({ children, className }: { children: React.ReactNode, className?: string }) {
     return (
-        <span className={`inline-block py-1 px-3 text-xs font-bold rounded ${className}`}>
+        <span className={`inline-block py-0.5 px-3 text-[9px] font-black italic rounded-full border-none ${className}`}>
             {children}
         </span>
     );

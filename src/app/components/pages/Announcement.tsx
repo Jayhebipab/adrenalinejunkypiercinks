@@ -12,8 +12,25 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { toast } from "sonner"
 import { db } from "@/lib/firebase"
-import { doc, getDoc, setDoc, collection, getDocs, serverTimestamp } from "firebase/firestore"
+import { doc, getDoc, setDoc, collection, getDocs, addDoc, serverTimestamp } from "firebase/firestore"
 import { format } from "date-fns"
+
+// ─── AUDIT TRAIL HELPER ───────────────────────────────────────────────────────
+async function logAudit({ action, details, module = "Announcement Manager" }: {
+  action: string; details: string; module?: string;
+}) {
+  try {
+    const stored = localStorage.getItem("user");
+    const parsed = stored ? JSON.parse(stored) : null;
+    await addDoc(collection(db, "audit_logs"), {
+      adminName: parsed?.name ?? "Unknown Admin",
+      adminEmail: parsed?.email ?? "—",
+      action, details, module,
+      timestamp: serverTimestamp(),
+    });
+  } catch (err) { console.warn("Audit log failed:", err); }
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 export default function AnnouncementManager() {
   const [loading, setLoading] = useState(true)
@@ -52,6 +69,15 @@ export default function AnnouncementManager() {
   }, []);
 
   const handlePublish = async () => {
+    if (!formData.subject.trim()) {
+      toast.error("Subject is required before dispatching.");
+      return;
+    }
+    if (!formData.content.trim()) {
+      toast.error("Message content cannot be empty.");
+      return;
+    }
+
     const manualEmails = extraRecipients.map(e => e.trim()).filter(e => e !== "" && e.includes("@"));
     setIsSaving(true);
     const toastId = toast.loading("Deploying official transmission...");
@@ -79,6 +105,12 @@ export default function AnnouncementManager() {
         ...formData, 
         lastSentAt: serverTimestamp() 
       }, { merge: true });
+
+      // ✅ AUDIT LOG
+      await logAudit({
+        action: "SENT ANNOUNCEMENT",
+        details: `Broadcast "${formData.subject}" dispatched to ${finalRecipientList.length} recipient(s). DB Users: ${includeDbUsers ? "Yes" : "No"}, Manual: ${manualEmails.length}.`,
+      });
       
       setLastBroadcast(timestamp);
       toast.success("Broadcast successful. Logged in Command Center.", { id: toastId });
@@ -241,9 +273,4 @@ export default function AnnouncementManager() {
       </div>
     </div>
   )
-}
-
-// Small helper icon if not imported
-function Plus({ size, className }: { size: number, className: string }) {
-  return <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>;
 }

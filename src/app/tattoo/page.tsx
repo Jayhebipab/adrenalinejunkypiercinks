@@ -247,22 +247,6 @@ export default function TattooGalleryPage() {
               <img src={selectedImg.image}
                 className="max-h-[65vh] md:max-h-[70vh] w-auto mx-auto rounded-2xl md:rounded-3xl shadow-2xl border border-white/10" />
 
-              {/* Artist info footer */}
-              <div className="mt-4 md:mt-8 w-full max-w-sm mx-auto flex items-center gap-3 md:gap-4 bg-zinc-900/80 p-3 md:p-5 rounded-2xl border border-white/5 backdrop-blur-sm">
-                <div className="w-12 h-12 md:w-14 md:h-14 rounded-xl overflow-hidden border-2 border-orange-500 flex-shrink-0">
-                  <img src={selectedImg.artistImage || "/default-artist.jpg"} className="w-full h-full object-cover" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-orange-500">Inked By</p>
-                  <p className="text-lg md:text-xl font-black text-white uppercase italic tracking-tighter truncate">
-                    {selectedImg.artistName || "Master Artist"}
-                  </p>
-                </div>
-                <div className="text-right border-l border-white/10 pl-3 md:pl-5">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-zinc-500">Placement</p>
-                  <p className="text-sm md:text-base font-black text-zinc-300 uppercase">{selectedImg.placement}</p>
-                </div>
-              </div>
             </motion.div>
           </motion.div>
         )}

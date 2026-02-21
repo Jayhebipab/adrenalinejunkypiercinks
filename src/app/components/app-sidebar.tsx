@@ -33,6 +33,7 @@ import {
     SidebarMenu,
     SidebarMenuItem,
     SidebarMenuButton,
+    useSidebar,
 } from "@/components/ui/sidebar"
 
 const data = {
@@ -42,7 +43,7 @@ const data = {
             icon: CalendarCheck,
             id: "reservations",
             items: [
-                { title: "List", id: "List" }, // Tugma sa screenshot mo
+                { title: "List", id: "List" },
                 { title: "Booking Request", id: "BookingRequest" },
                 { title: "Messenger", id: "Messenger" },
             ],
@@ -70,7 +71,6 @@ const data = {
             icon: FileText,
             id: "content",
             items: [
-
                 { title: "Artist", id: "Artist" },
                 { title: "Tattoo Gallery", id: "TattooGallery" },
                 { title: "Piercing Gallery", id: "PiercingGallery" },
@@ -86,9 +86,9 @@ const data = {
             icon: Wrench,
             id: "maintenance",
             items: [
-                { title: "Inventory", id: "Inventory" }, // Tugma sa screenshot: "inventory": "live"
+                { title: "Inventory", id: "Inventory" },
                 { title: "Product & Materials", id: "Product&Materials" },
-                { title: "Category", id: "Category" }, // Ito ang hinahanap mo
+                { title: "Category", id: "Category" },
                 { title: "Supplier", id: "Supplier" },
                 { title: "Vat Management", id: "VatManagement" },
                 { title: "User Management", id: "UserManagement" },
@@ -107,7 +107,8 @@ const data = {
         },
     ],
     projects: [
-        { name: "Change Password", id: "ChangePassword", icon: KeyRound, accessId: "always" },
+        // ✅ Change Password — hidden for Super Admin, shown for Staff & Admin
+        { name: "Change Password", id: "ChangePassword", icon: KeyRound, accessId: "always", hideForSuperAdmin: true },
         { name: "Access Control", id: "AccessControl", icon: ShieldCheck, accessId: "settings" },
         { name: "Activity Logs", id: "ActivityLogs", icon: ClipboardList, accessId: "settings" },
     ],
@@ -123,6 +124,9 @@ export function AppSidebar({ onNavigate, userPermissions, ...props }: AppSidebar
     const [mounted, setMounted] = useState(false)
     const [notifications, setNotifications] = useState({ bookings: 0, messages: 0 })
     const [userData, setUserData] = useState<any>(null)
+
+    // ✅ Get sidebar state for mobile close on navigate
+    const { isMobile, setOpenMobile } = useSidebar()
 
     useEffect(() => {
         setMounted(true)
@@ -153,25 +157,26 @@ export function AppSidebar({ onNavigate, userPermissions, ...props }: AppSidebar
         }
     }, [userPermissions])
 
+    // ✅ Wrapped navigate — auto-close sidebar on mobile
+    const handleNavigate = (view: string) => {
+        onNavigate(view)
+        if (isMobile) setOpenMobile(false)
+    }
+
     // --- MAIN FILTERING LOGIC ---
     const filteredNavMain = data.navMain
         .map((group) => {
-            // 1. Kung Super Admin, lahat kita.
             if (userData?.role === "Super Admin") return group;
 
-            // 2. I-filter ang mga sub-items (Category, Inventory, etc.)
             const visibleItems = group.items.filter((item) => {
                 const permissionValue = userData?.[item.id];
-                // Ipakita kung "live" o boolean true (base sa screenshots mo)
                 return permissionValue === "live" || permissionValue === true;
             });
 
-            // 3. I-return lang ang group kung may kahit isang item na visible
             if (visibleItems.length > 0) {
                 return {
                     ...group,
                     items: visibleItems.map((item) => {
-                        // Idagdag ang badges para sa notification items
                         if (item.title === "Booking Request") return { ...item, badge: notifications.bookings }
                         if (item.title === "Messenger") return { ...item, badge: notifications.messages }
                         return item;
@@ -183,6 +188,9 @@ export function AppSidebar({ onNavigate, userPermissions, ...props }: AppSidebar
         .filter((group): group is any => group !== null);
 
     const filteredProjects = data.projects.filter(project => {
+        // ✅ Hide Change Password for Super Admin
+        if (project.hideForSuperAdmin && userData?.role === "Super Admin") return false;
+
         if (userData?.role === "Super Admin") return true;
         if (project.accessId === "always") return true;
         return userData?.[project.accessId] === "live" || userData?.[project.accessId] === true;
@@ -213,7 +221,7 @@ export function AppSidebar({ onNavigate, userPermissions, ...props }: AppSidebar
                     <SidebarMenuItem>
                         <SidebarMenuButton
                             size="lg"
-                            onClick={() => onNavigate("Dashboard")}
+                            onClick={() => handleNavigate("Dashboard")}
                             className="hover:bg-transparent cursor-pointer group py-6"
                         >
                             <div className="flex aspect-square size-9 items-center justify-center rounded-xl bg-zinc-900 text-white transition-all duration-300 group-hover:bg-primary shadow-lg dark:bg-zinc-800">
@@ -240,7 +248,7 @@ export function AppSidebar({ onNavigate, userPermissions, ...props }: AppSidebar
                         <SidebarMenuItem>
                             <SidebarMenuButton
                                 tooltip="Dashboard"
-                                onClick={() => onNavigate("Dashboard")}
+                                onClick={() => handleNavigate("Dashboard")}
                                 className="hover:bg-primary/10 hover:text-primary transition-colors group cursor-pointer h-11"
                             >
                                 <LayoutDashboard className="group-hover:text-primary size-5" />
@@ -249,8 +257,8 @@ export function AppSidebar({ onNavigate, userPermissions, ...props }: AppSidebar
                         </SidebarMenuItem>
                     </SidebarMenu>
                 </div>
-                <NavMain items={filteredNavMain} onViewChange={onNavigate} />
-                <NavProjects projects={filteredProjects} onViewChange={onNavigate} />
+                <NavMain items={filteredNavMain} onViewChange={handleNavigate} />
+                <NavProjects projects={filteredProjects} onViewChange={handleNavigate} />
             </SidebarContent>
 
             <SidebarFooter className="border-t border-border/40 p-3">

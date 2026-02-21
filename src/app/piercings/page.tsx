@@ -256,26 +256,7 @@ export default function PiercingGalleryPage() {
               className="relative max-w-4xl w-full flex flex-col items-center"
               onClick={e => e.stopPropagation()}>
               <img src={selectedImg.image}
-                className="max-h-[65vh] md:max-h-[70vh] w-auto mx-auto rounded-2xl md:rounded-[2.5rem] shadow-2xl border border-white/10" />
-
-              {/* Artist footer */}
-              <div className="mt-4 md:mt-8 w-full max-w-sm mx-auto flex items-center gap-3 md:gap-5 bg-zinc-900/80 p-3 md:p-5 rounded-2xl border border-white/5 backdrop-blur-md">
-                <div className="w-12 h-12 md:w-14 md:h-14 rounded-xl md:rounded-2xl overflow-hidden border-2 border-orange-500 flex-shrink-0">
-                  <img src={selectedImg.artistImage || "/default-artist.jpg"} className="w-full h-full object-cover" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-orange-500">Expert Piercer</p>
-                  <p className="text-lg md:text-2xl font-black text-white uppercase italic tracking-tighter truncate">
-                    {selectedImg.artistName || "Master Piercer"}
-                  </p>
-                </div>
-                <div className="text-right border-l border-white/10 pl-3 md:pl-5">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-zinc-500">Service</p>
-                  <p className="text-sm md:text-base font-black text-zinc-200 uppercase tracking-tighter">
-                    {selectedImg.placement}
-                  </p>
-                </div>
-              </div>
+                className="max-h-[75vh] md:max-h-[70vh] w-auto mx-auto rounded-2xl md:rounded-[2.5rem] shadow-2xl border border-white/10" />
             </motion.div>
           </motion.div>
         )}

@@ -20,7 +20,6 @@ interface Review {
   isVisible: boolean;
 }
 
-// Noise overlay — same sa home page
 const NoiseOverlay = () => (
   <div
     className="pointer-events-none fixed inset-0 z-[999] opacity-[0.03]"
@@ -111,7 +110,7 @@ export default function ReviewsPage() {
                 className="flex flex-wrap gap-2 mt-12 pt-8 border-t border-white/5">
                 <p className="text-[9px] font-black uppercase tracking-widest text-zinc-600 self-center mr-2">Filter:</p>
                 {(["All", 5, 4, 3, 2, 1] as (number | "All")[]).map(val => (
-                  <button key={val} onClick={() => setFilter(val)}
+                  <button key={String(val)} onClick={() => setFilter(val)}
                     className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border ${
                       filter === val
                         ? "bg-orange-500 text-white border-orange-500 shadow-lg shadow-orange-500/20"
@@ -138,7 +137,7 @@ export default function ReviewsPage() {
             {loading ? (
               <div className="flex flex-col items-center justify-center py-40 space-y-4">
                 <div className="flex gap-1">
-                  {[0,1,2,3].map(i => (
+                  {[0, 1, 2, 3].map(i => (
                     <motion.div key={i} animate={{ scaleY: [1, 2, 1] }}
                       transition={{ repeat: Infinity, duration: 0.8, delay: i * 0.15 }}
                       className="w-1 h-6 bg-orange-500 rounded-full" />
@@ -162,22 +161,21 @@ export default function ReviewsPage() {
               >
                 {filtered.map((item, idx) => (
                   <motion.div
-                    key={item._id}
+                    key={item._id ? `review-${item._id}` : `review-idx-${idx}`}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: idx * 0.05, ease: [0.16, 1, 0.3, 1] }}
                     className="break-inside-avoid"
                   >
                     <div className="group relative overflow-hidden border border-white/5 bg-zinc-950 rounded-3xl p-6 hover:border-orange-500/20 transition-all duration-500">
-                      {/* Big decorative quote */}
                       <div className="absolute -top-2 -right-2 text-[100px] font-black leading-none text-white/[0.02] select-none pointer-events-none group-hover:text-orange-500/5 transition-colors">"</div>
 
                       <div className="relative z-10">
-                        {/* Stars + Art Piece badge */}
+                        {/* Stars + badge — ✅ key uses item._id + index to be unique */}
                         <div className="flex items-center justify-between mb-5">
                           <div className="flex gap-1">
                             {[...Array(5)].map((_, i) => (
-                              <Star key={i} size={11}
+                              <Star key={`${item._id}-star-${i}`} size={11}
                                 className={i < item.stars ? "fill-orange-500 text-orange-500" : "fill-zinc-800 text-zinc-800"} />
                             ))}
                           </div>
@@ -189,12 +187,10 @@ export default function ReviewsPage() {
                           )}
                         </div>
 
-                        {/* Review text */}
                         <p className="text-sm leading-relaxed text-zinc-300 italic font-medium mb-5">
                           &quot;{item.description}&quot;
                         </p>
 
-                        {/* Review image */}
                         {item.reviewImage && (
                           <div className="w-full rounded-2xl overflow-hidden border border-white/5 mb-5 shadow-2xl">
                             <img src={item.reviewImage} alt="Work"
@@ -202,7 +198,6 @@ export default function ReviewsPage() {
                           </div>
                         )}
 
-                        {/* User info */}
                         <div className="flex items-center justify-between border-t border-white/5 pt-5">
                           <div className="flex items-center gap-3">
                             <div className="relative">
@@ -255,10 +250,8 @@ export default function ReviewsPage() {
               </div>
 
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                <a
-                  href="https://www.facebook.com/junkypiercing/reviews/?id=100070663572121&sk=reviews"
-                  target="_blank" rel="noopener noreferrer"
-                >
+                <a href="https://www.facebook.com/junkypiercing/reviews/?id=100070663572121&sk=reviews"
+                  target="_blank" rel="noopener noreferrer">
                   <button className="group flex items-center gap-3 px-10 py-4 bg-white hover:bg-orange-500 text-black hover:text-white font-black uppercase text-[11px] tracking-widest rounded-2xl transition-all active:scale-95 shadow-lg">
                     Facebook Reviews
                     <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
