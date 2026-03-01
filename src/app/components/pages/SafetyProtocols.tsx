@@ -9,7 +9,7 @@ import {
 import {
   Plus, Pencil, Trash2, Loader2, Save,
   ShieldAlert, UploadCloud, ClipboardCheck,
-  Stethoscope, RotateCcw, AlertCircle, X
+  Stethoscope, AlertCircle, X, FileText
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { uploadToCloudinary } from "@/lib/cloudinary";
@@ -31,31 +31,33 @@ async function logAudit({ action, details, module = "Waiver Management" }: {
     });
   } catch (err) { console.warn("Audit log failed:", err); }
 }
-// ─────────────────────────────────────────────────────────────────────────────
 
 // ─── VALIDATION ───────────────────────────────────────────────────────────────
-interface FormErrors { title?: string; image?: string; }
+interface FormErrors { title?: string; file?: string; }
 
-function validateProtocol(data: { title: string; hasImage: boolean }): FormErrors {
+function validateProtocol(data: { title: string; hasFile: boolean }): FormErrors {
   const errors: FormErrors = {};
   if (!data.title.trim()) errors.title = "Protocol title is required.";
-  if (!data.hasImage) errors.image = "Waiver image is required.";
+  if (!data.hasFile)      errors.file  = "Waiver PDF is required.";
   return errors;
 }
-// ─────────────────────────────────────────────────────────────────────────────
 
+// ─── COMPONENT ────────────────────────────────────────────────────────────────
 export default function ProtocolManager() {
-  const [protocols, setProtocols] = useState<any[]>([]);
+  const [protocols, setProtocols]     = useState<any[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [formErrors, setFormErrors] = useState<FormErrors>({});
+  const [loading, setLoading]         = useState(false);
+  const [editingId, setEditingId]     = useState<string | null>(null);
+  const [formErrors, setFormErrors]   = useState<FormErrors>({});
 
-  const [title, setTitle] = useState("");
+  const [title, setTitle]           = useState("");
   const [description, setDescription] = useState("");
   const [safetyLevel, setSafetyLevel] = useState("Standard");
-  const [waiverImageFile, setWaiverImageFile] = useState<File | null>(null);
-  const [waiverPrev, setWaiverPrev] = useState<string | null>(null);
+
+  // ─── PDF state (replaces image state) ────────────────────────────────────
+  const [waiverFile, setWaiverFile]     = useState<File | null>(null);
+  const [waiverFileName, setWaiverFileName] = useState<string | null>(null); // display name
+  const [existingFileUrl, setExistingFileUrl] = useState<string | null>(null); // for edit mode
 
   useEffect(() => {
     const q = query(collection(db, "safety_protocols"), orderBy("createdAt", "desc"));
@@ -68,7 +70,9 @@ export default function ProtocolManager() {
   // ─── SUBMIT ───────────────────────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const errors = validateProtocol({ title, hasImage: !!(waiverPrev || waiverImageFile) });
+
+    const hasFile = !!(waiverFile || existingFileUrl);
+    const errors  = validateProtocol({ title, hasFile });
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
       toast.error("Please fix the errors before saving.");
@@ -77,12 +81,17 @@ export default function ProtocolManager() {
 
     setLoading(true);
     const doSave = async () => {
-      let finalImageUrl = waiverPrev;
-      if (waiverImageFile) finalImageUrl = await uploadToCloudinary(waiverImageFile);
+      let finalFileUrl = existingFileUrl;
+
+      // Upload new PDF if one was selected
+      if (waiverFile) {
+        finalFileUrl = await uploadToCloudinary(waiverFile);
+      }
 
       const protocolData = {
         title, description, safetyLevel,
-        waiverImage: finalImageUrl,
+        waiverFile:     finalFileUrl,
+        waiverFileName: waiverFileName || title,
         updatedAt: serverTimestamp(),
       };
 
@@ -118,24 +127,40 @@ export default function ProtocolManager() {
   // ─── DELETE ───────────────────────────────────────────────────────────────
   const handleDelete = async (item: any) => {
     if (!confirm(`Delete "${item.title.toUpperCase()}"?`)) return;
-    const doDelete = async () => {
-      await deleteDoc(doc(db, "safety_protocols", item.id));
-      await logAudit({
-        action: "DELETED WAIVER PROTOCOL",
-        details: `Deleted protocol "${item.title}" (ID: ${item.id}) — Safety Level: ${item.safetyLevel}`,
-      });
-    };
-    toast.promise(doDelete(), {
-      loading: `Removing "${item.title}"...`,
-      success: `"${item.title}" deleted.`,
-      error: "Delete failed.",
-    });
+    toast.promise(
+      (async () => {
+        await deleteDoc(doc(db, "safety_protocols", item.id));
+        await logAudit({
+          action: "DELETED WAIVER PROTOCOL",
+          details: `Deleted protocol "${item.title}" (ID: ${item.id}) — Safety Level: ${item.safetyLevel}`,
+        });
+      })(),
+      { loading: `Removing "${item.title}"...`, success: `"${item.title}" deleted.`, error: "Delete failed." }
+    );
   };
 
   const resetForm = () => {
     setEditingId(null); setTitle(""); setDescription("");
-    setSafetyLevel("Standard"); setWaiverImageFile(null);
-    setWaiverPrev(null); setFormErrors({});
+    setSafetyLevel("Standard"); setWaiverFile(null);
+    setWaiverFileName(null); setExistingFileUrl(null);
+    setFormErrors({});
+  };
+
+  // ─── PDF FILE HANDLER ─────────────────────────────────────────────────────
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    if (f.type !== "application/pdf") {
+      toast.error("Only PDF files are accepted.");
+      return;
+    }
+    if (f.size > 10 * 1024 * 1024) {
+      toast.error("File too large. Maximum size is 10MB.");
+      return;
+    }
+    setWaiverFile(f);
+    setWaiverFileName(f.name);
+    setFormErrors(prev => ({ ...prev, file: undefined }));
   };
 
   const criticalCount = protocols.filter(p => p.safetyLevel === "Critical" || p.safetyLevel === "Required").length;
@@ -169,9 +194,9 @@ export default function ProtocolManager() {
         {/* ── STATS ── */}
         <div className="grid grid-cols-3 gap-4">
           {[
-            { label: "Total Protocols", value: protocols.length,  icon: ClipboardCheck, color: "text-foreground",  bg: "bg-muted" },
-            { label: "Required",        value: criticalCount,      icon: ShieldAlert,    color: "text-red-500",    bg: "bg-red-500/10" },
-            { label: "Standard",        value: standardCount,      icon: Stethoscope,    color: "text-emerald-500",bg: "bg-emerald-500/10" },
+            { label: "Total Protocols", value: protocols.length,  icon: ClipboardCheck, color: "text-foreground",   bg: "bg-muted" },
+            { label: "Required",        value: criticalCount,      icon: ShieldAlert,    color: "text-red-500",     bg: "bg-red-500/10" },
+            { label: "Standard",        value: standardCount,      icon: Stethoscope,    color: "text-emerald-500", bg: "bg-emerald-500/10" },
           ].map(stat => (
             <div key={stat.label} className="bg-card border border-border rounded-[1.5rem] p-5 flex items-center gap-4">
               <div className={cn("p-2.5 rounded-xl", stat.bg, stat.color)}>
@@ -196,7 +221,7 @@ export default function ProtocolManager() {
             <table className="w-full text-left min-w-[640px]">
               <thead>
                 <tr className="text-[9px] font-black uppercase tracking-widest text-muted-foreground border-b border-border/50">
-                  <th className="px-8 py-4">Waiver</th>
+                  <th className="px-8 py-4">PDF</th>
                   <th className="px-8 py-4">Protocol Name</th>
                   <th className="px-8 py-4">Safety Level</th>
                   <th className="px-8 py-4">Guidelines</th>
@@ -211,44 +236,70 @@ export default function ProtocolManager() {
                   </td></tr>
                 ) : protocols.map(item => (
                   <tr key={item.id} className="group hover:bg-muted/30 transition-all">
+
+                    {/* ── PDF preview cell ── */}
                     <td className="px-8 py-4">
-                      <div className="w-12 h-16 rounded-xl overflow-hidden border border-border bg-muted">
-                        <img src={item.waiverImage} className="w-full h-full object-cover" alt="Waiver" />
-                      </div>
+                      {item.waiverFile ? (
+                        <a
+                          href={item.waiverFile}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="Open PDF"
+                          className="flex items-center justify-center w-12 h-16 rounded-xl bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 transition-all"
+                        >
+                          <FileText className="size-6 text-red-500" />
+                        </a>
+                      ) : (
+                        <div className="w-12 h-16 rounded-xl bg-muted border border-border flex items-center justify-center">
+                          <FileText className="size-5 text-muted-foreground/30" />
+                        </div>
+                      )}
                     </td>
+
                     <td className="px-8 py-4">
                       <span className="text-sm font-black uppercase italic tracking-tight">{item.title}</span>
+                      {item.waiverFileName && (
+                        <p className="text-[9px] text-muted-foreground font-bold mt-0.5 truncate max-w-[160px]">
+                          {item.waiverFileName}
+                        </p>
+                      )}
                     </td>
+
                     <td className="px-8 py-4">
                       <span className={cn(
                         "inline-flex items-center px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border",
-                        item.safetyLevel === "Required" ? "bg-red-500/10 text-red-500 border-red-500/20" :
-                        item.safetyLevel === "Post-Procedure" ? "bg-amber-500/10 text-amber-500 border-amber-500/20" :
+                        item.safetyLevel === "Required"       ? "bg-red-500/10 text-red-500 border-red-500/20" :
                         "bg-muted text-muted-foreground border-border"
                       )}>
                         {item.safetyLevel}
                       </span>
                     </td>
+
                     <td className="px-8 py-4 max-w-[220px]">
                       <p className="text-xs text-muted-foreground line-clamp-2">{item.description || "—"}</p>
                     </td>
+
                     <td className="px-8 py-4 text-right">
                       <div className="flex justify-end gap-2 opacity-40 group-hover:opacity-100 transition-opacity">
                         <button
                           onClick={() => {
-                            setEditingId(item.id); setTitle(item.title); setDescription(item.description);
-                            setSafetyLevel(item.safetyLevel); setWaiverPrev(item.waiverImage);
-                            setFormErrors({}); setIsModalOpen(true);
+                            setEditingId(item.id);
+                            setTitle(item.title);
+                            setDescription(item.description || "");
+                            setSafetyLevel(item.safetyLevel);
+                            setExistingFileUrl(item.waiverFile || null);
+                            setWaiverFileName(item.waiverFileName || null);
+                            setWaiverFile(null);
+                            setFormErrors({});
+                            setIsModalOpen(true);
                           }}
                           className="h-9 w-9 rounded-xl bg-muted border border-border flex items-center justify-center text-muted-foreground hover:bg-foreground hover:text-background hover:border-transparent transition-all"
-                          title="Edit protocol"
                         >
                           <Pencil size={14} />
                         </button>
                         <button
                           onClick={() => handleDelete(item)}
                           className="h-9 w-9 rounded-xl bg-muted border border-border flex items-center justify-center text-muted-foreground hover:bg-destructive hover:text-white hover:border-transparent transition-all"
-                          title="Delete protocol"
                         >
                           <Trash2 size={14} />
                         </button>
@@ -301,10 +352,7 @@ export default function ProtocolManager() {
                   <label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest ml-1">Protocol Name</label>
                   <input
                     value={title}
-                    onChange={e => {
-                      setTitle(e.target.value);
-                      if (formErrors.title) setFormErrors(prev => ({ ...prev, title: undefined }));
-                    }}
+                    onChange={e => { setTitle(e.target.value); setFormErrors(prev => ({ ...prev, title: undefined })); }}
                     className={cn(
                       "w-full bg-muted rounded-xl px-4 py-3.5 text-sm font-black uppercase outline-none border-2 transition-all",
                       formErrors.title ? "border-destructive bg-destructive/5" : "border-transparent focus:border-foreground"
@@ -328,46 +376,67 @@ export default function ProtocolManager() {
                   >
                     <option>Standard</option>
                     <option>Required</option>
-                    <option>Post-Procedure</option>
                   </select>
                 </div>
 
-                {/* Waiver Image */}
+                {/* ── PDF UPLOAD ── */}
                 <div className="space-y-1.5">
                   <label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest ml-1 flex items-center gap-1.5">
-                    <ClipboardCheck size={12} /> Waiver Form Reference (Image)
+                    <FileText size={12} /> Waiver Form (PDF only · Max 10MB)
                   </label>
+
                   <label className={cn(
-                    "relative aspect-[3/4] max-w-[260px] mx-auto flex items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed cursor-pointer transition-all group bg-muted/50",
-                    formErrors.image ? "border-destructive" : "border-border hover:border-foreground"
+                    "relative flex flex-col items-center justify-center w-full py-10 rounded-2xl border-2 border-dashed cursor-pointer transition-all group bg-muted/50",
+                    formErrors.file ? "border-destructive bg-destructive/5" : "border-border hover:border-foreground"
                   )}>
-                    {waiverPrev ? (
-                      <img src={waiverPrev} className="w-full h-full object-cover" alt="Waiver preview" />
+                    {/* Show existing / new file */}
+                    {waiverFile || existingFileUrl ? (
+                      <div className="flex flex-col items-center gap-3 px-6 text-center">
+                        <div className="h-14 w-14 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center">
+                          <FileText className="size-7 text-red-500" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-black uppercase tracking-wide truncate max-w-[240px]">
+                            {waiverFile ? waiverFile.name : waiverFileName || "Existing PDF"}
+                          </p>
+                          <p className="text-[9px] text-muted-foreground mt-1 font-bold uppercase">
+                            {waiverFile
+                              ? `${(waiverFile.size / 1024 / 1024).toFixed(2)} MB — Click to replace`
+                              : "Currently uploaded — Click to replace"}
+                          </p>
+                        </div>
+                      </div>
                     ) : (
-                      <div className="text-center">
-                        <UploadCloud className="size-8 text-muted-foreground mx-auto mb-2 group-hover:text-foreground transition-colors" />
-                        <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Upload Waiver Ref</span>
-                        <span className="block text-[9px] text-muted-foreground mt-1">JPG, JPEG, PNG only</span>
+                      <div className="flex flex-col items-center gap-3 text-muted-foreground group-hover:text-foreground transition-colors">
+                        <UploadCloud className="size-9" strokeWidth={1.5} />
+                        <div className="text-center">
+                          <p className="text-[10px] font-black uppercase tracking-widest">Upload PDF Waiver</p>
+                          <p className="text-[9px] mt-1">PDF only · Max 10MB</p>
+                        </div>
                       </div>
                     )}
                     <input
                       type="file"
-                      accept=".jpg,.jpeg,.png,image/jpeg,image/png"
+                      accept=".pdf,application/pdf"
                       className="absolute inset-0 opacity-0 cursor-pointer"
-                      onChange={e => {
-                        const f = e.target.files?.[0];
-                        if (!f) return;
-                        const allowed = ["image/jpeg", "image/jpg", "image/png"];
-                        if (!allowed.includes(f.type)) { toast.error("Only JPG, JPEG, PNG allowed."); return; }
-                        setWaiverImageFile(f);
-                        setWaiverPrev(URL.createObjectURL(f));
-                        setFormErrors(prev => ({ ...prev, image: undefined }));
-                      }}
+                      onChange={handleFileChange}
                     />
                   </label>
-                  {formErrors.image && (
-                    <div className="flex items-center gap-1.5 text-destructive text-[10px] font-bold ml-1 justify-center">
-                      <AlertCircle className="size-3" /> {formErrors.image}
+
+                  {/* Clear file button */}
+                  {(waiverFile || existingFileUrl) && (
+                    <button
+                      type="button"
+                      onClick={() => { setWaiverFile(null); setWaiverFileName(null); setExistingFileUrl(null); }}
+                      className="flex items-center gap-1.5 text-[9px] font-black uppercase text-destructive hover:underline ml-1 mt-1"
+                    >
+                      <X size={10} /> Remove PDF
+                    </button>
+                  )}
+
+                  {formErrors.file && (
+                    <div className="flex items-center gap-1.5 text-destructive text-[10px] font-bold ml-1">
+                      <AlertCircle className="size-3" /> {formErrors.file}
                     </div>
                   )}
                 </div>

@@ -32,6 +32,7 @@ interface Booking {
   email: string;
   phone: string;
   finalPrice?: number;
+  downPayment?: number; // ← added
 }
 
 // ─── AUDIT TRAIL HELPER ───────────────────────────────────────────────────────
@@ -137,10 +138,29 @@ export default function TattooGallery() {
 
   const addProductRow = () => setProductsUsed([...productsUsed, { name: "", quantity: 1 }]);
   const removeProductRow = (index: number) => setProductsUsed(productsUsed.filter((_, i) => i !== index));
+
+  // ─── FIX 2: Cap quantity to available stock, prevent going below 1 ──────────
   const updateProductRow = (index: number, field: string, value: any) => {
     const updated = [...productsUsed];
-    updated[index] = { ...updated[index], [field]: value };
+    if (field === "quantity") {
+      const selectedProduct = inventoryProducts.find(p => p.name === updated[index].name);
+      const maxStock = selectedProduct ? (selectedProduct.stock ?? selectedProduct.quantity ?? Infinity) : Infinity;
+      const capped = Math.min(Math.max(1, Number(value)), maxStock); // clamp between 1 and maxStock
+      updated[index] = { ...updated[index], quantity: capped };
+    } else {
+      updated[index] = { ...updated[index], [field]: value };
+      // Reset quantity to 1 when product changes
+      if (field === "name") updated[index].quantity = 1;
+    }
     setProductsUsed(updated);
+  };
+
+  // ─── FIX 1: Pre-fill artist from booking when opening dialog ────────────────
+  const openFinishDialogForItem = (item: Booking) => {
+    setSelectedArtist(item.artist || "");
+    setPrice("");
+    setProductsUsed([{ name: "", quantity: 1 }]);
+    setOpenFinishDialog(item.id);
   };
 
   // ─── FINISH PROJECT ──────────────────────────────────────────────────────────
@@ -376,7 +396,14 @@ export default function TattooGallery() {
                             </Button>
 
                             {/* 3. FINISH SESSION DIALOG */}
-                            <Dialog open={openFinishDialog === item.id} onOpenChange={(open) => setOpenFinishDialog(open ? item.id : null)}>
+                            {/* ─── FIX 1: use openFinishDialogForItem to pre-fill artist ─── */}
+                            <Dialog open={openFinishDialog === item.id} onOpenChange={(open) => {
+                              if (open) {
+                                openFinishDialogForItem(item);
+                              } else {
+                                setOpenFinishDialog(null);
+                              }
+                            }}>
                               <DialogTrigger asChild>
                                 <Button size="sm" className="h-8 bg-foreground text-background hover:bg-primary hover:text-white font-black uppercase text-[10px] rounded-full transition-all px-4">
                                   Finish
@@ -388,10 +415,32 @@ export default function TattooGallery() {
                                 </DialogHeader>
 
                                 <div className="space-y-6 py-4">
+
+                                  {/* ─── FIX 3: DOWNPAYMENT DISPLAY ─────────────────────────── */}
+                                  {item.downPayment ? (
+                                    <div className="flex items-center justify-between bg-emerald-500/10 border border-emerald-500/20 rounded-2xl px-5 py-3">
+                                      <div>
+                                        <p className="text-[9px] font-black uppercase tracking-widest text-emerald-500">Downpayment Paid</p>
+                                        <p className="text-xl font-black text-emerald-500 mt-0.5">₱{Number(item.downPayment).toLocaleString()}</p>
+                                      </div>
+                                      <CheckCircle2 className="size-6 text-emerald-500 opacity-60" />
+                                    </div>
+                                  ) : (
+                                    <div className="flex items-center justify-between bg-muted/50 border border-border rounded-2xl px-5 py-3">
+                                      <div>
+                                        <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Downpayment</p>
+                                        <p className="text-sm font-black text-muted-foreground mt-0.5 italic">No downpayment on file</p>
+                                      </div>
+                                      <PhilippinePeso className="size-5 text-muted-foreground opacity-30" />
+                                    </div>
+                                  )}
+                                  {/* ───────────────────────────────────────────────────────── */}
+
                                   <div className="space-y-2">
                                     <Label className="text-[10px] font-black uppercase text-muted-foreground flex items-center gap-2">
                                       <User className="size-3 text-primary" /> Artist
                                     </Label>
+                                    {/* ─── FIX 1: value is pre-filled from item.artist ─── */}
                                     <select
                                       className="w-full bg-muted p-3 rounded-xl text-[12px] font-bold border border-border outline-none focus:ring-2 ring-primary/20 text-foreground"
                                       value={selectedArtist}
@@ -425,30 +474,46 @@ export default function TattooGallery() {
                                         <PlusCircle size={18} />
                                       </button>
                                     </div>
-                                    <div className="space-y-2 max-h-32 overflow-y-auto pr-2">
-                                      {productsUsed.map((row, index) => (
-                                        <div key={index} className="flex gap-2 items-center animate-in slide-in-from-right-2">
-                                          <select
-                                            className="flex-1 bg-muted p-2.5 rounded-lg text-[11px] font-bold border border-border text-foreground"
-                                            value={row.name}
-                                            onChange={(e) => updateProductRow(index, "name", e.target.value)}
-                                          >
-                                            <option value="">Item...</option>
-                                            {inventoryProducts.map(p => (
-                                              <option key={p.id || p._id} value={p.name}>{p.name} ({p.stock || p.quantity})</option>
-                                            ))}
-                                          </select>
-                                          <input
-                                            type="number"
-                                            className="w-14 bg-muted border border-border p-2.5 rounded-lg text-center text-[11px] font-black text-foreground"
-                                            value={row.quantity}
-                                            onChange={(e) => updateProductRow(index, "quantity", Number(e.target.value))}
-                                          />
-                                          <button onClick={() => removeProductRow(index)} className="text-muted-foreground hover:text-destructive">
-                                            <MinusCircle size={16} />
-                                          </button>
-                                        </div>
-                                      ))}
+                                    <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
+                                      {productsUsed.map((row, index) => {
+                                        // ─── FIX 2: get max stock for selected product ───
+                                        const matchedProduct = inventoryProducts.find(p => p.name === row.name);
+                                        const maxStock = matchedProduct ? (matchedProduct.stock ?? matchedProduct.quantity ?? 999) : 999;
+
+                                        return (
+                                          <div key={index} className="flex gap-2 items-center animate-in slide-in-from-right-2">
+                                            <select
+                                              className="flex-1 bg-muted p-2.5 rounded-lg text-[11px] font-bold border border-border text-foreground"
+                                              value={row.name}
+                                              onChange={(e) => updateProductRow(index, "name", e.target.value)}
+                                            >
+                                              <option value="">Item...</option>
+                                              {inventoryProducts.map(p => (
+                                                <option key={p.id || p._id} value={p.name}>
+                                                  {p.name} ({p.stock ?? p.quantity})
+                                                </option>
+                                              ))}
+                                            </select>
+                                            <div className="flex flex-col items-center gap-0.5">
+                                              <input
+                                                type="number"
+                                                min={1}
+                                                max={maxStock}  // ─── FIX 2: cap at stock ───
+                                                className="w-14 bg-muted border border-border p-2.5 rounded-lg text-center text-[11px] font-black text-foreground"
+                                                value={row.quantity}
+                                                onChange={(e) => updateProductRow(index, "quantity", Number(e.target.value))}
+                                              />
+                                              {/* ─── FIX 2: warn if at max ─── */}
+                                              {row.name && row.quantity >= maxStock && (
+                                                <span className="text-[8px] font-black text-amber-500 uppercase">Max</span>
+                                              )}
+                                            </div>
+                                            <button onClick={() => removeProductRow(index)} className="text-muted-foreground hover:text-destructive">
+                                              <MinusCircle size={16} />
+                                            </button>
+                                          </div>
+                                        );
+                                      })}
                                     </div>
                                   </div>
                                 </div>

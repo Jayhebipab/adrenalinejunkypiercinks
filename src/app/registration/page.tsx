@@ -1,8 +1,11 @@
 "use client"
 
-import { useState, useEffect } from "react" // Added useEffect
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Lock, Mail, User, ShieldCheck, Loader2, Zap, ArrowLeft, ShieldAlert } from "lucide-react"
+import { 
+    Lock, Mail, User, ShieldCheck, Loader2, Zap, 
+    ArrowLeft, ShieldAlert, Eye, EyeOff 
+} from "lucide-react"
 import { useRouter } from "next/navigation"
 import { toast, Toaster } from "sonner"
 import { JetBrains_Mono } from "next/font/google"
@@ -13,29 +16,29 @@ const jetbrainsMono = JetBrains_Mono({ subsets: ["latin"] })
 export default function RegisterPage() {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
-    const [isChecking, setIsChecking] = useState(true); // Para sa initial security check
+    const [isChecking, setIsChecking] = useState(true);
+    
+    // ✅ States para sa Show/Hide Password
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
     const [formData, setFormData] = useState({
         name: "",
         email: "",
         password: "",
-        systemPIN: "",
+        confirmPassword: "", // ✅ Added confirmPassword state
         role: "Super Admin"
     });
 
-    // --- SECURITY PROTOCOL: CHECK IF REGISTRY IS LOCKED ---
     useEffect(() => {
         const verifyRegistryStatus = async () => {
             try {
                 const res = await fetch("/api/auth/check-admin");
                 const data = await res.json();
-
                 if (data.exists) {
-                    // Registry is locked, kick user to login
                     router.replace("/login");
                     toast.error("ACCESS DENIED: Super Admin registry is already locked.");
                 } else {
-                    // Safe to show the registration form
                     setIsChecking(false);
                 }
             } catch (error) {
@@ -43,29 +46,38 @@ export default function RegisterPage() {
                 router.replace("/login");
             }
         };
-
         verifyRegistryStatus();
     }, [router]);
 
     const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault();
-        
+
+        // ✅ VALIDATION: Check if passwords match
+        if (formData.password !== formData.confirmPassword) {
+            return toast.error("VALIDATION ERROR: Passwords do not match!");
+        }
+
+        // ✅ VALIDATION: Minimum length (optional but recommended)
+        if (formData.password.length < 6) {
+            return toast.error("SECURITY: Password must be at least 6 characters.");
+        }
 
         setLoading(true);
         try {
+            // Hindi natin isasama ang confirmPassword sa payload sa API
+            const { confirmPassword, ...submitData } = formData;
+
             const res = await fetch("/api/auth/register", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(formData)
+                body: JSON.stringify(submitData)
             });
 
             const data = await res.json();
 
             if (res.ok) {
                 toast.success("ACCOUNT CREATED: PERMISSION GRANTED");
-                setTimeout(() => {
-                    router.push("/login");
-                }, 2000);
+                setTimeout(() => router.push("/login"), 2000);
             } else {
                 toast.error(data.error || "Registration Failed");
             }
@@ -76,7 +88,6 @@ export default function RegisterPage() {
         }
     };
 
-    // Habang nagve-verify, black screen lang muna with loader para iwas "flicker" ng form
     if (isChecking) {
         return (
             <div className="min-h-screen bg-black flex items-center justify-center">
@@ -103,10 +114,10 @@ export default function RegisterPage() {
                         <ShieldAlert className="text-white w-8 h-8" />
                     </div>
                     <h1 className="text-3xl md:text-4xl font-black italic uppercase tracking-tighter text-white">
-                        Registry
+                        Registration
                     </h1>
                     <p className="text-[9px] font-black text-zinc-500 uppercase tracking-[0.4em]">
-                        Adrenaline Junky Personnel Registry
+                        Adrenaline Junky Piercinks
                     </p>
                 </div>
 
@@ -116,7 +127,7 @@ export default function RegisterPage() {
                 >
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <label className="text-[9px] font-black text-zinc-500 uppercase ml-2 tracking-widest italic">Personnel Name</label>
+                            <label className="text-[9px] font-black text-zinc-500 uppercase ml-2 tracking-widest italic">Name</label>
                             <div className="relative group">
                                 <User className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-700 group-focus-within:text-white transition-colors w-4 h-4" />
                                 <input 
@@ -138,7 +149,7 @@ export default function RegisterPage() {
                     </div>
 
                     <div className="space-y-2">
-                        <label className="text-[9px] font-black text-zinc-500 uppercase ml-2 tracking-widest italic">Registry Email</label>
+                        <label className="text-[9px] font-black text-zinc-500 uppercase ml-2 tracking-widest italic">Email</label>
                         <div className="relative group">
                             <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-700 group-focus-within:text-white transition-colors w-4 h-4" />
                             <input 
@@ -151,18 +162,48 @@ export default function RegisterPage() {
                         </div>
                     </div>
 
+                    {/* PASSWORD FIELD */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <label className="text-[9px] font-black text-zinc-500 uppercase ml-2 tracking-widest italic">Secret Passkey</label>
+                            <label className="text-[9px] font-black text-zinc-500 uppercase ml-2 tracking-widest italic">Password</label>
                             <div className="relative group">
                                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-700 group-focus-within:text-white transition-colors w-4 h-4" />
                                 <input 
-                                    type="password" 
+                                    type={showPassword ? "text" : "password"} 
                                     required
-                                    className="w-full bg-black/50 border border-zinc-800 rounded-xl py-3 pl-11 pr-4 text-sm text-white font-bold outline-none focus:border-zinc-500 transition-all" 
+                                    className="w-full bg-black/50 border border-zinc-800 rounded-xl py-3 pl-11 pr-11 text-sm text-white font-bold outline-none focus:border-zinc-500 transition-all" 
                                     placeholder="••••••••"
                                     onChange={e => setFormData({...formData, password: e.target.value})}
                                 />
+                                <button 
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-700 hover:text-white transition-colors"
+                                >
+                                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* CONFIRM PASSWORD FIELD */}
+                        <div className="space-y-2">
+                            <label className="text-[9px] font-black text-zinc-500 uppercase ml-2 tracking-widest italic">Confirm Password</label>
+                            <div className="relative group">
+                                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-700 group-focus-within:text-white transition-colors w-4 h-4" />
+                                <input 
+                                    type={showConfirmPassword ? "text" : "password"} 
+                                    required
+                                    className="w-full bg-black/50 border border-zinc-800 rounded-xl py-3 pl-11 pr-11 text-sm text-white font-bold outline-none focus:border-zinc-500 transition-all" 
+                                    placeholder="••••••••"
+                                    onChange={e => setFormData({...formData, confirmPassword: e.target.value})}
+                                />
+                                <button 
+                                    type="button"
+                                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-700 hover:text-white transition-colors"
+                                >
+                                    {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -173,7 +214,7 @@ export default function RegisterPage() {
                     >
                         {loading ? <Loader2 className="animate-spin w-5 h-5" /> : (
                             <span className="flex items-center gap-2">
-                                <Zap size={14} /> Authorize Registration
+                                 Sign up
                             </span>
                         )}
                     </Button>
@@ -181,7 +222,7 @@ export default function RegisterPage() {
 
                 <footer className="text-center">
                     <Link href="/login" className="inline-flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-zinc-700 hover:text-white transition-all">
-                        <ArrowLeft size={10} /> Back to Authorization
+                        <ArrowLeft size={10} /> Back to Sign IN
                     </Link>
                 </footer>
             </div>

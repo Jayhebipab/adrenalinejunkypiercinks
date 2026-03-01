@@ -35,6 +35,8 @@ export default function ChangePasswordView() {
         setShowPasswords(prev => ({ ...prev, [field]: !prev[field] }))
     }
 
+    
+
     const handleUpdate = async (e: React.FormEvent) => {
         e.preventDefault();
 
@@ -62,6 +64,13 @@ export default function ChangePasswordView() {
         }
 
         setLoading(true);
+console.log("PAYLOAD:", {
+    id: userId,
+    email: email,
+    isChangingPassword: true,
+    currentPassword: form.currentPassword,
+    newPassword: form.newPassword,
+})
         try {
             const res = await fetch("/api/users", {
                 method: "PUT",

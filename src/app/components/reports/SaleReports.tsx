@@ -128,16 +128,16 @@ export default function SalesReports() {
       <div className="flex flex-col lg:flex-row justify-between items-stretch lg:items-end gap-6 w-full">
         <div className="flex flex-col justify-end pb-2"> 
           <h2 className="text-5xl font-[1000] uppercase italic tracking-tighter text-zinc-900 dark:text-white leading-none">
-            Grand <span className="text-primary">Ledger</span>
+            Sales <span className="text-primary">Reports</span>
           </h2>
           <p className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.3em] mt-3">
-            Consolidated Financial Analytics
+            Financial Analytics
           </p>
         </div>
 
         <div className="flex flex-col items-end gap-2 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-900 p-6 rounded-[2.5rem] min-w-[320px] shadow-sm">
           <div className="text-right w-full">
-            <span className="text-[9px] font-black text-primary uppercase tracking-widest block mb-1">Total Combined Revenue</span>
+            <span className="text-[9px] font-black text-primary uppercase tracking-widest block mb-1">Total Revenue</span>
             <h2 className="text-5xl font-[1000] italic tracking-tighter text-zinc-900 dark:text-white leading-tight">
               ₱{totalRevenue.toLocaleString()}
             </h2>
@@ -223,8 +223,8 @@ export default function SalesReports() {
               <tr className="bg-zinc-50 dark:bg-zinc-900/50 text-[10px] font-black uppercase tracking-widest text-zinc-400 border-b border-zinc-100 dark:border-zinc-900">
                 <th className="px-8 py-5">Timestamp</th>
                 <th className="px-8 py-5">Type</th>
-                <th className="px-8 py-5">Personnel</th>
-                <th className="px-8 py-5">Breakdown</th>
+                <th className="px-8 py-5">Name</th>
+                <th className="px-8 py-5">Products</th>
                 <th className="px-8 py-5 text-right">Amount</th>
               </tr>
             </thead>

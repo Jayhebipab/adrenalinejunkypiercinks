@@ -86,11 +86,13 @@ export default function StockReports() {
     <div className="space-y-8 p-2">
       {/* HEADER SECTION */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h2 className="text-4xl font-[1000] uppercase italic tracking-tighter text-zinc-900 dark:text-white">
-            Stock <span className="text-primary">Intelligence</span>
+        <div className="flex flex-col justify-end pb-2"> 
+          <h2 className="text-5xl font-[1000] uppercase italic tracking-tighter text-zinc-900 dark:text-white leading-none">
+            Stock <span className="text-primary">Reports</span>
           </h2>
-          <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest mt-1">Real-time inventory valuation & alerts</p>
+          <p className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.3em] mt-3">
+            Stock Analytics
+          </p>
         </div>
         <button 
           onClick={fetchStock}

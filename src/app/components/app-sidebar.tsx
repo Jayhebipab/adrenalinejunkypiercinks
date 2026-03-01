@@ -53,7 +53,7 @@ const data = {
             icon: Store,
             id: "shop",
             items: [
-                { title: "Product", id: "Product" },
+                //{ title: "Product", id: "Product" },
                 { title: "Checkout", id: "Checkout" },
                 { title: "Qr Settings", id: "QrSettings" },
             ],
@@ -86,7 +86,7 @@ const data = {
             icon: Wrench,
             id: "maintenance",
             items: [
-                { title: "Inventory", id: "Inventory" },
+                //{ title: "Inventory", id: "Inventory" },
                 { title: "Product & Materials", id: "Product&Materials" },
                 { title: "Category", id: "Category" },
                 { title: "Supplier", id: "Supplier" },
@@ -107,7 +107,6 @@ const data = {
         },
     ],
     projects: [
-        // ✅ Change Password — hidden for Super Admin, shown for Staff & Admin
         { name: "Change Password", id: "ChangePassword", icon: KeyRound, accessId: "always", hideForSuperAdmin: true },
         { name: "Access Control", id: "AccessControl", icon: ShieldCheck, accessId: "settings" },
         { name: "Activity Logs", id: "ActivityLogs", icon: ClipboardList, accessId: "settings" },
@@ -122,10 +121,14 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 export function AppSidebar({ onNavigate, userPermissions, ...props }: AppSidebarProps) {
     const { theme, setTheme } = useTheme()
     const [mounted, setMounted] = useState(false)
-    const [notifications, setNotifications] = useState({ bookings: 0, messages: 0 })
+    const [notifications, setNotifications] = useState({
+        bookings: 0,   // pending booking requests
+        messages: 0,   // unread chat messages
+        sessions: 0,   // approved sessions happening TODAY
+        orders: 0,     // pending orders
+    })
     const [userData, setUserData] = useState<any>(null)
 
-    // ✅ Get sidebar state for mobile close on navigate
     const { isMobile, setOpenMobile } = useSidebar()
 
     useEffect(() => {
@@ -135,38 +138,70 @@ export function AppSidebar({ onNavigate, userPermissions, ...props }: AppSidebar
         } else {
             const savedUser = localStorage.getItem("user")
             if (savedUser) {
-                try {
-                    setUserData(JSON.parse(savedUser))
-                } catch (e) { console.error(e) }
+                try { setUserData(JSON.parse(savedUser)) } catch (e) { console.error(e) }
             }
         }
 
+        // ── 1. Pending booking requests ───────────────────────────────────────
         const qBookings = query(collection(db, "bookings"), where("status", "==", "pending"));
-        const unsubBookings = onSnapshot(qBookings, (snapshot) => {
-            setNotifications(prev => ({ ...prev, bookings: snapshot.size }));
+        const unsubBookings = onSnapshot(qBookings, (snap) => {
+            setNotifications(prev => ({ ...prev, bookings: snap.size }));
         });
 
+        // ── 2. Unread chat messages ───────────────────────────────────────────
         const qMessages = query(collection(db, "chats"), where("isRead", "==", false));
-        const unsubMessages = onSnapshot(qMessages, (snapshot) => {
-            setNotifications(prev => ({ ...prev, messages: snapshot.size }));
+        const unsubMessages = onSnapshot(qMessages, (snap) => {
+            setNotifications(prev => ({ ...prev, messages: snap.size }));
+        });
+
+        // ── 3. Today's approved sessions (tattoo / piercing) ─────────────────
+        // We listen to all "approved" bookings and filter client-side by today's date
+        // because Firestore can't do date range queries on string fields easily.
+        const qSessions = query(collection(db, "bookings"), where("status", "==", "approved"));
+        const unsubSessions = onSnapshot(qSessions, (snap) => {
+            const todayStr = new Date().toDateString();
+            let todayCount = 0;
+            snap.forEach(doc => {
+                const data = doc.data();
+                const raw = data.preferredDate;
+                if (!raw) return;
+                // Handle both Firestore Timestamp and plain string
+                let d: Date;
+                if (raw?.seconds) {
+                    d = new Date(raw.seconds * 1000);
+                } else {
+                    d = new Date(raw);
+                }
+                if (!isNaN(d.getTime()) && d.toDateString() === todayStr) {
+                    todayCount++;
+                }
+            });
+            setNotifications(prev => ({ ...prev, sessions: todayCount }));
+        });
+
+        // ── 4. Pending orders ─────────────────────────────────────────────────
+        const qOrders = query(collection(db, "orders"), where("status", "==", "Pending"));
+        const unsubOrders = onSnapshot(qOrders, (snap) => {
+            setNotifications(prev => ({ ...prev, orders: snap.size }));
         });
 
         return () => {
             unsubBookings();
             unsubMessages();
+            unsubSessions();
+            unsubOrders();
         }
     }, [userPermissions])
 
-    // ✅ Wrapped navigate — auto-close sidebar on mobile
     const handleNavigate = (view: string) => {
         onNavigate(view)
         if (isMobile) setOpenMobile(false)
     }
 
-    // --- MAIN FILTERING LOGIC ---
+    // ── Inject badges into nav items ──────────────────────────────────────────
     const filteredNavMain = data.navMain
         .map((group) => {
-            if (userData?.role === "Super Admin") return group;
+            if (userData?.role === "Super Admin") return injectBadges(group, notifications);
 
             const visibleItems = group.items.filter((item) => {
                 const permissionValue = userData?.[item.id];
@@ -174,23 +209,14 @@ export function AppSidebar({ onNavigate, userPermissions, ...props }: AppSidebar
             });
 
             if (visibleItems.length > 0) {
-                return {
-                    ...group,
-                    items: visibleItems.map((item) => {
-                        if (item.title === "Booking Request") return { ...item, badge: notifications.bookings }
-                        if (item.title === "Messenger") return { ...item, badge: notifications.messages }
-                        return item;
-                    }),
-                }
+                return injectBadges({ ...group, items: visibleItems }, notifications);
             }
             return null;
         })
         .filter((group): group is any => group !== null);
 
     const filteredProjects = data.projects.filter(project => {
-        // ✅ Hide Change Password for Super Admin
         if (project.hideForSuperAdmin && userData?.role === "Super Admin") return false;
-
         if (userData?.role === "Super Admin") return true;
         if (project.accessId === "always") return true;
         return userData?.[project.accessId] === "live" || userData?.[project.accessId] === true;
@@ -237,6 +263,14 @@ export function AppSidebar({ onNavigate, userPermissions, ...props }: AppSidebar
                                     {userData?.role || 'STAFF'} • PANEL
                                 </span>
                             </div>
+
+                            {/* ── GLOBAL NOTIF DOT on header (collapsed sidebar) ── */}
+                            {(notifications.bookings > 0 || notifications.messages > 0 || notifications.sessions > 0 || notifications.orders > 0) && (
+                                <span className="absolute top-3 right-3 flex h-2 w-2">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
+                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-primary" />
+                                </span>
+                            )}
                         </SidebarMenuButton>
                     </SidebarMenuItem>
                 </SidebarMenu>
@@ -280,4 +314,40 @@ export function AppSidebar({ onNavigate, userPermissions, ...props }: AppSidebar
             <SidebarRail />
         </Sidebar>
     )
+}
+
+// ─── HELPER: inject badges per nav item ──────────────────────────────────────
+function injectBadges(
+    group: any,
+    notifications: { bookings: number; messages: number; sessions: number; orders: number }
+) {
+    return {
+        ...group,
+        items: group.items.map((item: any) => {
+            if (item.title === "Booking Request")
+                return { ...item, badge: notifications.bookings };
+
+            if (item.title === "Messenger")
+                return { ...item, badge: notifications.messages };
+
+            // "List" = Active Projects — shows today's session count
+            if (item.title === "List")
+                return {
+                    ...item,
+                    badge: notifications.sessions,
+                    // custom color hint so NavMain can style it differently (orange = today)
+                    badgeVariant: "session",
+                };
+
+            // "Checkout" = Orders — shows pending order count
+            if (item.title === "Checkout")
+                return {
+                    ...item,
+                    badge: notifications.orders,
+                    badgeVariant: "order",
+                };
+
+            return item;
+        }),
+    };
 }

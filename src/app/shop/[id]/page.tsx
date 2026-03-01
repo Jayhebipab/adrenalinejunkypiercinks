@@ -18,6 +18,8 @@ import { toast } from "sonner";
 import { Navbar } from '@/app/components/navigation/navbar';
 import { Footer } from '@/app/components/navigation/footer';
 
+const DEFAULT_IMAGE = "/images/logo/ajp.jpg";
+
 export default function ProductDetails() {
   const { id } = useParams();
   const router = useRouter();
@@ -55,7 +57,6 @@ export default function ProductDetails() {
       currentCart.push({
         id: productId,
         name: product.name,
-        // Make sure we use cost_price or selling_price consistently
         cost_price: product.selling_price || product.cost_price,
         image: product.image,
         quantity: 1
@@ -67,23 +68,18 @@ export default function ProductDetails() {
     toast.success(`${product.name} added to cart!`);
   };
 
-  // --- FIXED DIRECT BUY LOGIC ---
   const handleDirectBuy = () => {
     if (!product) return;
     
     const checkoutItem = {
       id: product.id || product._id,
       name: product.name,
-      // Consistency check: use the same price field as checkout
       cost_price: product.selling_price || product.cost_price,
       image: product.image,
       quantity: 1
     };
 
-    // Save to the specific 'direct buy' key
     localStorage.setItem('adrenaline_checkout_item', JSON.stringify(checkoutItem));
-    
-    // Lipat agad sa checkout
     router.push('/checkout');
   };
 
@@ -113,11 +109,11 @@ export default function ProductDetails() {
         </button>
 
         <div className="flex flex-col lg:flex-row gap-12 lg:items-start justify-center text-left">
-          {/* IMAGE SECTION - NO ANIMATION */}
+          {/* IMAGE SECTION */}
           <div className="w-full lg:max-w-md">
             <div className="relative aspect-[4/5] rounded-[2rem] overflow-hidden border border-white/5 bg-zinc-900 shadow-2xl">
               <img 
-                src={product.image || "/placeholder-gear.jpg"} 
+                src={product.image || DEFAULT_IMAGE} 
                 className="w-full h-full object-cover" 
                 alt={product.name} 
               />
@@ -125,7 +121,7 @@ export default function ProductDetails() {
             </div>
           </div>
 
-          {/* DETAILS SECTION - NO ANIMATION */}
+          {/* DETAILS SECTION */}
           <div className="flex-1 space-y-8 py-4">
             <div className="space-y-4">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-orange-500/20 bg-orange-500/5">
@@ -201,7 +197,7 @@ export default function ProductDetails() {
                 >
                   <div className="aspect-[4/5] rounded-2xl overflow-hidden bg-zinc-900 border border-white/5 mb-3 transition-all duration-300 group-hover:border-orange-500/30">
                     <img 
-                      src={item.image || "/placeholder-gear.jpg"} 
+                      src={item.image || DEFAULT_IMAGE} 
                       className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-all duration-500 group-hover:scale-105" 
                       alt={item.name} 
                     />

@@ -14,6 +14,8 @@ import FloatingChatWidget from '../components/chatbot';
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 
+const DEFAULT_IMAGE = "/images/logo/ajp.jpg";
+
 // Noise overlay
 const NoiseOverlay = () => (
   <div
@@ -35,7 +37,7 @@ interface Product {
   image: string;
   description: string;
   selling_price: number;
-  isVisible?: boolean; // ✅ Added — used to filter hidden products
+  isVisible?: boolean;
 }
 
 export default function ShopPage() {
@@ -84,8 +86,6 @@ export default function ShopPage() {
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) {
-          // ✅ FILTER: Only show products where isVisible is true
-          // Products with isVisible === undefined (old data) are treated as visible by default
           setProducts(data.filter((p: Product) => p.isVisible !== false));
         }
       })
@@ -262,7 +262,7 @@ export default function ShopPage() {
                       onClick={() => router.push(`/shop/${product.id}`)}
                     >
                       <img
-                        src={product.image || "/placeholder-gear.jpg"}
+                        src={product.image || DEFAULT_IMAGE}
                         alt={product.name}
                         className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                       />
