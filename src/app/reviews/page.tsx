@@ -171,7 +171,7 @@ export default function ReviewsPage() {
                       <div className="absolute -top-2 -right-2 text-[100px] font-black leading-none text-white/[0.02] select-none pointer-events-none group-hover:text-orange-500/5 transition-colors">"</div>
 
                       <div className="relative z-10">
-                        {/* Stars + badge — ✅ key uses item._id + index to be unique */}
+                        {/* Stars + badge */}
                         <div className="flex items-center justify-between mb-5">
                           <div className="flex gap-1">
                             {[...Array(5)].map((_, i) => (
@@ -191,10 +191,14 @@ export default function ReviewsPage() {
                           &quot;{item.description}&quot;
                         </p>
 
+                        {/* ✅ FULL COLOR AGAD — tinanggal ang grayscale */}
                         {item.reviewImage && (
                           <div className="w-full rounded-2xl overflow-hidden border border-white/5 mb-5 shadow-2xl">
-                            <img src={item.reviewImage} alt="Work"
-                              className="w-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700" />
+                            <img
+                              src={item.reviewImage}
+                              alt="Work"
+                              className="w-full object-cover transition-all duration-500 group-hover:scale-[1.02]"
+                            />
                           </div>
                         )}
 
@@ -205,7 +209,7 @@ export default function ReviewsPage() {
                                 <img
                                   src={item.userImage || "https://avatar.iran.liara.run/public"}
                                   alt={item.name}
-                                  className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
+                                  className="w-full h-full object-cover"
                                 />
                               </div>
                               <div className="absolute -bottom-1 -right-1 bg-orange-600 rounded-full p-0.5 border-2 border-zinc-950">

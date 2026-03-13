@@ -141,9 +141,7 @@ export default function ShopPage() {
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
             className="text-5xl md:text-7xl font-black uppercase tracking-[-0.04em] leading-none text-white italic"
           >
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-orange-400 to-yellow-300">
-               Shop
-            </span>
+<span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-yellow-400">Shop</span>
           </motion.h1>
           <motion.div initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ delay: 0.4 }}
             className="mx-auto w-16 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />

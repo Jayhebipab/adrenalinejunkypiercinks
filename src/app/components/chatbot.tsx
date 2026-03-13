@@ -6,14 +6,12 @@ import { Button } from "@/components/ui/button";
 import { AnimatePresence, motion } from "framer-motion";
 import { 
   MessageSquare, Send, X, ChevronRight, Sparkles,
-  Bot, Mail, ImageIcon, Loader2, ExternalLink, UserPlus 
+  Bot, ImageIcon, Loader2, ExternalLink, UserPlus, CheckCheck
 } from "lucide-react"; 
 import { useCallback, useEffect, useState, useRef } from "react";
 import { signIn, useSession } from "next-auth/react";
 import { uploadToCloudinary } from "@/lib/cloudinary"; 
 import { toast } from "sonner"; 
-
-// FIREBASE IMPORTS
 import { db } from "@/lib/firebase";
 import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
 
@@ -31,8 +29,8 @@ export default function FloatingChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
   const [showFAQs, setShowFAQs] = useState(false);
   const [message, setMessage] = useState("");
-  const [dbMessages, setDbMessages] = useState<any[]>([]); // Galing sa Firestore
-  const [localMessages, setLocalMessages] = useState<any[]>([]); // Para sa Guest FAQs
+  const [dbMessages, setDbMessages] = useState<any[]>([]);
+  const [localMessages, setLocalMessages] = useState<any[]>([]);
   const [uploading, setUploading] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0); 
   const [shouldJiggle, setShouldJiggle] = useState(false); 
@@ -41,12 +39,11 @@ export default function FloatingChatWidget() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Combine DB messages at Local (FAQ) messages
   const allMessages = [...dbMessages, ...localMessages].sort((a, b) => 
     new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
   );
 
-  // 1. FETCH REAL-TIME FAQS (Always active kahit guest)
+  // 1. FETCH REAL-TIME FAQS
   useEffect(() => {
     const q = query(collection(db, "faq_settings"), orderBy("createdAt", "desc"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -55,7 +52,7 @@ export default function FloatingChatWidget() {
     return () => unsubscribe();
   }, []);
 
-  // 2. FETCH MESSAGES (For logged in users only)
+  // 2. FETCH MESSAGES (For logged in users)
   const fetchMyMessages = useCallback(async () => {
     if (!session?.user?.email) return;
     try {
@@ -87,93 +84,100 @@ export default function FloatingChatWidget() {
       const interval = setInterval(fetchMyMessages, 4000); 
       return () => clearInterval(interval);
     } else {
-      setDbMessages([]); // Clear pag nag logout
+      setDbMessages([]);
     }
   }, [session, fetchMyMessages]);
 
+  // 3. When widget is opened → mark admin messages as seen by client
   useEffect(() => {
-    if (isOpen) setUnreadCount(0);
-  }, [isOpen]);
+    if (!isOpen || !session?.user?.email) return;
+    setUnreadCount(0);
+
+    const markSeen = async () => {
+      try {
+        await fetch("/api/chats", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            markSeen: true,
+            senderEmail: session.user!.email,
+            seenBy: "client", // client is reading admin's messages
+          }),
+        });
+      } catch (err) {
+        console.error("Mark seen error:", err);
+      }
+    };
+
+    markSeen();
+  }, [isOpen, session?.user?.email]);
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [allMessages]);
 
-// 1. Inupdate na natin ang parameters para tanggapin ang isFAQ (default ay false)
-const saveMessageToDB = async (
-  content: string, 
-  isAdmin: boolean, 
-  type: "text" | "image" = "text", 
-  isFAQ: boolean = false // <--- Dinagdag natin ito para mawala ang error sa handleFAQSelection
-) => {
-  if (!session?.user?.email) return;
-  try {
-    await fetch("/api/chats", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        senderEmail: session.user.email,
-        senderName: isAdmin ? "Support Bot" : (session.user.name || "Customer"),
-        message: content,
-        type,
-        isAdmin,
-        isFAQ, // <--- Ngayon, may value na ito sa scope ng function
-        website: WEBSITE_IDENTIFIER
-      }),
-    });
-    fetchMyMessages();
-  } catch (error) {
-    console.error("Save Error:", error);
-  }
-};
+  const saveMessageToDB = async (
+    content: string, 
+    isAdmin: boolean, 
+    type: "text" | "image" = "text", 
+    isFAQ: boolean = false
+  ) => {
+    if (!session?.user?.email) return;
+    try {
+      await fetch("/api/chats", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          senderEmail: session.user.email,
+          senderName: isAdmin ? "Support Bot" : (session.user.name || "Customer"),
+          message: content,
+          type,
+          isAdmin,
+          isFAQ,
+          website: WEBSITE_IDENTIFIER,
+        }),
+      });
+      fetchMyMessages();
+    } catch (error) {
+      console.error("Save Error:", error);
+    }
+  };
 
-// 2. Swak na ito ngayon kasi tumatanggap na ng 4th argument ang function sa itaas
-const handleFAQSelection = (faq: { question: string, answer: string }) => {
-  const timestamp = new Date().toISOString();
-  
-  if (session) {
-    // Papasok ito sa database na may tatak na isFAQ: true
-    saveMessageToDB(faq.question, false, "text", true); 
-    setTimeout(() => saveMessageToDB(faq.answer, true, "text", true), 500);
-  } else {
-    // Para sa mga hindi naka-login (Local state)
-    const guestChat = [
-      { id: `q-${Date.now()}`, message: faq.question, isAdmin: false, timestamp, type: "text", isFAQ: true },
-      { id: `a-${Date.now()}`, message: faq.answer, isAdmin: true, timestamp, type: "text", isFAQ: true }
-    ];
-    setLocalMessages(prev => [...prev, ...guestChat]);
-  }
-  setShowFAQs(false);
-};
+  const handleFAQSelection = (faq: { question: string; answer: string }) => {
+    const timestamp = new Date().toISOString();
+    if (session) {
+      saveMessageToDB(faq.question, false, "text", true);
+      setTimeout(() => saveMessageToDB(faq.answer, true, "text", true), 500);
+    } else {
+      setLocalMessages(prev => [
+        ...prev,
+        { id: `q-${Date.now()}`, message: faq.question, isAdmin: false, timestamp, type: "text", isFAQ: true, seenAt: null },
+        { id: `a-${Date.now()}`, message: faq.answer, isAdmin: true, timestamp, type: "text", isFAQ: true, seenAt: null },
+      ]);
+    }
+    setShowFAQs(false);
+  };
 
-  // --- DELETE MESSAGE PROTOCOL ---
   const deleteMessage = async (id: string) => {
     if (!session) return;
     try {
       await fetch(`/api/chats?id=${id}`, { method: "DELETE" });
       setDbMessages(prev => prev.filter(msg => msg.id !== id));
       toast.success("Message wiped.");
-    } catch (error) {
-      toast.error("Failed to delete.");
-    }
+    } catch { toast.error("Failed to delete."); }
   };
 
-  // --- EDIT MESSAGE PROTOCOL ---
   const editMessage = async (id: string, newContent: string) => {
     if (!session || !newContent.trim()) return;
     try {
       await fetch("/api/chats", {
-        method: "PATCH", // O PUT depende sa API route mo
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, message: newContent }),
       });
       setDbMessages(prev => prev.map(msg => msg.id === id ? { ...msg, message: newContent } : msg));
       toast.success("Transmission updated.");
-    } catch (error) {
-      toast.error("Update failed.");
-    }
+    } catch { toast.error("Update failed."); }
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -182,40 +186,26 @@ const handleFAQSelection = (faq: { question: string, answer: string }) => {
     setUploading(true);
     try {
       const uploadedUrl = await uploadToCloudinary(file);
-      if (uploadedUrl) {
-        await saveMessageToDB(uploadedUrl, false, "image");
-        toast.success("Image sent!");
-      }
-    } catch (error) {
-      toast.error("Upload failed.");
-    } finally {
-      setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    }
+      if (uploadedUrl) { await saveMessageToDB(uploadedUrl, false, "image"); toast.success("Image sent!"); }
+    } catch { toast.error("Upload failed."); }
+    finally { setUploading(false); if (fileInputRef.current) fileInputRef.current.value = ""; }
   };
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!message.trim() || !session) return;
     const currentMsg = message;
-    setMessage(""); 
+    setMessage("");
     await saveMessageToDB(currentMsg, false, "text");
   };
 
   const renderMessage = (msg: any) => {
     const content = msg.message || "";
     if (msg.type === "image") {
-      return (
-        <img 
-          src={content} 
-          alt="Shared" 
-          className="rounded-lg max-w-full h-auto cursor-zoom-in border border-zinc-800" 
-          onClick={() => window.open(content, '_blank')}
-        />
-      );
+      return <img src={content} alt="Shared" className="rounded-lg max-w-full h-auto cursor-zoom-in border border-zinc-800" onClick={() => window.open(content, "_blank")} />;
     }
     const urlRegex = /(https?:\/\/[^\s]+)/g;
-    return content.split(urlRegex).map((part: string, i: number) => 
+    return content.split(urlRegex).map((part: string, i: number) =>
       urlRegex.test(part) ? (
         <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="underline text-blue-400 inline-flex items-center gap-1">
           {part} <ExternalLink size={10} />
@@ -223,6 +213,12 @@ const handleFAQSelection = (faq: { question: string, answer: string }) => {
       ) : part
     );
   };
+
+  // Find last client-sent message to show seen on it
+  const lastClientMsgId = (() => {
+    const clientMsgs = allMessages.filter(m => !m.isAdmin);
+    return clientMsgs[clientMsgs.length - 1]?.id ?? null;
+  })();
 
   return (
     <div className="fixed bottom-4 right-4 z-[100] flex flex-col items-end gap-3 font-sans">
@@ -243,7 +239,7 @@ const handleFAQSelection = (faq: { question: string, answer: string }) => {
                 </Avatar>
                 <div>
                   <h3 className="text-[11px] font-black uppercase italic text-white flex items-center gap-1">
-                   Customer Care<Sparkles className="w-3 h-3 text-[#d11a2a]" />
+                    Customer Care <Sparkles className="w-3 h-3 text-[#d11a2a]" />
                   </h3>
                   <p className="text-[9px] text-emerald-500 font-bold uppercase tracking-widest">Online</p>
                 </div>
@@ -254,11 +250,11 @@ const handleFAQSelection = (faq: { question: string, answer: string }) => {
             </div>
 
             <div className="flex h-[400px] flex-col bg-zinc-950/50">
-              {/* FAQ Section - AVAILABLE KAHIT GUEST */}
+              {/* FAQ */}
               <div className="border-b border-zinc-900">
                 <button onClick={() => setShowFAQs(!showFAQs)} className="w-full flex items-center justify-between p-3 text-zinc-400 hover:bg-zinc-900/50">
                   <span className="text-[9px] font-black uppercase tracking-widest flex items-center gap-2">
-                    <Bot size={14} className="text-[#d11a2a]"/> Quick FAQ
+                    <Bot size={14} className="text-[#d11a2a]" /> Quick FAQ
                   </span>
                   <ChevronRight size={14} className={cn("transition-transform", showFAQs && "rotate-90")} />
                 </button>
@@ -275,7 +271,7 @@ const handleFAQSelection = (faq: { question: string, answer: string }) => {
                 </AnimatePresence>
               </div>
 
-              {/* Messages Area */}
+              {/* Messages */}
               <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-hide">
                 {allMessages.length === 0 && (
                   <div className="text-center py-10 opacity-20">
@@ -283,85 +279,92 @@ const handleFAQSelection = (faq: { question: string, answer: string }) => {
                     <p className="text-[10px] uppercase font-bold tracking-widest">No conversation yet</p>
                   </div>
                 )}
-{allMessages.map((msg) => {
-  const isQuestionInFAQ = faqs.some(f => f.question === msg.message);
-  const isAnswerInFAQ = faqs.some(f => f.answer === msg.message);
-  const isImage = msg.type === "image";
-  const isLink = /(https?:\/\/[^\s]+)/g.test(msg.message || "");
-  const isProtected = msg.isAdmin || msg.isFAQ === true || isQuestionInFAQ || isAnswerInFAQ || msg.id.startsWith('q-') || msg.id.startsWith('a-');
 
-  // Formatting ng Oras at Araw
-  const msgDate = new Date(msg.timestamp);
-  const timeString = msgDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  const dayString = msgDate.toLocaleDateString([], { weekday: 'short' });
+                {allMessages.map((msg) => {
+                  const isQuestionInFAQ = faqs.some(f => f.question === msg.message);
+                  const isAnswerInFAQ = faqs.some(f => f.answer === msg.message);
+                  const isImage = msg.type === "image";
+                  const isLink = /(https?:\/\/[^\s]+)/g.test(msg.message || "");
+                  const isProtected = msg.isAdmin || msg.isFAQ === true || isQuestionInFAQ || isAnswerInFAQ || msg.id.startsWith("q-") || msg.id.startsWith("a-");
 
-  return (
-    <div key={msg.id} className={cn("flex flex-col mb-4", msg.isAdmin ? "items-start" : "items-end")}>
-      <div className={cn("flex group relative max-w-[85%]", msg.isAdmin ? "justify-start" : "justify-end")}>
-        
-        {/* Mobile/Desktop Actions Panel */}
-        {!isProtected && session?.user?.email === msg.senderEmail && (
-          <div className="absolute -top-6 right-0 flex gap-2 opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity bg-black/90 rounded-md px-2 py-1 border border-zinc-800 z-20 shadow-2xl">
-            {!isImage && !isLink && (
-              <button 
-                onClick={() => {
-                  const newMsg = prompt("Edit transmission:", msg.message);
-                  if (newMsg) editMessage(msg.id, newMsg);
-                }}
-                className="text-[9px] font-black uppercase text-zinc-400 hover:text-orange-500"
-              >
-                Edit
-              </button>
-            )}
-            <button 
-              onClick={() => {
-                if(confirm("Wipe this data?")) deleteMessage(msg.id);
-              }}
-              className="text-[9px] font-black uppercase text-zinc-400 hover:text-red-500"
-            >
-              Wipe
-            </button>
-          </div>
-        )}
+                  const msgDate = new Date(msg.timestamp);
+                  const timeString = msgDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+                  const dayString = msgDate.toLocaleDateString([], { weekday: "short" });
 
-        {/* Message Bubble - Tap/Click for Mobile Support */}
-        <div 
-          onClick={(e) => {
-            // Force show actions for mobile on tap
-            const el = e.currentTarget.previousElementSibling;
-            if (el) el.classList.toggle('opacity-100');
-          }}
-          className={cn(
-            "px-4 py-3 text-[11px] font-black leading-relaxed shadow-xl border cursor-pointer select-none",
-            msg.isAdmin 
-              ? "bg-zinc-900 text-white rounded-2xl rounded-tl-none border-zinc-800" 
-              : "bg-zinc-900 text-white rounded-2xl rounded-tl-none border-zinc-800"
-          )}
-        >
-          {renderMessage(msg)}
-        </div>
-      </div>
+                  // Show "Seen" only on the last message sent by client (not admin)
+                  const isLastClientMsg = !msg.isAdmin && msg.id === lastClientMsgId;
+                  // seenAt comes from the API — if admin has read/replied, messages get marked
+                  const adminSawIt = isLastClientMsg && !!msg.seenAt;
 
-      {/* Timestamp Section */}
-      <span className={cn(
-        "text-[7px] uppercase font-bold tracking-tighter mt-1 opacity-40 px-1",
-        msg.isAdmin ? "text-left" : "text-right"
-      )}>
-        {dayString} • {timeString} {msg.isEdited && "(Edited)"}
-      </span>
-    </div>
-  );
-})}
-{/* Invisible div para sa scroll anchor */}
-<div ref={scrollRef} />
+                  return (
+                    <div key={msg.id} className={cn("flex flex-col mb-4", msg.isAdmin ? "items-start" : "items-end")}>
+                      <div className={cn("flex group relative max-w-[85%]", msg.isAdmin ? "justify-start" : "justify-end")}>
+                        {/* Actions */}
+                        {!isProtected && session?.user?.email === msg.senderEmail && (
+                          <div className="absolute -top-6 right-0 flex gap-2 opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity bg-black/90 rounded-md px-2 py-1 border border-zinc-800 z-20 shadow-2xl">
+                            {!isImage && !isLink && (
+                              <button onClick={() => { const n = prompt("Edit transmission:", msg.message); if (n) editMessage(msg.id, n); }} className="text-[9px] font-black uppercase text-zinc-400 hover:text-blue-400">
+                                Edit
+                              </button>
+                            )}
+                            <button onClick={() => { if (confirm("Wipe this data?")) deleteMessage(msg.id); }} className="text-[9px] font-black uppercase text-zinc-400 hover:text-red-500">
+                              Wipe
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Bubble */}
+                        <div className={cn(
+                          "px-4 py-3 text-[11px] font-black leading-relaxed shadow-xl border",
+                          msg.isAdmin
+                            ? "bg-zinc-900 text-white rounded-2xl rounded-tl-none border-zinc-800"
+                            : "bg-zinc-800 text-white rounded-2xl rounded-tr-none border-zinc-700"
+                        )}>
+                          {renderMessage(msg)}
+                        </div>
+                      </div>
+
+                      {/* Time + Seen */}
+                      <div className={cn("flex items-center gap-1.5 mt-1 px-1", msg.isAdmin ? "justify-start" : "justify-end")}>
+                        <span className="text-[7px] uppercase font-bold tracking-tighter opacity-40">
+                          {dayString} • {timeString}
+                          {msg.isEdited && " (Edited)"}
+                        </span>
+                        {/* SEEN INDICATOR — only on last client message */}
+                        {isLastClientMsg && (
+                          <motion.div
+                            initial={{ opacity: 0, scale: 0.8 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            className="flex items-center gap-0.5"
+                          >
+                            <CheckCheck
+                              size={10}
+                              className={cn(
+                                "transition-colors duration-700",
+                                adminSawIt ? "text-blue-400" : "text-zinc-600"
+                              )}
+                            />
+                            <span className={cn(
+                              "text-[7px] font-black uppercase tracking-wider transition-colors duration-700",
+                              adminSawIt ? "text-blue-400" : "text-zinc-600"
+                            )}>
+                              {adminSawIt ? "Seen" : "Sent"}
+                            </span>
+                          </motion.div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+                <div ref={scrollRef} />
               </div>
 
-{/* Footer Input / Login Gate */}
+              {/* Footer */}
               <div className="p-4 border-t border-zinc-900 bg-black/80 backdrop-blur-xl">
                 {session ? (
                   <form className="flex items-center gap-2" onSubmit={handleSendMessage}>
                     <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
-                    <button type="button" disabled={uploading} onClick={() => fileInputRef.current?.click()} className="p-2 text-zinc-500 hover:text-orange-500 transition-colors">
+                    <button type="button" disabled={uploading} onClick={() => fileInputRef.current?.click()} className="p-2 text-zinc-500 hover:text-white transition-colors">
                       {uploading ? <Loader2 className="animate-spin" size={18} /> : <ImageIcon size={18} />}
                     </button>
                     <input
@@ -369,9 +372,9 @@ const handleFAQSelection = (faq: { question: string, answer: string }) => {
                       value={message}
                       onChange={(e) => setMessage(e.target.value)}
                       placeholder="Secure transmission..."
-                      className="flex-1 bg-zinc-900/50 rounded-full px-4 py-2 text-[11px] text-white outline-none border border-zinc-800 focus:border-orange-600 transition-all placeholder:text-zinc-700"
+                      className="flex-1 bg-zinc-900/50 rounded-full px-4 py-2 text-[11px] text-white outline-none border border-zinc-800 focus:border-zinc-500 transition-all placeholder:text-zinc-700"
                     />
-                    <button type="submit" disabled={!message.trim()} className="p-2 text-orange-600 disabled:text-zinc-800 transition-colors">
+                    <button type="submit" disabled={!message.trim()} className="p-2 text-white disabled:text-zinc-700 transition-colors">
                       <Send size={18} />
                     </button>
                   </form>
@@ -396,7 +399,7 @@ const handleFAQSelection = (faq: { question: string, answer: string }) => {
         )}
       </AnimatePresence>
 
-      {/* Main Trigger Button */}
+      {/* Trigger Button */}
       <motion.button
         animate={shouldJiggle ? { x: [0, -5, 5, -5, 5, 0] } : {}}
         whileHover={{ scale: 1.05 }}

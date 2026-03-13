@@ -65,9 +65,8 @@ export default function Activitylogs() {
       {/* HEADER & FILTER */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="flex items-center gap-2">
-          <BarChart3 className="text-primary h-6 w-6" />
-          <h2 className="text-3xl font-black uppercase italic tracking-tighter text-zinc-900 dark:text-white">
-            Live <span className="text-primary">Traffic</span>
+          <h2 className="text-2xl font-black uppercase italic tracking-tighter text-zinc-900 dark:text-white">
+            <span className="text-primary">Activity Logs</span>
           </h2>
         </div>
 

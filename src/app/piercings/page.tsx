@@ -100,7 +100,7 @@ export default function PiercingGalleryPage() {
           </motion.div>
           <h1 className="text-4xl md:text-6xl font-black uppercase tracking-tighter italic leading-none">
             THE ART OF<br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-600 via-orange-400 to-yellow-400">BODY PIERCING</span>
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-yellow-400">BODY PIERCING</span>
           </h1>
         </div>
       </section>

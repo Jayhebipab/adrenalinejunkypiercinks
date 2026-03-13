@@ -13,7 +13,8 @@ import {
   X,
   Loader2,
   ChevronLeft,
-  Search
+  Search,
+  CheckCheck,
 } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -31,6 +32,7 @@ type Message = {
   isEdited?: boolean;
   rawTime: number;
   isAdmin: boolean;
+  seenAt: string | null;
 };
 
 type Conversation = {
@@ -44,15 +46,9 @@ type Conversation = {
 };
 
 // ---------- UTILS ----------
-// Nilabas ko para sigurado ang TS scope at logic
 const getSafeDate = (ts: any) => {
   if (!ts) return new Date();
-
-  // Check kung Firestore Timestamp object { seconds, nanoseconds }
-  if (ts && typeof ts === 'object' && 'seconds' in ts) {
-    return new Date(ts.seconds * 1000);
-  }
-
+  if (ts && typeof ts === "object" && "seconds" in ts) return new Date(ts.seconds * 1000);
   const d = new Date(ts);
   return isNaN(d.getTime()) ? new Date() : d;
 };
@@ -60,14 +56,11 @@ const getSafeDate = (ts: any) => {
 const formatDateSeparator = (dateStr: any) => {
   const d = getSafeDate(dateStr);
   const today = new Date().toLocaleDateString();
-  
   if (d.toLocaleDateString() === today) return "Today";
-  
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
   if (d.toLocaleDateString() === yesterday.toLocaleDateString()) return "Yesterday";
-  
-  return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  return d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
 };
 
 export function Messenger() {
@@ -104,7 +97,6 @@ export function Messenger() {
 
         sortedMessages.forEach((msg: any) => {
           const clientEmail = msg.senderEmail;
-          // IMPORTANT: Gamitin ang getSafeDate dito para sa conversion
           const d = getSafeDate(msg.createdAt || msg.timestamp);
           const msgTime = d.getTime();
 
@@ -116,7 +108,7 @@ export function Messenger() {
               initials: (msg.senderName || "G").substring(0, 2).toUpperCase(),
               messages: [],
               hasUnread: false,
-              lastMessageTime: 0
+              lastMessageTime: 0,
             };
           }
 
@@ -127,16 +119,16 @@ export function Messenger() {
             text: msg.message,
             type: msg.type || "text",
             rawTime: msgTime,
-            // Ginagamit ang actual date object para makuha ang string representation
-            timestamp: d.toISOString(), 
+            timestamp: d.toISOString(),
             isAdmin: msg.isAdmin || false,
             isFAQ: msg.isFAQ || false,
-            isEdited: msg.isEdited || false
+            isEdited: msg.isEdited || false,
+            seenAt: msg.seenAt || null,
           });
 
           grouped[clientEmail].lastMessageTime = msgTime;
           const lastMsg = grouped[clientEmail].messages[grouped[clientEmail].messages.length - 1];
-          grouped[clientEmail].hasUnread = !lastMsg.isAdmin;
+          grouped[clientEmail].hasUnread = !lastMsg.isAdmin && !lastMsg.seenAt;
         });
       }
       setConversations(Object.values(grouped));
@@ -151,20 +143,34 @@ export function Messenger() {
     return () => clearInterval(interval);
   }, []);
 
+  // When admin selects a conversation, mark client's messages as seen
+  useEffect(() => {
+    if (!selectedConversationId) return;
+
+    const markSeenByAdmin = async () => {
+      try {
+        await fetch("/api/chats", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            markSeen: true,
+            senderEmail: selectedConversationId,
+            seenBy: "admin",
+          }),
+        });
+      } catch (err) {
+        console.error("Mark seen error:", err);
+      }
+    };
+
+    markSeenByAdmin();
+  }, [selectedConversationId]);
+
   useEffect(() => {
     const container = messagesContainerRef.current;
     if (!container) return;
-
-    const isAtBottom =
-      container.scrollHeight - container.scrollTop <= container.clientHeight + 150;
-
-    const scrollToBottom = () => {
-      container.scrollTo({
-        top: container.scrollHeight,
-        behavior: "smooth"
-      });
-    };
-
+    const isAtBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 150;
+    const scrollToBottom = () => container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
     if (selectedConversationId || isAtBottom) {
       const timeoutId = setTimeout(scrollToBottom, 100);
       return () => clearTimeout(timeoutId);
@@ -179,44 +185,31 @@ export function Messenger() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, message: newContent }),
       });
-      if (res.ok) {
-        toast.success("Transmission updated.");
-        fetchChats();
-      }
-    } catch (error) {
-      toast.error("Failed to update message.");
-    }
+      if (res.ok) { toast.success("Transmission updated."); fetchChats(); }
+    } catch { toast.error("Failed to update message."); }
   };
 
   const deleteAdminMessage = async (id: string) => {
     try {
-      const res = await fetch(`/api/chats?id=${id}`, {
-        method: "DELETE",
-      });
-      if (res.ok) {
-        toast.success("Data wiped.");
-        fetchChats();
-      }
-    } catch (error) {
-      toast.error("Wipe failed.");
-    }
+      const res = await fetch(`/api/chats?id=${id}`, { method: "DELETE" });
+      if (res.ok) { toast.success("Data wiped."); fetchChats(); }
+    } catch { toast.error("Wipe failed."); }
   };
 
   const saveToDB = async (content: string, type: "text" | "image") => {
     if (!selectedConversationId) return;
-    const payload = {
-      senderEmail: selectedConversationId,
-      senderName: adminSession?.displayName || "Admin",
-      message: content,
-      isAdmin: true,
-      type: type,
-      isEdited: false,
-      timestamp: new Date().toISOString()
-    };
     const res = await fetch("/api/chats", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        senderEmail: selectedConversationId,
+        senderName: adminSession?.displayName || "Admin",
+        message: content,
+        isAdmin: true,
+        type,
+        isEdited: false,
+        timestamp: new Date().toISOString(),
+      }),
     });
     if (res.ok) fetchChats();
   };
@@ -235,31 +228,30 @@ export function Messenger() {
     setUploading(true);
     try {
       const uploadedUrl = await uploadToCloudinary(file);
-      if (uploadedUrl) {
-        await saveToDB(uploadedUrl, "image");
-        toast.success("Image sent!");
-      }
-    } catch (error) {
-      toast.error("Upload failed.");
-    } finally {
-      setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    }
+      if (uploadedUrl) { await saveToDB(uploadedUrl, "image"); toast.success("Image sent!"); }
+    } catch { toast.error("Upload failed."); } 
+    finally { setUploading(false); if (fileInputRef.current) fileInputRef.current.value = ""; }
   };
 
   const sortedAndFilteredConvos = useMemo(() => {
     return conversations
-      .filter(c => c.name.toLowerCase().includes(searchTerm.toLowerCase()))
+      .filter((c) => c.name.toLowerCase().includes(searchTerm.toLowerCase()))
       .sort((a, b) => b.lastMessageTime - a.lastMessageTime);
   }, [conversations, searchTerm]);
 
-  const activeConversation = useMemo(() =>
-    conversations.find((c) => c.id === selectedConversationId),
-    [conversations, selectedConversationId]);
+  const activeConversation = useMemo(
+    () => conversations.find((c) => c.id === selectedConversationId),
+    [conversations, selectedConversationId]
+  );
+
+  // Find the last admin message in a conversation (to show seen status below it)
+  const getLastAdminMsgId = (msgs: Message[]) => {
+    const adminMsgs = msgs.filter((m) => m.isAdmin);
+    return adminMsgs[adminMsgs.length - 1]?.id ?? null;
+  };
 
   return (
     <section className="w-full h-[calc(100vh-80px)] lg:h-[calc(100vh-120px)] flex gap-6 overflow-hidden">
-
       <AnimatePresence>
         {maximizedImage && (
           <motion.div
@@ -275,6 +267,7 @@ export function Messenger() {
         )}
       </AnimatePresence>
 
+      {/* SIDEBAR */}
       <div className={cn(
         "w-full lg:w-80 flex flex-col bg-card border border-border lg:rounded-3xl overflow-hidden shadow-sm transition-all",
         selectedConversationId ? "hidden lg:flex" : "flex"
@@ -314,7 +307,7 @@ export function Messenger() {
                   )}
                 </div>
                 <p className={cn("text-xs truncate font-medium", selectedConversationId === conv.id ? "opacity-70" : "text-muted-foreground")}>
-                  {conv.messages[conv.messages.length - 1]?.type === 'image' ? "Sent an image..." : conv.messages[conv.messages.length - 1]?.text}
+                  {conv.messages[conv.messages.length - 1]?.type === "image" ? "Sent an image..." : conv.messages[conv.messages.length - 1]?.text}
                 </p>
               </div>
             </button>
@@ -322,12 +315,14 @@ export function Messenger() {
         </div>
       </div>
 
+      {/* CHAT AREA */}
       <div className={cn(
         "flex-1 flex flex-col bg-card border border-border lg:rounded-3xl overflow-hidden relative shadow-sm transition-all",
         selectedConversationId ? "flex" : "hidden lg:flex"
       )}>
         {activeConversation ? (
           <div className="flex flex-col h-full bg-background/50">
+            {/* Header */}
             <div className="p-4 border-b border-border flex items-center justify-between bg-card/80 backdrop-blur-md sticky top-0 z-10">
               <div className="flex items-center gap-3">
                 <Button variant="ghost" size="icon" className="lg:hidden mr-1" onClick={() => setSelectedConversationId("")}>
@@ -346,98 +341,108 @@ export function Messenger() {
               </div>
             </div>
 
-            <div
-              ref={messagesContainerRef}
-              className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6 scrollbar-hide scroll-smooth"
-            >
-              {activeConversation.messages.map((msg, index) => {
-                const isImage = msg.type === "image";
-                const isLink = /(https?:\/\/[^\s]+)/g.test(msg.text || "");
-                const isFAQ = msg.isFAQ === true;
-                const isMe = msg.isAdmin === true;
+            {/* Messages */}
+            <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6 scrollbar-hide scroll-smooth">
+              {(() => {
+                const lastAdminId = getLastAdminMsgId(activeConversation.messages);
+                return activeConversation.messages.map((msg, index) => {
+                  const isImage = msg.type === "image";
+                  const isLink = /(https?:\/\/[^\s]+)/g.test(msg.text || "");
+                  const isFAQ = msg.isFAQ === true;
+                  const isMe = msg.isAdmin === true;
+                  const currentMsgDate = getSafeDate(msg.timestamp);
+                  const prevMsgDate = index > 0 ? getSafeDate(activeConversation.messages[index - 1].timestamp) : null;
+                  const showDateSeparator = !prevMsgDate || currentMsgDate.toLocaleDateString() !== prevMsgDate.toLocaleDateString();
 
-                // Safe Date parsing
-                const currentMsgDate = getSafeDate(msg.timestamp);
-                const prevMsgDate = index > 0 ? getSafeDate(activeConversation.messages[index - 1].timestamp) : null;
+                  // Show "Seen" only below the last admin message, and only if client already saw it
+                  const isLastAdminMsg = isMe && msg.id === lastAdminId;
+                  const clientSawIt = isLastAdminMsg && !!msg.seenAt;
 
-                const showDateSeparator = !prevMsgDate || 
-                  currentMsgDate.toLocaleDateString() !== prevMsgDate.toLocaleDateString();
-
-                return (
-                  <div key={msg.id || index} className="space-y-6">
-                    {showDateSeparator && (
-                      <div className="flex justify-center my-8">
-                        <span className="px-3 py-1 rounded-full bg-muted/50 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground border border-border/50">
-                          {formatDateSeparator(msg.timestamp)}
-                        </span>
-                      </div>
-                    )}
-
-                    <div className={cn(
-                      "flex w-full animate-in fade-in slide-in-from-bottom-2 duration-300",
-                      isMe ? "justify-end" : "justify-start"
-                    )}>
-                      <div className={cn(
-                        "flex flex-col max-w-[85%] md:max-w-[70%] relative group",
-                        isMe ? "items-end" : "items-start"
-                      )}>
-
-                        {isMe && !isFAQ && (
-                          <div className="absolute -top-5 right-0 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity bg-black/90 rounded-md px-2 py-1 border border-zinc-800 z-20 shadow-xl">
-                            {!isImage && !isLink && (
-                              <button
-                                onClick={() => {
-                                  const newMsg = prompt("Edit message:", msg.text);
-                                  if (newMsg) editAdminMessage(msg.id, newMsg);
-                                }}
-                                className="text-[8px] font-black uppercase text-zinc-400 hover:text-orange-500"
-                              >
-                                Edit
-                              </button>
-                            )}
-                            <button
-                              onClick={() => confirm("Delete?") && deleteAdminMessage(msg.id)}
-                              className="text-[8px] font-black uppercase text-zinc-400 hover:text-red-500"
-                            >
-                              Wipe
-                            </button>
-                          </div>
-                        )}
-
-                        <div className={cn(
-                          "px-4 py-3 rounded-2xl text-sm border transition-colors leading-relaxed",
-                          !isMe ? "bg-white text-black border-transparent rounded-tl-none font-medium shadow-sm" 
-                                : "bg-muted text-foreground border-border rounded-tr-none"
-                        )}>
-                          {isImage ? (
-                            <img 
-                              src={msg.text} 
-                              onClick={() => setMaximizedImage(msg.text)} 
-                              className="max-h-64 rounded-lg cursor-zoom-in hover:scale-[1.02] transition-transform" 
-                              alt="Sent" 
-                            />
-                          ) : (
-                            <span className="whitespace-pre-wrap">{msg.text}</span>
-                          )}
-                        </div>
-
-                        {/* TIME DISPLAY FIX: Ito yung kailangan mo par, AM/PM format */}
-                        <div className={cn("flex items-center gap-1.5 mt-1.5", isMe ? "flex-row-reverse" : "flex-row")}>
-                          <span className="text-[9px] font-bold text-muted-foreground/50 uppercase tracking-tighter">
-                            {currentMsgDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}
+                  return (
+                    <div key={msg.id || index} className="space-y-6">
+                      {showDateSeparator && (
+                        <div className="flex justify-center my-8">
+                          <span className="px-3 py-1 rounded-full bg-muted/50 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground border border-border/50">
+                            {formatDateSeparator(msg.timestamp)}
                           </span>
-                          {msg.isEdited && (
-                            <span className="text-[7px] font-black text-orange-500/50 uppercase italic">(Edited)</span>
+                        </div>
+                      )}
+
+                      <div className={cn("flex w-full animate-in fade-in slide-in-from-bottom-2 duration-300", isMe ? "justify-end" : "justify-start")}>
+                        <div className={cn("flex flex-col max-w-[85%] md:max-w-[70%] relative group", isMe ? "items-end" : "items-start")}>
+                          
+                          {/* Edit/Delete Actions */}
+                          {isMe && !isFAQ && (
+                            <div className="absolute -top-5 right-0 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity bg-black/90 rounded-md px-2 py-1 border border-zinc-800 z-20 shadow-xl">
+                              {!isImage && !isLink && (
+                                <button
+                                  onClick={() => { const n = prompt("Edit message:", msg.text); if (n) editAdminMessage(msg.id, n); }}
+                                  className="text-[8px] font-black uppercase text-zinc-400 hover:text-blue-400"
+                                >Edit</button>
+                              )}
+                              <button
+                                onClick={() => confirm("Delete?") && deleteAdminMessage(msg.id)}
+                                className="text-[8px] font-black uppercase text-zinc-400 hover:text-red-500"
+                              >Wipe</button>
+                            </div>
                           )}
+
+                          {/* Bubble */}
+                          <div className={cn(
+                            "px-4 py-3 rounded-2xl text-sm border transition-colors leading-relaxed",
+                            !isMe ? "bg-white text-black border-transparent rounded-tl-none font-medium shadow-sm"
+                                  : "bg-muted text-foreground border-border rounded-tr-none"
+                          )}>
+                            {isImage ? (
+                              <img src={msg.text} onClick={() => setMaximizedImage(msg.text)} className="max-h-64 rounded-lg cursor-zoom-in hover:scale-[1.02] transition-transform" alt="Sent" />
+                            ) : (
+                              <span className="whitespace-pre-wrap">{msg.text}</span>
+                            )}
+                          </div>
+
+                          {/* Time + Edited + Seen */}
+                          <div className={cn("flex items-center gap-1.5 mt-1.5", isMe ? "flex-row-reverse" : "flex-row")}>
+                            <span className="text-[9px] font-bold text-muted-foreground/50 uppercase tracking-tighter">
+                              {currentMsgDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: true })}
+                            </span>
+                            {msg.isEdited && (
+                              <span className="text-[7px] font-black text-muted-foreground/40 uppercase italic">(Edited)</span>
+                            )}
+                            {/* SEEN INDICATOR — only on admin's last message */}
+                            {isLastAdminMsg && (
+                              <AnimatePresence>
+                                <motion.div
+                                  initial={{ opacity: 0, x: -4 }}
+                                  animate={{ opacity: 1, x: 0 }}
+                                  className={cn("flex items-center gap-1", isMe ? "mr-1" : "ml-1")}
+                                >
+                                  <CheckCheck
+                                    size={12}
+                                    className={cn(
+                                      "transition-colors duration-500",
+                                      clientSawIt ? "text-blue-400" : "text-muted-foreground/30"
+                                    )}
+                                  />
+                                  <span className={cn(
+                                    "text-[8px] font-black uppercase tracking-wider transition-colors duration-500",
+                                    clientSawIt ? "text-blue-400" : "text-muted-foreground/30"
+                                  )}>
+                                    {clientSawIt ? "Seen" : "Sent"}
+                                  </span>
+                                </motion.div>
+                              </AnimatePresence>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                });
+              })()}
               <div ref={scrollRef} className="h-1" />
             </div>
 
+            {/* Input */}
             <div className="p-4 bg-card border-t border-border">
               <form onSubmit={handleSubmit} className="bg-muted/30 rounded-3xl border border-border p-2 focus-within:ring-2 ring-primary/10 transition-all">
                 <Textarea

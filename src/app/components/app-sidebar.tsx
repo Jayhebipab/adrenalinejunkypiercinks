@@ -53,7 +53,6 @@ const data = {
             icon: Store,
             id: "shop",
             items: [
-                //{ title: "Product", id: "Product" },
                 { title: "Checkout", id: "Checkout" },
                 { title: "Qr Settings", id: "QrSettings" },
             ],
@@ -86,9 +85,9 @@ const data = {
             icon: Wrench,
             id: "maintenance",
             items: [
-                //{ title: "Inventory", id: "Inventory" },
                 { title: "Product & Materials", id: "Product&Materials" },
                 { title: "Category", id: "Category" },
+                { title: "Placement", id: "Placement" },
                 { title: "Supplier", id: "Supplier" },
                 { title: "Vat Management", id: "VatManagement" },
                 { title: "User Management", id: "UserManagement" },
@@ -122,10 +121,10 @@ export function AppSidebar({ onNavigate, userPermissions, ...props }: AppSidebar
     const { theme, setTheme } = useTheme()
     const [mounted, setMounted] = useState(false)
     const [notifications, setNotifications] = useState({
-        bookings: 0,   // pending booking requests
-        messages: 0,   // unread chat messages
-        sessions: 0,   // approved sessions happening TODAY
-        orders: 0,     // pending orders
+        bookings: 0,
+        messages: 0,
+        sessions: 0,
+        orders: 0,
     })
     const [userData, setUserData] = useState<any>(null)
 
@@ -148,15 +147,19 @@ export function AppSidebar({ onNavigate, userPermissions, ...props }: AppSidebar
             setNotifications(prev => ({ ...prev, bookings: snap.size }));
         });
 
-        // ── 2. Unread chat messages ───────────────────────────────────────────
-        const qMessages = query(collection(db, "chats"), where("isRead", "==", false));
+        // ── 2. Unread client messages ─────────────────────────────────────────
+        // Yung mga mensahe galing sa client (isAdmin: false) na hindi pa
+        // nakikita ng admin (seenAt: null) — aligned sa bagong seen system.
+        const qMessages = query(
+            collection(db, "chats"),
+            where("isAdmin", "==", false),
+            where("seenAt", "==", null)
+        );
         const unsubMessages = onSnapshot(qMessages, (snap) => {
             setNotifications(prev => ({ ...prev, messages: snap.size }));
         });
 
-        // ── 3. Today's approved sessions (tattoo / piercing) ─────────────────
-        // We listen to all "approved" bookings and filter client-side by today's date
-        // because Firestore can't do date range queries on string fields easily.
+        // ── 3. Today's approved sessions ──────────────────────────────────────
         const qSessions = query(collection(db, "bookings"), where("status", "==", "approved"));
         const unsubSessions = onSnapshot(qSessions, (snap) => {
             const todayStr = new Date().toDateString();
@@ -165,7 +168,6 @@ export function AppSidebar({ onNavigate, userPermissions, ...props }: AppSidebar
                 const data = doc.data();
                 const raw = data.preferredDate;
                 if (!raw) return;
-                // Handle both Firestore Timestamp and plain string
                 let d: Date;
                 if (raw?.seconds) {
                     d = new Date(raw.seconds * 1000);
@@ -198,7 +200,6 @@ export function AppSidebar({ onNavigate, userPermissions, ...props }: AppSidebar
         if (isMobile) setOpenMobile(false)
     }
 
-    // ── Inject badges into nav items ──────────────────────────────────────────
     const filteredNavMain = data.navMain
         .map((group) => {
             if (userData?.role === "Super Admin") return injectBadges(group, notifications);
@@ -264,7 +265,6 @@ export function AppSidebar({ onNavigate, userPermissions, ...props }: AppSidebar
                                 </span>
                             </div>
 
-                            {/* ── GLOBAL NOTIF DOT on header (collapsed sidebar) ── */}
                             {(notifications.bookings > 0 || notifications.messages > 0 || notifications.sessions > 0 || notifications.orders > 0) && (
                                 <span className="absolute top-3 right-3 flex h-2 w-2">
                                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
@@ -330,16 +330,13 @@ function injectBadges(
             if (item.title === "Messenger")
                 return { ...item, badge: notifications.messages };
 
-            // "List" = Active Projects — shows today's session count
             if (item.title === "List")
                 return {
                     ...item,
                     badge: notifications.sessions,
-                    // custom color hint so NavMain can style it differently (orange = today)
                     badgeVariant: "session",
                 };
 
-            // "Checkout" = Orders — shows pending order count
             if (item.title === "Checkout")
                 return {
                     ...item,

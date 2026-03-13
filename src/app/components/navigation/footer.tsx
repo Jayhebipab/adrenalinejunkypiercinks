@@ -3,7 +3,6 @@
 import React from "react";
 import { db } from "@/lib/firebase";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { signIn, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -54,45 +53,37 @@ export function Footer() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  const handleJoin = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
 
+    if (session) {
+      router.push("/user-panel");
+      return;
+    }
 
-// 2. Updated handleJoin function
-const handleJoin = async (e: React.FormEvent<HTMLFormElement>) => {
-  e.preventDefault();
-  
-  if (session) {
-    router.push("/user-panel");
-    return;
-  }
+    const formData = new FormData(e.currentTarget);
+    const email = formData.get("email")?.toString();
 
-  const formData = new FormData(e.currentTarget);
-  const email = formData.get("email")?.toString();
+    if (!email) return;
 
-  if (!email) return;
+    setIsSubmitting(true);
 
-  setIsSubmitting(true);
+    try {
+      await addDoc(collection(db, "subscribers"), {
+        email: email.toLowerCase(),
+        joinedAt: serverTimestamp(),
+        source: "footer_join_the_cult",
+        status: "pending_login",
+      });
 
-  try {
-    // 1. I-save sa 'subscribers' collection
-    // Gagamit tayo ng email bilang ID (doc name) para iwas duplicate 
-    // o addDoc lang kung gusto mo kahit ilan silang mag-submit
-    await addDoc(collection(db, "subscribers"), {
-      email: email.toLowerCase(),
-      joinedAt: serverTimestamp(),
-      source: "footer_join_the_cult",
-      status: "pending_login" // Marker para malaman mong di pa sila nag-google login
-    });
-    
-    // 2. Ituloy ang Google Sign In
-    await signIn("google");
-  } catch (err) {
-    console.error("Firebase Error:", err);
-    // Kahit mag-fail ang Firestore, ituloy pa rin ang sign in para di ma-badtrip ang user
-    await signIn("google");
-  } finally {
-    setIsSubmitting(false);
-  }
-};
+      await signIn("google");
+    } catch (err) {
+      console.error("Firebase Error:", err);
+      await signIn("google");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <footer className="relative w-full overflow-hidden pt-20 pb-10">
@@ -105,14 +96,12 @@ const handleJoin = async (e: React.FormEvent<HTMLFormElement>) => {
               "url('https://res.cloudinary.com/diwrwmjgw/image/upload/v1769937840/qsb4nbgmhqqwbgaa8k8u.jpg')",
           }}
         />
-        {/* Dark Overlay para mas readable ang text */}
         <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/55 to-black/70" />
-        {/* Gradient overlay from bottom */}
         <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent" />
       </div>
 
       <div className="mx-auto max-w-6xl px-6 lg:px-8 relative z-10">
-        
+
         {/* --- REGISTRATION / USER SECTION --- */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -125,8 +114,8 @@ const handleJoin = async (e: React.FormEvent<HTMLFormElement>) => {
               {session ? "Exclusive Access" : "Be the first in line"}
             </h2>
             <p className="text-[10px] tracking-[0.3em] text-zinc-400 uppercase font-black">
-              {session 
-                ? `Welcome, ${session.user?.name?.split(' ')[0]}! Priority member active.` 
+              {session
+                ? `Welcome, ${session.user?.name?.split(' ')[0]}! Priority member active.`
                 : "Join the cult for latest updates & priority booking"}
             </p>
           </div>
@@ -145,9 +134,9 @@ const handleJoin = async (e: React.FormEvent<HTMLFormElement>) => {
               >
                 <Button
                   onClick={() => router.push("/user-panel")}
-                  className="bg-gradient-to-r from-orange-600 to-red-600 text-white px-10 py-7 rounded-lg uppercase tracking-[0.3em] font-black text-[10px] transition-all duration-300 flex items-center gap-3 group shadow-lg shadow-orange-500/20 border border-orange-400/50 hover:shadow-orange-500/40"
+                  className="bg-white text-black px-10 py-7 rounded-lg uppercase tracking-[0.3em] font-black text-[10px] transition-all duration-300 flex items-center gap-3 group shadow-lg border border-white/20 hover:bg-zinc-200"
                 >
-                  <UserCircle size={18} className="text-white/70 group-hover:text-white transition-colors duration-300" />
+                  <UserCircle size={18} className="text-black/50 group-hover:text-black transition-colors duration-300" />
                   Go to your panel <ChevronRight size={18} />
                 </Button>
               </motion.div>
@@ -162,23 +151,23 @@ const handleJoin = async (e: React.FormEvent<HTMLFormElement>) => {
             >
               <div className="flex items-center border-b-2 border-zinc-700 py-4 transition-all duration-300 focus-within:border-white hover:border-zinc-500">
                 <Mail size={16} className="text-zinc-500 mr-3" />
-              <input
-  name="email" // Importante 'to par!
-  type="email"
-  placeholder={isSubmitting ? "SIGNING YOU UP..." : "Enter email to join"}
-  className="w-full bg-transparent px-2 text-lg outline-none text-white placeholder:text-zinc-500 placeholder:uppercase font-semibold disabled:opacity-50"
-  required
-  disabled={isSubmitting}
-/>
-<motion.button
-  type="submit"
-  disabled={isSubmitting}
-  whileHover={{ x: 3 }}
-  whileTap={{ scale: 0.95 }}
-  className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-white hover:text-zinc-300 transition-colors duration-300 disabled:text-zinc-600"
->
-  {isSubmitting ? "..." : "Join"} <ChevronRight size={16} />
-</motion.button>
+                <input
+                  name="email"
+                  type="email"
+                  placeholder={isSubmitting ? "SIGNING YOU UP..." : "Enter email to join"}
+                  className="w-full bg-transparent px-2 text-lg outline-none text-white placeholder:text-zinc-500 placeholder:uppercase font-semibold disabled:opacity-50"
+                  required
+                  disabled={isSubmitting}
+                />
+                <motion.button
+                  type="submit"
+                  disabled={isSubmitting}
+                  whileHover={{ x: 3 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-white hover:text-zinc-300 transition-colors duration-300 disabled:text-zinc-600"
+                >
+                  {isSubmitting ? "..." : "Join"} <ChevronRight size={16} />
+                </motion.button>
               </div>
             </motion.form>
           )}

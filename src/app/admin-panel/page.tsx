@@ -29,6 +29,7 @@ import ProductManagement from "../components/maintenance/ProductManagement"
 import SupplierMaintenance from "../components/maintenance/SuppliersMaintenance"
 import EquipmentManagement from "../components/maintenance/EquipmentManagement"
 import VatManagement from "../components/maintenance/VatManagement"
+import Placement from "../components/maintenance/Placement"
 import { Messenger } from "../components/reservation/Messenger";
 import Inquiries from "../components/reservation/Inquiries";
 import ArtistProfile from "../components/pages/ArtistProfile"
@@ -120,6 +121,7 @@ export default function AdminPanelPage() {
       case "QrSettings": return <QrImagesManager/>
       case "Inventory": return <Inventory/>
       case "FAQ": return <FAQEditor/>
+      case "Placement": return <Placement />
       case "Waiver": return <ProtocolManager/>
       case "Announcement": return <AnnouncementDialog/>
       case "SalesReports": return <SalesReports />

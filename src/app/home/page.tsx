@@ -261,9 +261,7 @@ const Hero = () => {
           >
             SERMON IS TEMPORARY,<br />
             <span className="relative inline-block">
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-orange-400 to-yellow-300">
-                VANITY IS FOREVER!
-              </span>
+               <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-yellow-400">VANITY IS FOREVER!</span>
             </span>
           </motion.h1>
 
@@ -321,7 +319,7 @@ const StatsMarquee = () => {
         className="flex gap-0 whitespace-nowrap"
       >
         {repeated.map((s, i) => (
-          <div key={i} className="flex items-center gap-6 pr-8">
+          <div key={i} className="flex items-center gap-4 pr-8">
             <span className="text-black font-black text-xs uppercase tracking-[0.3em]">{s}</span>
             <span className="text-black/30 font-black">✦</span>
           </div>
@@ -351,11 +349,7 @@ export const BlogSection = () => {
       <div className="container mx-auto px-6 max-w-7xl relative z-10">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-20">
           <div className="space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="h-px w-8 bg-orange-500" />
-              <span className="text-orange-500 text-[10px] font-black uppercase tracking-[0.4em]">From the Studio</span>
-            </div>
-            <h2 className="text-5xl md:text-7xl font-black uppercase tracking-[-0.04em] leading-none">
+            <h2 className="text-5xl md:text-6xl font-black uppercase tracking-[-0.04em] leading-none">
               <span className="text-white">Our </span>
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-yellow-400">Journal</span>
             </h2>
@@ -447,11 +441,7 @@ const GallerySection = ({ openModal }: { openModal: (imgs: string[], i: number) 
       <div className="container mx-auto max-w-6xl">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-16">
           <div className="space-y-3">
-            <div className="flex items-center gap-3">
-              <div className="h-px w-8 bg-orange-500" />
-              <span className="text-orange-500 text-[10px] font-black uppercase tracking-[0.4em]">Portfolio</span>
-            </div>
-            <h2 className="text-5xl md:text-7xl font-black uppercase tracking-[-0.04em] leading-none italic">
+            <h2 className="text-5xl md:text-6xl font-black uppercase tracking-[-0.04em] leading-none italic">
               Body<br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-yellow-400">Piercings</span>
             </h2>
@@ -533,13 +523,9 @@ const TattooSection = ({ openModal }: { openModal: (imgs: string[], i: number) =
       <div className="container mx-auto max-w-6xl">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-16">
           <div className="space-y-3">
-            <div className="flex items-center gap-3">
-              <div className="h-px w-8 bg-orange-500" />
-              <span className="text-orange-500 text-[10px] font-black uppercase tracking-[0.4em]">Ink Work</span>
-            </div>
-            <h2 className="text-5xl md:text-7xl font-black uppercase tracking-[-0.04em] leading-none italic">
+            <h2 className="text-5xl md:text-6xl font-black uppercase tracking-[-0.04em] leading-none italic">
               Body<br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-orange-400">Tattoos</span>
+               <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-yellow-400">Tattoo</span>
             </h2>
           </div>
           <Link href="/tattoo">
@@ -622,11 +608,7 @@ export const ReviewsSection = () => {
       <div className="container mx-auto max-w-6xl px-6">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-20">
           <div className="space-y-3">
-            <div className="flex items-center gap-3">
-              <div className="h-px w-8 bg-orange-500" />
-              <span className="text-orange-500 text-[10px] font-black uppercase tracking-[0.4em]">Testimonials</span>
-            </div>
-            <h2 className="text-5xl md:text-7xl font-black uppercase tracking-[-0.04em] leading-none italic">
+            <h2 className="text-5xl md:text-6xl font-black uppercase tracking-[-0.04em] leading-none italic">
               Client<br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-yellow-400">Stories</span>
             </h2>
@@ -678,16 +660,21 @@ export const ReviewsSection = () => {
                         <p className="text-[11px] md:text-xs leading-relaxed text-zinc-400 italic font-medium mb-5 line-clamp-4">
                           &quot;{item.description.toUpperCase()}&quot;
                         </p>
+                        {/* ✅ Taller image (h-52), full color always — no grayscale */}
                         {item.reviewImage && (
-                          <div className="w-full h-28 rounded-2xl overflow-hidden border border-white/5 mb-5">
-                            <img src={item.reviewImage} alt="Work" className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700" />
+                          <div className="w-full h-52 rounded-2xl overflow-hidden border border-white/5 mb-5">
+                            <img
+                              src={item.reviewImage}
+                              alt="Work"
+                              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+                            />
                           </div>
                         )}
                         <div className="flex items-center justify-between border-t border-white/5 pt-5">
                           <div className="flex items-center gap-3">
                             <div className="relative">
                               <div className="w-9 h-9 rounded-xl border border-white/10 overflow-hidden bg-zinc-900">
-                                <img src={item.userImage || "/placeholder-avatar.png"} alt={item.name} className="w-full h-full object-cover opacity-80" />
+                                <img src={item.userImage || "/placeholder-avatar.png"} alt={item.name} className="w-full h-full object-cover" />
                               </div>
                               <div className="absolute -bottom-1 -right-1 bg-orange-600 rounded-full p-0.5 border-2 border-zinc-950">
                                 <ShieldCheck size={7} className="text-white" />
@@ -721,80 +708,6 @@ export const ReviewsSection = () => {
   )
 }
 
-// ---------- PRODUCTS ----------
-const ProductSection = () => {
-  const [products, setProducts] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    fetch("/api/products")
-      .then(res => res.ok ? res.json() : [])
-      .then(data => { if (Array.isArray(data)) setProducts(data) })
-      .catch(err => console.error("Error fetching products:", err))
-      .finally(() => setLoading(false))
-  }, [])
-
-  return (
-    <section id="shop" className="py-24 md:py-36 bg-[#030303] px-6 border-t border-white/5">
-      <div className="container mx-auto max-w-5xl">
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-16">
-          <div className="space-y-3">
-            <div className="flex items-center gap-3">
-              <div className="h-px w-8 bg-orange-500" />
-              <span className="text-orange-500 text-[10px] font-black uppercase tracking-[0.4em]">Premium Supplies</span>
-            </div>
-            <h2 className="text-5xl md:text-6xl font-black uppercase tracking-[-0.04em] leading-none italic">
-              Aftercare &<br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-yellow-400">Jewelry</span>
-            </h2>
-          </div>
-          <Link href="/shop">
-            <button className="group flex items-center gap-3 text-zinc-500 hover:text-white transition-colors">
-              <span className="text-[10px] font-black uppercase tracking-widest">All Items</span>
-              <div className="p-2 rounded-full border border-zinc-800 group-hover:border-white group-hover:bg-white transition-all">
-                <ArrowUpRight size={12} className="group-hover:text-black transition-colors" />
-              </div>
-            </button>
-          </Link>
-        </div>
-
-        {loading ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-5 animate-pulse">
-            {[1, 2, 3].map(i => <div key={i} className="aspect-square bg-zinc-900/50 rounded-[2rem]" />)}
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
-            {products.slice(0, 3).map((product, idx) => (
-              <motion.div key={product.id || product.name}
-                initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }} transition={{ delay: idx * 0.1 }}
-                className="group relative bg-zinc-950 border border-white/5 rounded-[2rem] p-3 hover:border-orange-500/20 transition-all"
-              >
-                <div className="absolute top-5 left-5 z-10">
-                  <span className="bg-black/70 backdrop-blur-md text-orange-400 border border-orange-500/20 text-[8px] font-black px-2 py-1 rounded-lg uppercase tracking-tight">
-                    {product.category || "Item"}
-                  </span>
-                </div>
-                <div className="relative aspect-square overflow-hidden rounded-[1.5rem] mb-4 bg-zinc-900">
-                  <img src={product.image || "/images/placeholder.jpg"} alt={product.name}
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
-                </div>
-                <div className="px-1 pb-1 space-y-1">
-                  <h3 className="text-sm font-black text-white uppercase tracking-tight truncate">{product.name}</h3>
-                  <div className="flex justify-between items-center">
-                    <p className="text-zinc-600 text-[9px] uppercase font-bold tracking-widest">In-Store Only</p>
-                    <span className="text-orange-400 font-black text-sm">₱{(Number(product.selling_price) || 0).toLocaleString()}</span>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        )}
-      </div>
-    </section>
-  )
-}
-
 // ---------- BOOK CTA BANNER ----------
 const BookCTA = () => (
   <section className="py-24 md:py-32 bg-black border-t border-white/5 px-6 overflow-hidden relative">
@@ -804,7 +717,7 @@ const BookCTA = () => (
         <p className="text-[10px] font-black uppercase tracking-[0.5em] text-zinc-600 mb-4">Ready to commit?</p>
         <h2 className="text-5xl md:text-7xl font-black uppercase tracking-[-0.04em] leading-[0.9] italic">
           <span className="text-white">Book Your</span><br />
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-orange-400 to-yellow-300">Session</span>
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-yellow-400">Session</span>
         </h2>
         <p className="text-zinc-500 text-sm mt-6 max-w-md mx-auto font-bold uppercase tracking-widest text-[10px]">
           Custom tattoos, body piercings, and premium aftercare. Walk-ins welcome.
